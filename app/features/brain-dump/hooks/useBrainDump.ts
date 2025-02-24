@@ -2,9 +2,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
-import { StoryCard } from "@/components/story-card"
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
   const [tasks, setTasks] = useState<string>("")
