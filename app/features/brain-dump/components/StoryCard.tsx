@@ -70,8 +70,14 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    value={editedDuration}
-                    onChange={(e) => onDurationChange(story.title, parseInt(e.target.value, 10))}
+                    value={editedDuration || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const duration = parseInt(value, 10);
+                      if (!isNaN(duration) && duration > 0) {
+                        onDurationChange(story.title, duration);
+                      }
+                    }}
                     className="w-20 h-7 text-sm"
                     min="1"
                   />

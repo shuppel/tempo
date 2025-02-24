@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
+import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
+import { StoryCard } from "@/components/story-card"
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
   const [tasks, setTasks] = useState<string>("")
@@ -170,37 +173,88 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       console.log('Sending stories to create session:', JSON.stringify(updatedStories, null, 2))
 
       const startTime = new Date().toISOString()
-      setSessionCreationProgress(50)
+      setSessionCreationProgress(20)
+      setSessionCreationStep("Preparing session plan...")
       
-      const result = await brainDumpService.createSession(updatedStories, startTime)
-      
-      setSessionCreationProgress(100)
-      setSessionCreationStep("Session created successfully!")
-      
-      // Use window.location for a full page navigation to avoid hydration issues
-      if (result?.sessionUrl) {
-        window.location.href = result.sessionUrl
+      try {
+        // Update the UI to show retry attempts
+        const handleRetryAttempt = (attempt: number, maxRetries: number) => {
+          setSessionCreationStep(`Attempt ${attempt}/${maxRetries}: Optimizing session plan...`)
+          setSessionCreationProgress(20 + Math.min(60, attempt * 15)) // Progress increases with each attempt
+        }
+        
+        // Listen for console logs from brainDumpService to update UI
+        const originalConsoleLog = console.log
+        console.log = (...args) => {
+          originalConsoleLog(...args)
+          const message = args.join(' ')
+          if (message.includes('Attempting to create session (attempt ')) {
+            const match = message.match(/attempt (\d+)\/(\d+)/)
+            if (match && match.length >= 3) {
+              const attempt = parseInt(match[1])
+              const maxRetries = parseInt(match[2])
+              handleRetryAttempt(attempt, maxRetries)
+            }
+          }
+        }
+        
+        const result = await brainDumpService.createSession(updatedStories, startTime)
+        
+        // Restore original console.log
+        console.log = originalConsoleLog
+        
+        setSessionCreationProgress(100)
+        setSessionCreationStep("Session created successfully!")
+        
+        // Use window.location for a full page navigation to avoid hydration issues
+        if (result?.sessionUrl) {
+          window.location.href = result.sessionUrl
+        }
+      } catch (error) {
+        console.error("Failed to create session:", error)
+        
+        let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+        let errorDetails = error instanceof Error ? error.cause : error
+        
+        // Provide more helpful error messages for specific error types
+        if (error instanceof Error && error.message.includes('Too much work time without a substantial break')) {
+          errorMessage = 'Session planning failed: Work blocks are too long without breaks'
+          if (error.cause && typeof error.cause === 'object') {
+            const details = error.cause as any
+            if (details.details?.block) {
+              errorMessage += `\n\nThe story "${details.details.block}" has ${details.details.consecutiveWorkTime} minutes of work without a break (maximum is ${details.details.maxAllowed} minutes).`
+              errorMessage += '\n\nTry reducing the duration of some tasks or splitting them into smaller tasks.'
+            }
+          }
+        }
+
+        setSessionCreationError({
+          message: errorMessage,
+          code: "SESSION_ERROR",
+          details: errorDetails
+        })
+        
+        setSessionCreationProgress(0)
+        setSessionCreationStep("Error creating session")
+      } finally {
+        setTimeout(() => {
+          setIsCreatingSession(false)
+          setSessionCreationProgress(0)
+          setSessionCreationStep("")
+        }, 1000)
       }
     } catch (error) {
-      console.error("Failed to create session:", error)
+      console.error("Error preparing session data:", error)
       
-      let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
-      let errorDetails = error instanceof Error ? error.cause : error
-      
-      // If the error has a structured response
-      if (error instanceof Error && error.cause && typeof error.cause === 'object') {
-        errorDetails = error.cause
-      }
-
       setSessionCreationError({
-        message: errorMessage,
-        code: "SESSION_ERROR",
-        details: errorDetails
+        message: "Failed to prepare session data",
+        code: "PREPARATION_ERROR",
+        details: error
       })
       
       setSessionCreationProgress(0)
-      setSessionCreationStep("Error creating session")
-    } finally {
+      setSessionCreationStep("Error preparing session")
+      
       setTimeout(() => {
         setIsCreatingSession(false)
         setSessionCreationProgress(0)

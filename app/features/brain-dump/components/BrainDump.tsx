@@ -16,6 +16,7 @@ import { CircularProgress } from "@/components/ui/circular-progress"
 import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
 import { StoryCard } from "./StoryCard"
 import { useBrainDump } from "../hooks/useBrainDump"
+import { ProcessedStories } from "./ProcessedStories"
 import type { ProcessedStory } from "@/lib/types"
 
 interface BrainDumpProps {
@@ -81,10 +82,22 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
               )}
               <div className="space-y-2 flex-1">
                 <AlertTitle>
-                  {error.code === 'PARSING_ERROR' ? 'AI Processing Error' : 'Error Processing Tasks'}
+                  {error.code === 'PARSING_ERROR' ? 'AI Processing Error' : 
+                   error.code === 'SESSION_ERROR' ? 'Session Planning Error' : 
+                   'Error Processing Tasks'}
                 </AlertTitle>
                 <AlertDescription>
-                  <p>{error.message}</p>
+                  <p className="whitespace-pre-line">{error.message}</p>
+                  {error.code === 'SESSION_ERROR' && error.message.includes('Work blocks are too long') && (
+                    <div className="mt-2 p-2 bg-muted/50 rounded-md">
+                      <p className="font-medium text-sm">Suggestions:</p>
+                      <ul className="mt-1 space-y-1 text-sm">
+                        <li>• Try reducing the duration of tasks in the affected story</li>
+                        <li>• Consider splitting long tasks into smaller ones</li>
+                        <li>• Distribute tasks more evenly across stories</li>
+                      </ul>
+                    </div>
+                  )}
                   {error.details && (
                     <div className="mt-2">
                       <div className="text-sm font-medium mb-1">Technical Details:</div>
@@ -200,7 +213,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
                   {isCreatingSession ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      {processingStep || "Creating..."}
                     </>
                   ) : (
                     'Create Session'
@@ -209,16 +222,11 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
               </div>
             </div>
             
-            <div className="space-y-4">
-              {processedStories.map((story, index) => (
-                <StoryCard 
-                  key={index}
-                  story={story}
-                  editedDuration={editedDurations[story.title] || story.estimatedDuration}
-                  onDurationChange={handleDurationChange}
-                />
-              ))}
-            </div>
+            <ProcessedStories 
+              stories={processedStories}
+              editedDurations={editedDurations}
+              onDurationChange={handleDurationChange}
+            />
           </div>
         )}
       </CardContent>
