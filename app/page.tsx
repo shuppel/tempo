@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { BrainDump } from "@/components/brain-dump"
+import { BrainDump } from "@/app/features/brain-dump"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface Stats {

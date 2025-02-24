@@ -1,0 +1,227 @@
+// /features/brain-dump/components/BrainDump.tsx
+"use client"
+
+import React from "react"
+import { 
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { CircularProgress } from "@/components/ui/circular-progress"
+import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
+import { StoryCard } from "./StoryCard"
+import { useBrainDump } from "../hooks/useBrainDump"
+import type { ProcessedStory } from "@/lib/types"
+
+interface BrainDumpProps {
+  onTasksProcessed?: (stories: ProcessedStory[]) => void
+}
+
+export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
+  const {
+    tasks,
+    setTasks,
+    processedStories,
+    editedDurations,
+    isInputLocked,
+    isProcessing,
+    isCreatingSession,
+    processingStep,
+    processingProgress,
+    error,
+    processTasks,
+    handleCreateSession,
+    handleDurationChange,
+    handleRetry
+  } = useBrainDump(onTasksProcessed)
+  
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <CardTitle>Brain Dump</CardTitle>
+            <CardDescription>
+              Enter your tasks, one per line. Just brain dump everything you need to do...
+            </CardDescription>
+          </div>
+          <div className="w-[48px] shrink-0">
+            {isProcessing || isCreatingSession ? (
+              <div className="relative">
+                <CircularProgress 
+                  progress={processingProgress} 
+                  size={48}
+                  className="bg-background rounded-full shadow-sm"
+                />
+                <div className="absolute top-full mt-1 right-0 text-xs text-muted-foreground whitespace-nowrap">
+                  {processingStep}
+                </div>
+              </div>
+            ) : (
+              <div className="w-[48px] h-[48px] flex items-center justify-center">
+                {isInputLocked && <Lock className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert variant="destructive" className="animate-in fade-in-50">
+            <div className="flex items-start gap-2">
+              {error.code === 'PARSING_ERROR' ? (
+                <Bug className="h-4 w-4 mt-1" />
+              ) : (
+                <XCircle className="h-4 w-4 mt-1" />
+              )}
+              <div className="space-y-2 flex-1">
+                <AlertTitle>
+                  {error.code === 'PARSING_ERROR' ? 'AI Processing Error' : 'Error Processing Tasks'}
+                </AlertTitle>
+                <AlertDescription>
+                  <p>{error.message}</p>
+                  {error.details && (
+                    <div className="mt-2">
+                      <div className="text-sm font-medium mb-1">Technical Details:</div>
+                      <pre className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32">
+                        {typeof error.details === 'string' 
+                          ? error.details 
+                          : JSON.stringify(error.details, null, 2)
+                        }
+                      </pre>
+                    </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-4"
+                    onClick={handleRetry}
+                  >
+                    Try Again
+                  </Button>
+                </AlertDescription>
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Input Format Tips</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-2 space-y-1 text-sm">
+              <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
+              <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
+              <li>• Mark priorities: Add "FROG" for high-priority tasks</li>
+              <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
+              <li>• Group related tasks: Use similar prefixes for related items</li>
+              <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
+            </ul>
+            <div className="mt-2 text-sm font-medium">Examples:</div>
+            <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
+              Create landing page mockup for client FROG{"\n"}
+              Review Q1 metrics report - 30 mins{"\n"}
+              Update team documentation - flexible{"\n"}
+              Complete project proposal by EOD{"\n"}
+              Daily standup and team sync
+            </pre>
+          </AlertDescription>
+        </Alert>
+
+        <div className="relative">
+          <Textarea
+            className={`min-h-[200px] font-mono ${isInputLocked ? 'opacity-50' : ''}`}
+            placeholder="Task 1&#10;Task 2 FROG&#10;Task 3 - flexible&#10;Task 4 - due by 5pm"
+            value={tasks}
+            onChange={(e) => !isInputLocked && setTasks(e.target.value)}
+            disabled={isInputLocked}
+          />
+          {isInputLocked && (
+            <div className="absolute inset-0 bg-background/5 backdrop-blur-[1px] rounded-md flex items-center justify-center">
+              <div className="bg-background/90 px-4 py-2 rounded-md shadow-sm flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                <span className="text-sm font-medium">Input locked</span>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-end gap-2">
+          {processedStories.length > 0 && (
+            <Button 
+              onClick={handleRetry}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Unlock className="h-4 w-4" />
+              Clear & Unlock
+            </Button>
+          )}
+          <Button 
+            onClick={() => processTasks(false)}
+            disabled={!tasks.trim() || isProcessing || isInputLocked}
+            className="w-32"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing
+              </>
+            ) : isInputLocked ? (
+              <>
+                <Lock className="mr-2 h-4 w-4" />
+                Locked
+              </>
+            ) : (
+              'Process Tasks'
+            )}
+          </Button>
+        </div>
+
+        {processedStories.length > 0 && (
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">Processed Stories</h3>
+              <div className="flex gap-2">
+                <Button onClick={handleRetry} variant="outline" size="sm">
+                  Try Again
+                </Button>
+                <Button 
+                  onClick={handleCreateSession} 
+                  size="sm"
+                  disabled={isCreatingSession}
+                >
+                  {isCreatingSession ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Session'
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {processedStories.map((story, index) => (
+                <StoryCard 
+                  key={index}
+                  story={story}
+                  editedDuration={editedDurations[story.title] || story.estimatedDuration}
+                  onDurationChange={handleDurationChange}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
