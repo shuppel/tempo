@@ -1,6 +1,6 @@
 // /features/brain-dump/hooks/useBrainDump.ts
 import { useState, useEffect, useCallback } from "react"
-import { brainDumpService } from "../services/brain-dump-services"
+import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {

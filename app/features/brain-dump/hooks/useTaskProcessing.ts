@@ -1,6 +1,6 @@
 // /features/brain-dump/hooks/useTaskProcessing.ts
 import { useState } from "react"
-import { brainDumpService } from "../services/brain-dump-services"
+import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory } from "@/lib/types"
 
 export function useTaskProcessing() {
