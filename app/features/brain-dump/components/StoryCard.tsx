@@ -2,9 +2,10 @@
 import React from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Clock } from "lucide-react"
+import { Clock, Info } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
+
 
 interface StoryCardProps {
   story: ProcessedStory
@@ -20,7 +21,7 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
       <div className="ml-6 mt-1 text-xs text-muted-foreground">
         {task.suggestedBreaks.map((breakInfo, i) => (
           <div key={i} className="flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
+            <Info className="h-3 w-3" />
             <span>
               After {breakInfo.after}m: {breakInfo.duration}m break
               {breakInfo.reason && ` - ${breakInfo.reason}`}
