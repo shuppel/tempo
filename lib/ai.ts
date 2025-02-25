@@ -1,5 +1,6 @@
-import type { Task, TaskGroup, ProcessedTask } from "./types"
+import type { Task, TaskGroup, ProcessedTask, DifficultyLevel } from "./types"
 import { findClosestFibonacci } from "./utils"
+import { calculateTotalDifficulty } from "./utils"
 
 const DURATION_RULES = {
   SPLIT_THRESHOLD: 60,
@@ -38,10 +39,22 @@ export async function refineTask(taskInput: string): Promise<Partial<Task>> {
 
   const refined = JSON.parse(data.content);
   const duration = refined.duration || 0;
+  
+  // Convert numeric difficulty to DifficultyLevel
+  let difficultyLevel: DifficultyLevel = "medium";
+  const numericDifficulty = refined.difficulty ? Number(refined.difficulty) : 0;
+  
+  if (numericDifficulty >= 75) {
+    difficultyLevel = "high";
+  } else if (numericDifficulty >= 30) {
+    difficultyLevel = "medium";
+  } else {
+    difficultyLevel = "low";
+  }
 
   return {
     ...refined,
-    difficulty: findClosestFibonacci(refined.difficulty),
+    difficulty: difficultyLevel,
     needsSplitting: duration > DURATION_RULES.SPLIT_THRESHOLD,
     duration: Math.max(duration, DURATION_RULES.MIN_DURATION) // Ensure minimum duration
   }
@@ -74,17 +87,16 @@ export async function organizeTaskGroups(tasks: Task[]): Promise<TaskGroup[]> {
 
   const groups = JSON.parse(data.content);
   
-  // Calculate total duration and difficulty for each group
-  return groups.map((group: AITaskGroup) => ({
-    id: group.id,
-    tasks: group.tasks,
-    totalDifficulty: tasks
-      .filter(task => group.tasks.includes(task.id))
-      .reduce((sum, task) => sum + task.difficulty, 0),
-    completed: false,
-    estimatedDuration: group.estimatedDuration || tasks
-      .filter(task => group.tasks.includes(task.id))
-      .reduce((sum, task) => sum + task.duration, 0)
-  }));
+  // Calculate total difficulty and duration for each group
+  return groups.map((group: AITaskGroup) => {
+    const groupTasks = tasks.filter(task => group.tasks.includes(task.id));
+    return {
+      id: group.id,
+      tasks: group.tasks,
+      totalDifficulty: calculateTotalDifficulty(groupTasks),
+      completed: false,
+      estimatedDuration: group.estimatedDuration || groupTasks.reduce((sum, task) => sum + task.duration, 0)
+    };
+  });
 }
 

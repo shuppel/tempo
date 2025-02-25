@@ -1,5 +1,5 @@
 // lib/task-manager.ts
-import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType } from "./types"
+import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType, DifficultyLevel } from "./types"
 
 const DURATION_RULES = {
   FIRST_SESSION: { min: 20, max: 30 },
@@ -21,6 +21,17 @@ const DIFFICULTY_WEIGHTS = {
   LOW: 25,
   LEARNING: 13,
 } as const
+
+// Convert DifficultyLevel to numeric values for calculations
+const DIFFICULTY_NUMERIC = {
+  "low": 25,
+  "medium": 50,
+  "high": 75
+} as const
+
+function getDifficultyValue(difficulty: DifficultyLevel): number {
+  return DIFFICULTY_NUMERIC[difficulty] || DIFFICULTY_NUMERIC.medium;
+}
 
 async function getTaskIcon(taskTitle: string): Promise<string> {
   // Call AI to get appropriate icon suggestion
@@ -102,7 +113,7 @@ async function analyzeAndGroupTasks(tasks: Task[]): Promise<{ title: string, tas
     
     // Then sort by difficulty within each priority level
     if (a.isFrog === b.isFrog) {
-      return b.difficulty - a.difficulty
+      return getDifficultyValue(b.difficulty) - getDifficultyValue(a.difficulty)
     }
     
     return 0
@@ -346,11 +357,14 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
 export function organizeTasks(tasks: Task[]): Task[] {
   return tasks.sort((a, b) => {
     // Prioritize physical and high-difficulty tasks
-    if (a.difficulty >= DIFFICULTY_WEIGHTS.PHYSICAL && b.difficulty < DIFFICULTY_WEIGHTS.PHYSICAL) return -1
-    if (b.difficulty >= DIFFICULTY_WEIGHTS.PHYSICAL && a.difficulty < DIFFICULTY_WEIGHTS.PHYSICAL) return 1
+    const aDiffValue = getDifficultyValue(a.difficulty);
+    const bDiffValue = getDifficultyValue(b.difficulty);
+    
+    if (aDiffValue >= DIFFICULTY_WEIGHTS.PHYSICAL && bDiffValue < DIFFICULTY_WEIGHTS.PHYSICAL) return -1
+    if (bDiffValue >= DIFFICULTY_WEIGHTS.PHYSICAL && aDiffValue < DIFFICULTY_WEIGHTS.PHYSICAL) return 1
     
     // Then sort by difficulty
-    return b.difficulty - a.difficulty
+    return bDiffValue - aDiffValue
   })
 }
 

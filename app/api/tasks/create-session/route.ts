@@ -213,6 +213,21 @@ function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): 
 
 // Update findOriginalStory function to use story mapping if available
 function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: any[]): any {
+  // Special case for "Break" blocks which don't correspond to actual stories
+  if (storyTitle === "Break" || storyTitle.toLowerCase().includes("break")) {
+    console.log(`Creating dummy story for special block: ${storyTitle}`);
+    // Return a dummy story object with minimal required properties
+    return {
+      title: storyTitle,
+      estimatedDuration: 15, // Default duration for breaks
+      tasks: [],
+      type: "flexible",
+      projectType: "System",
+      category: "Break",
+      summary: "Scheduled break time"
+    };
+  }
+
   // First check if we have mapping data available and try to use it
   if (storyMapping && storyMapping.length > 0) {
     // Find this title in the mapping
@@ -301,8 +316,14 @@ function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], s
     }
   })
 
+  // Filter out Break blocks before validation
+  const filteredScheduledTasks = scheduledTasks.filter(task => {
+    // Skip "Break" tasks in validation
+    return !task.title.includes("Break");
+  });
+
   // Track scheduled tasks and their relationships
-  scheduledTasks.forEach(task => {
+  filteredScheduledTasks.forEach(task => {
     scheduledTaskMap.set(task.title.toLowerCase(), task)
     
     // Handle split tasks
@@ -330,7 +351,7 @@ function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], s
   return {
     isMissingTasks: missingTasks.length > 0,
     missingTasks,
-    scheduledCount: scheduledTasks.length,
+    scheduledCount: filteredScheduledTasks.length,
     originalCount: originalTasks.length
   }
 }
@@ -508,6 +529,7 @@ Rules:
 5. Add a short break (5 mins) between tasks within a story
 6. Add a longer break (15 mins) between story blocks
 7. Add appropriate breaks to prevent working more than ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes continuously
+8. IMPORTANT: Keep your response as concise as possible while maintaining accuracy
 
 Session Parameter Details:
 - Start Time: ${startTime}
@@ -552,8 +574,12 @@ Respond with a JSON session plan that follows this exact structure:
   ]
 }
 
-Remember these critical rules:
-- NEVER exceed ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes of continuous work time without a substantial break
+CRITICAL RULES:
+- Keep summaries extremely brief - just a few words is sufficient
+- Use short emoji icons
+- ENSURE your complete response fits within the available tokens
+- NEVER omit or truncate any part of the JSON structure
+- Produce valid, complete JSON with no trailing commas
 - NEVER change the story or task order provided
 - Preserve all task properties exactly as provided
 - Use ISO date strings for all times
@@ -580,10 +606,46 @@ Remember these critical rules:
         try {
           // Try to extract JSON if the response contains multiple objects
           const jsonMatch = messageContent.text.match(/\{[\s\S]*\}/)
-          const jsonText = jsonMatch ? jsonMatch[0] : messageContent.text
-          parsedData = JSON.parse(jsonText)
+          let jsonText = jsonMatch ? jsonMatch[0] : messageContent.text
+          
+          // Check if the JSON appears to be truncated
+          if (jsonText.trim().endsWith('":') || 
+              jsonText.trim().endsWith(',') || 
+              !jsonText.trim().endsWith('}')) {
+            console.warn('JSON appears to be truncated or malformed')
+            
+            // Try to reconstruct if it's a known response pattern by checking the structure
+            if (jsonText.includes('"storyBlocks"') && jsonText.includes('"summary"')) {
+              // This is likely our expected format but truncated
+              console.warn('Attempting to reconstruct truncated JSON with the expected structure')
+              
+              // Check if we're missing the final closing brace
+              if (!jsonText.trim().endsWith('}') && jsonText.split('{').length > jsonText.split('}').length) {
+                jsonText = jsonText + '}}' // Add closing braces for potentially nested unclosed objects
+              }
+            } else {
+              throw new Error('JSON structure is too damaged to repair automatically')
+            }
+          }
+          
+          // Rest of the parsing logic remains the same
+          try {
+            parsedData = JSON.parse(jsonText)
+          } catch (initialParseError) {
+            // If standard parsing fails, try a more lenient approach
+            console.warn('Standard JSON parsing failed, attempting repair:', initialParseError)
+            
+            // Check if we can fix common truncation issues
+            const fixedJson = jsonText
+              .replace(/,\s*}$/, '}')         // Fix trailing commas
+              .replace(/,\s*]$/, ']')         // Fix trailing commas in arrays
+              .replace(/:\s*}/, ':null}')     // Fix missing values
+              .replace(/:\s*]/, ':null]')     // Fix missing values in arrays
+            
+            parsedData = JSON.parse(fixedJson)
+          }
         } catch (parseError) {
-          console.error('JSON parsing failed:', parseError)
+          console.error('JSON parsing failed after repair attempts:', parseError)
           throw new SessionCreationError(
             'Failed to parse AI response as JSON',
             'JSON_PARSE_ERROR',
@@ -592,6 +654,41 @@ Remember these critical rules:
               response: messageContent.text
             }
           )
+        }
+
+        // Validate that the parsed data has all required fields
+        if (!parsedData.summary || !parsedData.storyBlocks || !Array.isArray(parsedData.storyBlocks)) {
+          console.error('Parsed data is missing required fields');
+          throw new SessionCreationError(
+            'AI response is missing required data structure',
+            'INVALID_DATA_STRUCTURE',
+            {
+              parsedData,
+              missingFields: [
+                !parsedData.summary ? 'summary' : null,
+                !parsedData.storyBlocks ? 'storyBlocks' : null,
+                parsedData.storyBlocks && !Array.isArray(parsedData.storyBlocks) ? 'storyBlocks (not an array)' : null
+              ].filter(Boolean)
+            }
+          );
+        }
+
+        // Ensure each story block has the required fields
+        for (let i = 0; i < parsedData.storyBlocks.length; i++) {
+          const block = parsedData.storyBlocks[i];
+          if (!block.title || !block.timeBoxes || !Array.isArray(block.timeBoxes)) {
+            console.error(`Story block at index ${i} is missing required fields`);
+            
+            // Try to repair the block with minimal data
+            if (!block.title) block.title = `Story Block ${i + 1}`;
+            if (!block.summary) block.summary = `Tasks for story block ${i + 1}`;
+            if (!block.icon) block.icon = '📋';
+            if (!block.timeBoxes || !Array.isArray(block.timeBoxes)) {
+              console.warn(`Reconstructing missing timeBoxes for story block ${i}`);
+              block.timeBoxes = [];
+            }
+            block.totalDuration = block.timeBoxes.reduce((sum: number, box: any) => sum + (box.duration || 0), 0);
+          }
         }
 
         // Transform fields to ensure consistent property names
@@ -705,10 +802,13 @@ Remember these critical rules:
             }
 
             // Update the story's estimated duration to match the actual work time
-            originalStory.estimatedDuration = workDuration
+            // For break blocks, the workDuration might be 0, so use totalDuration instead
+            originalStory.estimatedDuration = workDuration || totalDuration
 
             // Validate total duration includes both work and breaks
-            if (totalDuration !== workDuration + breakDuration) {
+            // Special handling for pure break blocks which might have 0 work duration
+            const expectedTotal = workDuration + breakDuration
+            if (totalDuration !== expectedTotal && !(workDuration === 0 && totalDuration === breakDuration)) {
               throw new SessionCreationError(
                 'Story block duration calculation error',
                 'BLOCK_DURATION_ERROR',
@@ -791,11 +891,17 @@ Remember these critical rules:
         }
         
         // Extract all scheduled task titles for validation
-        const allScheduledTasks: TimeBoxTask[] = parsedData.storyBlocks.flatMap((block: StoryBlock) => 
-          block.timeBoxes
+        const allScheduledTasks: TimeBoxTask[] = parsedData.storyBlocks.flatMap((block: StoryBlock) => {
+          // Skip "Break" blocks entirely during task extraction
+          if (block.title === "Break" || block.title.toLowerCase().includes("break")) {
+            console.log(`Skipping Break block "${block.title}" during task validation`);
+            return [];
+          }
+          
+          return block.timeBoxes
             .filter((box: TimeBox) => box.type === 'work')
-            .flatMap((box: TimeBox) => box.tasks || [])
-        )
+            .flatMap((box: TimeBox) => box.tasks || []);
+        })
         
         // Validate that all original tasks are included
         const validationResult = validateAllTasksIncluded(

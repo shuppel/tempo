@@ -227,7 +227,7 @@ const ALLOWED_TASK_CATEGORIES: Exclude<TaskCategory, 'break'>[] = ['focus', 'lea
 const ProcessedTaskSchema = z.object({
   id: z.string(),
   title: z.string(),
-  duration: z.number(),
+  duration: z.number().min(DURATION_RULES.MIN_DURATION).default(DURATION_RULES.MIN_DURATION),
   isFrog: z.boolean(),
   taskCategory: z.enum(ALLOWED_TASK_CATEGORIES as [string, ...string[]]),
   projectType: z.string().optional(),

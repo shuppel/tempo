@@ -47,18 +47,19 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     handleRetry
   } = useBrainDump(onTasksProcessed)
   
-  const placeholderText = `Create landing page mockup for client FROG
-Review Q1 metrics report - 30 mins
-Update team documentation - flexible
-Complete project proposal by EOD
-Daily standup and team sync`
+  const placeholderText = `Update client dashboard design - high priority FROG
+Send weekly progress report to team - 20 mins
+Research API integration options - 1 hour technical
+Schedule quarterly planning meeting - by Thursday
+Update project documentation - flexible timing
+Finalize product feature specifications - due tomorrow`
 
   return (
     <Card className="border-2">
       <CardHeader className="space-y-3">
-        <CardTitle className="text-3xl">Brain Dump</CardTitle>
+        <CardTitle className="text-3xl">Task Input</CardTitle>
         <CardDescription className="text-body text-muted-foreground">
-          Enter your tasks, one per line. Just brain dump everything you need to do...
+          Enter your tasks below, one per line. Our AI analyzes patterns and context to create optimized focus sessions tailored to your workflow.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -74,17 +75,17 @@ Daily standup and team sync`
           <AccordionItem value="format-tips" className="border-none">
             <AccordionTrigger className="flex justify-end gap-2 py-2 hover:no-underline">
               <Info className="h-5 w-5 text-muted-foreground" />
-              <span className="font-accent tracking-wide text-base">Input Format Tips</span>
+              <span className="font-accent tracking-wide text-base">Input Optimization Tips</span>
             </AccordionTrigger>
             <AccordionContent className="pt-4 pb-2">
               <div className="space-y-4 text-right">
                 <div className="space-y-2 text-body">
-                  <p>• Start with action verbs: "Create", "Review", "Update", etc.</p>
-                  <p>• Add time estimates (optional): "2 hours of work on Project X"</p>
-                  <p>• Mark priorities: Add <span className="font-medium text-primary">FROG</span> to indicate high-priority tasks</p>
-                  <p>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</p>
-                  <p>• Group related tasks: Use similar prefixes for related items</p>
-                  <p>• Be specific: "Review Q1 metrics report" vs "Review report"</p>
+                  <p>• Use specific action verbs: "Analyze," "Develop," "Finalize," etc.</p>
+                  <p>• Mark high-priority tasks with <span className="font-medium text-primary">FROG</span> for immediate attention 🐸</p>
+                  <p>• Include duration estimates: "45 min research" or "2-hour development session"</p>
+                  <p>• Specify deadlines for time-sensitive items: "Due Friday" or "EOD deadline"</p>
+                  <p>• Group related tasks with similar phrasing for better categorization</p>
+                  <p>• Add context details to improve task analysis and organization</p>
                 </div>
               </div>
             </AccordionContent>
@@ -162,7 +163,7 @@ Daily standup and team sync`
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing
+                Analyzing...
               </>
             ) : isInputLocked ? (
               <>
@@ -170,7 +171,7 @@ Daily standup and team sync`
                 Locked
               </>
             ) : (
-              'Process Tasks'
+              'Analyze Tasks'
             )}
           </Button>
         </div>
@@ -178,10 +179,10 @@ Daily standup and team sync`
         {processedStories.length > 0 && (
           <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading">Processed Stories</h3>
+              <h3 className="font-heading">Optimized Work Blocks</h3>
               <div className="flex gap-2">
                 <Button onClick={handleRetry} variant="outline" size="sm">
-                  Try Again
+                  Start Over
                 </Button>
                 <Button 
                   onClick={handleCreateSession} 
@@ -191,10 +192,10 @@ Daily standup and team sync`
                   {isCreatingSession ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {processingStep || "Creating..."}
+                      {processingStep || "Generating..."}
                     </>
                   ) : (
-                    'Create Session'
+                    'Create Work Session'
                   )}
                 </Button>
               </div>

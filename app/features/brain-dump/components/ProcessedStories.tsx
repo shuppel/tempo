@@ -37,17 +37,17 @@ export const ProcessedStories = ({
       {(hasLongStories || hasLongTasks) && (
         <Alert className="bg-amber-50 border-amber-200">
           <InfoIcon className="h-4 w-4" />
-          <AlertTitle>Session Planning Tips</AlertTitle>
+          <AlertTitle>Productivity Optimization</AlertTitle>
           <AlertDescription>
-            <p className="text-sm">Some tasks or stories have long durations which may cause session planning issues:</p>
+            <p className="text-sm">Duration adjustments recommended to optimize focus and efficiency:</p>
             <ul className="mt-2 text-xs space-y-1">
               {hasLongStories && (
-                <li>• Stories with more than 90 minutes of total work time need sufficient breaks</li>
+                <li>• Work blocks exceeding 90 minutes require strategic breaks to maintain cognitive performance</li>
               )}
               {hasLongTasks && (
-                <li>• Tasks longer than 60 minutes may need to be broken into smaller parts</li>
+                <li>• Tasks over 60 minutes benefit from division into focused, manageable segments</li>
               )}
-              <li>• Consider reducing durations or splitting tasks before creating the session</li>
+              <li>• Consider refining durations or restructuring complex tasks for optimal session planning</li>
             </ul>
           </AlertDescription>
         </Alert>
@@ -55,10 +55,10 @@ export const ProcessedStories = ({
       
       {onRetry && onCreateSession && (
         <div className="flex items-center justify-between">
-          <h3 className="font-medium">Processed Stories</h3>
+          <h3 className="font-medium">Focus Block Analysis</h3>
           <div className="flex gap-2">
             <Button onClick={onRetry} variant="outline" size="sm">
-              Try Again
+              Reset Analysis
             </Button>
             <Button 
               onClick={onCreateSession} 
@@ -68,10 +68,10 @@ export const ProcessedStories = ({
               {isCreatingSession ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  Generating...
                 </>
               ) : (
-                'Create Session'
+                'Schedule Work Session'
               )}
             </Button>
           </div>

@@ -11,22 +11,43 @@ export interface SplitInfo {
 // Create central types as a single source of truth
 export type TaskType = "focus" | "learning" | "review" | "break" | "research"
 export type TaskCategory = TaskType
-export type TaskStatus = "todo" | "completed" | "pending" | "in-progress"
+
+// Consolidated status types
+export type BaseStatus = "todo" | "completed" | "in-progress"
+export type TaskStatus = BaseStatus | "pending" // TaskStatus extends base Status with additional states
+export type TimeBoxStatus = BaseStatus // TimeBox uses base Status
+export type SessionStatus = "planned" | "in-progress" | "completed" // Session has a special 'planned' state
+
 export type StoryType = "timeboxed" | "flexible" | "milestone"
 export type TimeBoxType = "work" | "short-break" | "long-break" | "debrief"
+
+// Consolidated difficulty types
 export type DifficultyLevel = "low" | "medium" | "high"
 export type TaskComplexity = DifficultyLevel
+
+// Badge configurations
+export interface BadgeConfig {
+  color: string
+  label: string
+  icon?: string
+}
+
+export const DIFFICULTY_BADGES: Record<DifficultyLevel, BadgeConfig> = {
+  low: { color: 'bg-green-100 text-green-800', label: 'Easy' },
+  medium: { color: 'bg-yellow-100 text-yellow-800', label: 'Medium' },
+  high: { color: 'bg-red-100 text-red-800', label: 'Hard' }
+} as const
 
 export interface Task {
   id: string
   title: string
   description: string
   duration: number
-  difficulty: number
-  taskCategory: TaskCategory  // Renamed from type
+  difficulty: DifficultyLevel
+  taskCategory: TaskCategory
   projectType?: string
   isFrog: boolean
-  status: "todo" | "completed"
+  status: BaseStatus
   children: Task[]
   refined: boolean
   needsSplitting?: boolean
@@ -81,12 +102,12 @@ export interface TimeBoxTask {
   title: string
   duration: number
   isFrog?: boolean
-  taskCategory?: Exclude<TaskCategory, "break">  // Renamed from type
+  taskCategory?: Exclude<TaskCategory, "break">
   projectType?: string
   isFlexible?: boolean
   splitInfo?: SplitInfo
   suggestedBreaks?: TaskBreak[]
-  status?: TaskStatus
+  status?: TimeBoxStatus
 }
 
 export interface TimeBox {
@@ -96,7 +117,7 @@ export interface TimeBox {
   estimatedStartTime?: string
   estimatedEndTime?: string
   icon?: string
-  status?: TaskStatus
+  status?: TimeBoxStatus
 }
 
 export interface StoryBlock {
@@ -136,26 +157,12 @@ export interface SessionSummary {
   totalDuration: number
 }
 
-export interface SessionStatus {
-  isActive: boolean
-  isPaused: boolean
-  currentTimeBox?: TimeBox
-  currentTaskIndex: number
-  elapsedTime: number
-  remainingTime: number
-  startTime?: string
-  pausedAt?: string
-  totalPausedTime: number
-  estimatedEndTime?: string
-}
-
 export interface Session {
-  summary: SessionSummary
-  storyBlocks: StoryBlock[]
   date: string
-  status: SessionState
-  currentStoryIndex?: number
-  currentTimeBoxIndex?: number
+  storyBlocks: StoryBlock[]
+  status: SessionStatus
+  totalDuration: number
+  lastUpdated?: string
 }
 
 /**
@@ -169,10 +176,8 @@ export interface APIProcessedTask {
   title: string;
   duration: number;
   isFrog: boolean;
-  // Allow either of these field names
   taskCategory?: Exclude<TaskCategory, "break">;
   type?: string;
-  // Allow either of these field names
   projectType?: string;
   project?: string;
   isFlexible: boolean;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -10,9 +10,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Clock, Calendar, ChevronDown, CheckCircle2, Brain, Timer, AlertCircle } from "lucide-react"
-import type { TimeBox } from "@/lib/types"
-import { sessionStorage, type StoredSession } from "@/lib/sessionStorage"
+import type { Session, TimeBox } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { SessionStorageService } from "@/app/features/session-manager"
 
 const timeBoxIcons = {
   work: CheckCircle2,
@@ -20,12 +20,26 @@ const timeBoxIcons = {
   "long-break": Brain,
 } as const
 
+const storageService = new SessionStorageService()
+
 export default function SessionsPage() {
-  const [sessions, setSessions] = useState<Record<string, StoredSession>>({})
+  const [sessions, setSessions] = useState<Session[]>([])
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setSessions(sessionStorage.getAllSessions())
+    const loadSessions = async () => {
+      try {
+        const loadedSessions = await storageService.getAllSessions()
+        setSessions(loadedSessions)
+      } catch (error) {
+        console.error('Failed to load sessions:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSessions()
   }, [])
 
   const toggleSession = (date: string) => {
@@ -40,26 +54,8 @@ export default function SessionsPage() {
     })
   }
 
-  const getSessionProgress = (session: StoredSession) => {
-    if (!session?.storyBlocks?.length) {
-      return 0;
-    }
-    
-    // If the session already has progress calculated for each story block,
-    // use the average of those progress values
-    const totalProgress = session.storyBlocks.reduce((sum, block) => sum + (block.progress || 0), 0);
-    return session.storyBlocks.length > 0 ? Math.round(totalProgress / session.storyBlocks.length) : 0;
-  }
-
-  const getStatusBadge = (session: StoredSession) => {
-    switch(session.status) {
-      case "in-progress":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">In Progress</Badge>
-      case "completed":
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">Completed</Badge>
-      default:
-        return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Planned</Badge>
-    }
+  if (loading) {
+    return <div>Loading sessions...</div>
   }
 
   return (
@@ -73,34 +69,41 @@ export default function SessionsPage() {
         </div>
 
         <div className="grid gap-4">
-          {Object.entries(sessions)
-            .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
-            .map(([date, session]) => (
+          {sessions
+            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+            .map((session) => (
               <Collapsible
-                key={date}
-                open={expandedSessions.has(date)}
-                onOpenChange={() => toggleSession(date)}
+                key={session.date}
+                open={expandedSessions.has(session.date)}
+                onOpenChange={() => toggleSession(session.date)}
               >
                 <Card className="transition-colors hover:bg-muted/50">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <CardTitle className="text-xl">
-                          {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                          {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
                         </CardTitle>
-                        {getStatusBadge(session)}
+                        <Badge variant="secondary" className={cn(
+                          "capitalize",
+                          session.status === 'completed' && "bg-green-100 text-green-800",
+                          session.status === 'in-progress' && "bg-blue-100 text-blue-800",
+                          session.status === 'planned' && "bg-gray-100 text-gray-800"
+                        )}>
+                          {session.status}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" size="sm" className="gap-2">
                             <ChevronDown className={cn(
                               "h-4 w-4 transition-transform duration-200",
-                              expandedSessions.has(date) && "rotate-180"
+                              expandedSessions.has(session.date) && "rotate-180"
                             )} />
-                            {expandedSessions.has(date) ? "Hide Details" : "Show Details"}
+                            {expandedSessions.has(session.date) ? "Hide Details" : "Show Details"}
                           </Button>
                         </CollapsibleTrigger>
-                        <Link href={`/session/${date}`}>
+                        <Link href={`/session/${session.date}`}>
                           <Button variant="outline" size="sm">
                             View Session
                           </Button>
@@ -112,15 +115,13 @@ export default function SessionsPage() {
                         <Clock className="h-4 w-4" />
                         {session.totalDuration} minutes
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {session.totalSessions} sessions
-                      </span>
                       <div className="flex-1">
                         <div className="flex items-center justify-end gap-2 text-sm">
                           <span className="text-muted-foreground">Progress</span>
-                          <Progress value={getSessionProgress(session)} className="w-24" />
-                          <span>{Math.round(getSessionProgress(session))}%</span>
+                          <Progress 
+                            value={session.storyBlocks.reduce((sum, block) => sum + (block.progress || 0), 0) / session.storyBlocks.length} 
+                            className="w-24" 
+                          />
                         </div>
                       </div>
                     </CardDescription>
@@ -192,7 +193,7 @@ export default function SessionsPage() {
               </Collapsible>
             ))}
 
-          {Object.keys(sessions).length === 0 && (
+          {sessions.length === 0 && (
             <Card>
               <CardContent className="py-8">
                 <div className="text-center text-muted-foreground">

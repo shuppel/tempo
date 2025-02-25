@@ -1,10 +1,15 @@
 // /features/brain-dump/hooks/useBrainDump.ts
 import { useState, useEffect, useCallback } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
-import { sessionStorage } from "@/lib/sessionStorage"
+import { SessionStorageService } from "@/app/features/session-manager"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
+import { useRouter } from "next/navigation"
+
+// Create a singleton instance of SessionStorageService
+const sessionStorage = new SessionStorageService()
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
+  const router = useRouter()
   const [tasks, setTasks] = useState<string>("")
   const [processedStories, setProcessedStories] = useState<ProcessedStory[]>([])
   const [editedDurations, setEditedDurations] = useState<Record<string, number>>({})
@@ -245,32 +250,26 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       setSessionCreationProgress(80)
       setSessionCreationStep("Saving session...")
 
-      // Save the session to localStorage with validated values
-      const storedSession = {
-        ...sessionPlan,
-        totalSessions: sessionPlan.storyBlocks.length,
-        startTime: startTime,
-        endTime: endTime.toISOString(),
-        status: "planned",
-        totalDuration: validTotalDuration
-      }
-
-      // Log session details for debugging
-      console.log('Session timing details:', {
-        start: startTime,
-        end: endTime.toISOString(),
-        duration: validTotalDuration,
-        durationMs,
-        storyBlocks: sessionPlan.storyBlocks.length
-      })
-
-      sessionStorage.saveSession(today, storedSession)
-
+      // Session is now saved by the brain dump service
       setSessionCreationProgress(100)
       setSessionCreationStep("Session created successfully!")
 
-      // Redirect to the session view
-      window.location.href = `/session/${today}`
+      // Clear the form
+      setTasks("")
+      setProcessedStories([])
+      setEditedDurations({})
+      setIsInputLocked(false)
+
+      // Navigate to the newly created session page
+      const formattedDate = today
+      console.log(`Navigating to session page for date: ${formattedDate}`)
+      
+      // Add a small delay to ensure the session is saved before navigation
+      setTimeout(() => {
+        // Make sure the date is in the correct format (YYYY-MM-DD)
+        const formattedDateForURL = formattedDate.replace(/\//g, '-')
+        router.push(`/session/${formattedDateForURL}`)
+      }, 500)
 
     } catch (error) {
       console.error("Failed to create session:", error)
@@ -317,11 +316,9 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       setSessionCreationStep("Error creating session")
     } finally {
       setTimeout(() => {
-        if (!sessionCreationError) {
-          setIsCreatingSession(false)
-          setSessionCreationProgress(0)
-          setSessionCreationStep("")
-        }
+        setIsCreatingSession(false)
+        setSessionCreationProgress(0)
+        setSessionCreationStep("")
       }, 1000)
     }
   }

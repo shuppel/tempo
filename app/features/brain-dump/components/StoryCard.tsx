@@ -4,7 +4,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Info } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import type { ProcessedStory, ProcessedTask } from "@/lib/types"
+import type { ProcessedStory, ProcessedTask } from "../types"
+import { DifficultyBadge } from "./DifficultyBadge"
 
 
 interface StoryCardProps {
@@ -18,12 +19,12 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
     if (!task.suggestedBreaks?.length) return null
 
     return (
-      <div className="ml-6 mt-1 text-xs text-muted-foreground">
+      <div className="ml-6 mt-1 text-xs text-muted-foreground space-y-1">
         {task.suggestedBreaks.map((breakInfo, i) => (
-          <div key={i} className="flex items-center gap-1">
-            <Info className="h-3 w-3" />
-            <span>
-              After {breakInfo.after}m: {breakInfo.duration}m break
+          <div key={i} className="flex items-center gap-2">
+            <Info className="h-3 w-3 flex-shrink-0" />
+            <span className="text-xs">
+              Break recommended at {breakInfo.after}m: {breakInfo.duration}m duration
               {breakInfo.reason && ` - ${breakInfo.reason}`}
             </span>
           </div>
@@ -50,37 +51,53 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
           </div>
           <AlertDescription>
             <p className="mt-1 text-muted-foreground">{story.summary}</p>
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 space-y-2">
               {story.tasks.map((task, i) => (
-                <li key={i}>
-                  <div className="flex items-center gap-2">
-                    <span>•</span>
-                    <span className={task.isFrog ? "font-medium text-primary" : ""}>
-                      {task.title}
-                    </span>
-                    {task.isFrog && (
-                      <Badge variant="secondary" className="bg-primary/10 text-primary text-xs px-2 py-0 h-5">
-                        <span className="mr-1">🐸</span>
-                        FROG
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {task.taskCategory}
-                    </Badge>
-                    {task.projectType && (
-                      <Badge variant="secondary" className="text-xs">
-                        {task.projectType}
-                      </Badge>
-                    )}
-                    {task.isFlexible ? (
-                      <Badge variant="outline" className="text-xs">flexible</Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        ({task.duration} mins)
-                      </span>
+                <li key={i} className="mb-1">
+                  <div className="flex">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm">•</span>
+                        <span className={`text-sm ${task.isFrog ? "font-medium text-primary" : ""}`}>
+                          {task.title}
+                        </span>
+                        {task.isFrog && (
+                          <Badge variant="secondary" className="bg-primary/10 text-primary text-xs px-2 py-0 h-5">
+                            <span className="mr-1">🐸</span>
+                            HIGH PRIORITY
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {task.taskCategory}
+                        </Badge>
+                        {task.projectType && task.projectType !== story.projectType && (
+                          <Badge variant="secondary" className="text-xs">
+                            {task.projectType}
+                          </Badge>
+                        )}
+                        {task.isFlexible ? (
+                          <Badge variant="outline" className="text-xs">time flexible</Badge>
+                        ) : (
+                          task.duration > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              ({task.duration} min estimate)
+                            </span>
+                          )
+                        )}
+                      </div>
+                      
+                      {renderTaskBreaks(task)}
+                    </div>
+                    
+                    {task.difficulty && (
+                      <div className="flex-shrink-0 ml-2 self-start mt-1">
+                        <DifficultyBadge 
+                          difficulty={task.difficulty} 
+                          duration={task.duration}
+                        />
+                      </div>
                     )}
                   </div>
-                  {renderTaskBreaks(task)}
                 </li>
               ))}
             </ul>
@@ -101,7 +118,7 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
                     className="w-20 h-7 text-sm"
                     min="1"
                   />
-                  <span className="text-sm text-muted-foreground">minutes</span>
+                  <span className="text-sm text-muted-foreground">min estimated duration</span>
                 </div>
               </div>
             )}

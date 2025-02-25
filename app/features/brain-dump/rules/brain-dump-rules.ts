@@ -26,13 +26,12 @@ import { DURATION_RULES } from "../../../../lib/durationUtils"
  * Core Components
  * --------------
  * 1. Task Processing (/api/tasks/process)
- * 2. DayLoadWorkManager (intermediary service that handles overflow tasks)
- * 3. Session Creation (/api/tasks/create-session)
- * 4. Brain Dump Service (features/brain-dump/services)
- * 5. Duration Management (durationUtils.ts)
- * 6. Session Storage (sessionStorage.ts)
- * 7. Task Management (task-manager.ts)
- * 8. AI Integration (ai.ts)
+ * 2. Session Creation (/api/tasks/create-session)
+ * 3. Brain Dump Service (features/brain-dump/services)
+ * 4. Duration Management (durationUtils.ts)
+ * 5. Session Storage (sessionStorage.ts)
+ * 6. Task Management (task-manager.ts)
+ * 7. AI Integration (ai.ts)
  */
 
 /**
@@ -59,35 +58,6 @@ export const BRAIN_DUMP_DURATION_RULES = {
   USER_DEFINED_SCHEDULE: true,                      // Users can set start/end times
   NO_TOTAL_DURATION_LIMIT: true,                    // No fixed limit on total session duration
   TASK_OVERFLOW_HANDLING: "reschedule",             // Tasks that don't fit will be rescheduled
-} as const
-
-/**
- * DayLoadWorkManager Rules
- * -----------------------
- */
-export const DAY_LOAD_WORK_MANAGER_RULES = {
-  // Task Overflow Handling
-  OVERFLOW_HANDLING: {
-    ENABLED: true,                     // Handle tasks that don't fit in current day
-    STRATEGY: "next_available_day",    // Move to next day with capacity
-    PRIORITIZE_FROGS: true,            // Prioritize fitting frog tasks in current day
-    PRESERVE_TASK_GROUPS: true,        // Keep related tasks together when rescheduling
-  },
-  
-  // Time Window Management
-  TIME_WINDOWS: {
-    RESPECT_USER_SCHEDULE: true,       // Honor user-defined start/end times
-    DEFAULT_START: "09:00",            // Default start time if not specified
-    DEFAULT_END: "17:00",              // Default end time if not specified
-    ENFORCE_BREAK_TIMES: true,         // Enforce lunch and break times
-  },
-  
-  // Scheduling Optimization
-  OPTIMIZATION: {
-    BALANCE_DAILY_LOAD: true,          // Aim for balanced daily workload
-    CONSIDER_ENERGY_CURVE: true,       // Consider typical energy levels throughout day
-    RESPECT_DEPENDENCIES: true,        // Maintain task dependencies across days
-  }
 } as const
 
 /**

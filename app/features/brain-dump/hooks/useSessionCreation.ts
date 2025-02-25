@@ -2,8 +2,10 @@
 import { useState } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory } from "@/lib/types"
+import { useRouter } from "next/navigation"
 
 export function useSessionCreation() {
+  const router = useRouter()
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>("")
   const [processingProgress, setProcessingProgress] = useState(0)
@@ -23,6 +25,17 @@ export function useSessionCreation() {
       
       setProcessingProgress(100)
       setProcessingStep("Session created successfully!")
+      
+      // Navigate to the newly created session page
+      const today = new Date().toISOString().split('T')[0]
+      console.log(`[useSessionCreation] Navigating to session page for date: ${today}`)
+      
+      // Add a small delay to ensure the session is saved before navigation
+      setTimeout(() => {
+        // Make sure the date is in the correct format (YYYY-MM-DD)
+        const formattedDateForURL = today.replace(/\//g, '-')
+        router.push(`/session/${formattedDateForURL}`)
+      }, 500)
       
       return result
     } catch (error) {

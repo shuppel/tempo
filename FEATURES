@@ -22,3 +22,9 @@
   * Mapping data passed to API for improved reference resolution
   * Fixes "Story not found in original stories" errors
   * Maintains relationship between original and split tasks 
+
+
+  ## THINKING...
+  think about types.ts : types, categories
+  also down stream: badges, projects
+  What would be nice, is being able to create reports and summaries from what you've been doing. Feed your debriefs, reports for your own progress to yourself. Have your own AI help you understand your own progress.
