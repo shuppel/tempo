@@ -45,11 +45,10 @@ export default function SessionsPage() {
       return 0;
     }
     
-    const totalTasks = session.storyBlocks.reduce((acc, block) => 
-      acc + (block.timeBoxes?.filter(box => box.type === 'work')?.length || 0), 0)
-    const completedTasks = session.storyBlocks.reduce((acc, block) => 
-      acc + (block.timeBoxes?.filter(box => box.type === 'work' && box.status === 'completed')?.length || 0), 0)
-    return totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+    // If the session already has progress calculated for each story block,
+    // use the average of those progress values
+    const totalProgress = session.storyBlocks.reduce((sum, block) => sum + (block.progress || 0), 0);
+    return session.storyBlocks.length > 0 ? Math.round(totalProgress / session.storyBlocks.length) : 0;
   }
 
   const getStatusBadge = (session: StoredSession) => {

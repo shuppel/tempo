@@ -10,7 +10,22 @@ import {
   generateSchedulingSuggestion,
   suggestSplitAdjustment
 } from '@/lib/durationUtils'
-import type { Task, TaskType, StoryType } from '@/lib/types'
+import type { 
+  Task, 
+  TaskType, 
+  StoryType,
+  APIProcessedTask,
+  APIProcessedStory,
+  APISessionResponse
+} from '@/lib/types'
+import {
+  transformTaskData,
+  transformStoryData,
+  normalizeTaskTitle,
+  isSplitTaskPart,
+  getBaseTaskTitle,
+  getBaseStoryTitle
+} from '@/lib/transformUtils'
 
 // Extend the duration rules to include the maximum consecutive work time
 const DURATION_RULES = {
@@ -33,7 +48,8 @@ const TaskSchema = z.object({
   id: z.string(),
   title: z.string(),
   duration: z.number(),
-  type: z.enum(['focus', 'learning', 'review', 'research'] as const),
+  taskCategory: z.enum(['focus', 'learning', 'review', 'research'] as const),
+  projectType: z.string().optional(),
   isFrog: z.boolean(),
   isFlexible: z.boolean(),
   originalTitle: z.string().optional(),
@@ -52,7 +68,7 @@ const StorySchema = z.object({
   icon: z.string(),
   estimatedDuration: z.number(),
   type: z.enum(['timeboxed', 'flexible', 'milestone'] as const),
-  project: z.string(),
+  projectType: z.string(),
   category: z.string(),
   tasks: z.array(TaskSchema)
 })
@@ -86,8 +102,10 @@ interface TimeBoxTask {
   id: string
   title: string
   duration: number
-  type?: TaskType
+  taskCategory?: TaskType
+  projectType?: string
   originalTitle?: string
+  isFrog?: boolean
   splitInfo?: {
     originalTitle?: string
     isParent: boolean
@@ -120,15 +138,7 @@ interface StoryBlock {
   }>
 }
 
-interface SessionResponse {
-  summary: {
-    totalSessions: number
-    startTime: string
-    endTime: string
-    totalDuration: number
-  }
-  storyBlocks: StoryBlock[]
-}
+type SessionResponse = APISessionResponse;
 
 // Add helper functions for task title handling
 function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } {
@@ -144,21 +154,6 @@ function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } 
 
 function getDurationDescription(range: { min: number; max: number }, type: string): string {
   return `${range.min}-${range.max} minutes (including breaks, ${type})`
-}
-
-function normalizeTaskTitle(title: string): string {
-  return title
-    .toLowerCase()
-    // Remove part numbers from split tasks
-    .replace(/\s*\(part \d+ of \d+\)\s*/i, '')
-    // Remove time expressions
-    .replace(/\s*\d+\s*(?:hour|hr|h)s?\s*(?:of|for|on|in)?\s*(?:work|working)?\s*(?:on|with|at|in)?\s*/i, ' ')
-    .replace(/\s*\d+\s*(?:minute|min|m)s?\s*/i, ' ')
-    // Clean up common words that don't affect meaning
-    .replace(/\b(?:working|work|on|for|in|at|with)\b/g, '')
-    // Clean up extra spaces
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): string | undefined {
@@ -214,25 +209,6 @@ function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): 
 
   console.log(`No match found for "${searchTitle}"`)
   return undefined
-}
-
-// Add function to check if a task is a split part
-function isSplitTaskPart(title: string): boolean {
-  return /\(part \d+ of \d+\)$/i.test(title)
-}
-
-// Add function to get base task title without part number
-function getBaseTaskTitle(title: string): string {
-  return title.replace(/\s*\(part \d+ of \d+\)\s*$/i, '').trim()
-}
-
-// Add a new function to extract the base story title
-function getBaseStoryTitle(title: string): string {
-  // Check if the story title contains a part indicator
-  if (isSplitTaskPart(title)) {
-    return getBaseTaskTitle(title);
-  }
-  return title;
 }
 
 // Update findOriginalStory function to use story mapping if available
@@ -453,6 +429,21 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
 // Extract the inferred type from the schema
 type Story = z.infer<typeof StorySchema>
 
+// Upgrade task objects to the session model 
+function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask {
+  return {
+    id: task.id,
+    title: task.title,
+    duration: task.duration,
+    taskCategory: task.taskCategory,
+    projectType: task.projectType,
+    isFrog: task.isFrog,
+    originalTitle: task.originalTitle,
+    splitInfo: task.splitInfo,
+    suggestedBreaks: task.suggestedBreaks || []
+  }
+}
+
 export async function POST(req: Request) {
   const currentTime = new Date()
   let startTime
@@ -492,92 +483,83 @@ export async function POST(req: Request) {
       console.log('Creating session with stories:', JSON.stringify(stories, null, 2))
       console.log('Start time:', startDateTime.toLocaleTimeString())
 
+      // Use the Task type from our schema instead of the imported type
+      const enhancedStories = stories.map((story: z.infer<typeof StorySchema>) => ({
+        ...story,
+        tasks: story.tasks.map((task: z.infer<typeof TaskSchema>) => ({
+          ...task,
+          originalTitle: task.originalTitle || task.title
+        }))
+      }));
+
       const message = await anthropic.messages.create({
         model: "claude-3-haiku-20240307",
         max_tokens: 4000,
+        temperature: 0.7,
         messages: [{
           role: "user",
-          content: `Create an optimized work session schedule for these stories/tasks. Follow these rules:
-          1. Start at ${startDateTime.toLocaleTimeString()}
-          2. CRITICAL - Duration Rules:
-             - Task durations INCLUDE break times
-             - For a 120-minute task (2 hours total):
-               * 45min work + 5min break + 25min work + 15min break + 30min work = 120min total
-             - For a 180-minute task (3 hours total):
-               * 45min work + 15min break + 45min work + 15min break + 45min work + 15min break = 180min total
-             - Break scheduling:
-               * Add 5-minute breaks between shorter work sessions
-               * Add 15-minute breaks after 45+ minutes of work
-               * Add 5-minute debriefs after completing each story
-               * Use suggestedBreaks from input tasks when available
-          3. Task Priority Rules:
-             - Tasks marked with 'isFrog: true' are high priority and should be scheduled early
-             - DO NOT add "FROG" to task titles - it's only a priority indicator
-          4. Group related tasks together
-          5. Keep the response concise and well-structured
-          6. CRITICAL - Task Title and Transformation Rules:
-             - You may transform task titles to be more specific or descriptive
-             - For tasks with time prefixes (e.g., "2 hours of work on X"), you can remove the time prefix
-             - For project tasks (e.g., "work on Project X"), you can expand to "Project X Development"
-             - When splitting tasks, use the base transformed title with part numbers
-             - Example transformations:
-               * "2 hours of work on Toro" → "Toro Development (Part X of Y)"
-               * "3 hours working on Project X" → "Project X Implementation (Part X of Y)"
-          7. CRITICAL - Task splitting and duration rules:
-             - Each work time box must contain exactly one task or task part
-             - Break and debrief time boxes must not contain tasks
-             - For tasks longer than 60 minutes:
-               * Split into 2-3 parts ONLY
-               * Follow the duration patterns for 120min and 180min tasks
-               * Include appropriate breaks between sessions
-               * Consider suggestedBreaks when splitting
-             - Time box durations:
-               * First work sessions: 20-30 minutes
-               * Middle work sessions: 30-60 minutes (or up to 90 for 180-min tasks)
-               * Final work sessions: 15-60 minutes (or up to 95 for 120-min tasks)
-               * Single tasks: 20-60 minutes
-               * Short breaks: 5 minutes
-               * Long breaks: 15 minutes
-               * Debriefs: 5 minutes
-          8. CRITICAL - Duration Calculation Rules:
-             - The summary.totalDuration MUST equal the sum of ALL story block durations
-             - Each story block's totalDuration MUST include all work sessions, breaks, and debriefs
-             - Double-check all duration calculations before returning
+          content: `Based on these stories, create a detailed session plan with time boxes.
 
-          Stories:
-          ${JSON.stringify(stories, null, 2)}
+Rules:
+1. Each story becomes a "story block" containing all its tasks and breaks
+2. FROG tasks should be scheduled as early as possible
+3. Follow all duration, break and constraints exactly as specified
+4. Round all times to 5-minute increments
+5. Add a short break (5 mins) between tasks within a story
+6. Add a longer break (15 mins) between story blocks
+7. Add appropriate breaks to prevent working more than ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes continuously
 
-          CRITICAL RESPONSE FORMAT INSTRUCTIONS:
-          1. You MUST return a SINGLE JSON object
-          2. Do NOT return multiple separate JSON objects
-          3. All stories MUST be included in the storyBlocks array
-          4. The response MUST be valid JSON that can be parsed with JSON.parse()
-          5. Follow this exact format:
+Session Parameter Details:
+- Start Time: ${startTime}
+- Total Stories: ${stories.length}
 
-          {
-            "summary": {
-              "totalSessions": number,
-              "startTime": "HH:MM",
-              "endTime": "HH:MM",
-              "totalDuration": number (minutes, MUST equal sum of all block durations)
-            },
-            "storyBlocks": [{
-              "title": "Story title",
-              "summary": "Story summary",
-              "icon": "emoji",
-              "timeBoxes": [{
-                "type": "work" | "short-break" | "long-break" | "debrief",
-                "startTime": "HH:MM",
-                "duration": number,
-                "tasks": [{ 
-                  title: string,
-                  duration: number,
-                  suggestedBreaks: [{ after: number, duration: number, reason: string }]
-                }] (empty for breaks/debriefs, exactly one task for work)
-              }],
-              "totalDuration": number (MUST include work sessions, breaks, and debrief)
-            }]
-          }`
+Stories Data:
+${JSON.stringify(enhancedStories, null, 2)}
+
+Respond with a JSON session plan that follows this exact structure:
+{
+  "summary": {
+    "totalSessions": number,
+    "startTime": "ISO string",
+    "endTime": "ISO string", 
+    "totalDuration": number
+  },
+  "storyBlocks": [
+    {
+      "title": "Story title",
+      "summary": "Story summary",
+      "icon": "emoji",
+      "timeBoxes": [
+        {
+          "type": "work" | "short-break" | "long-break" | "debrief",
+          "duration": number,
+          "tasks": [
+            {
+              "id": "string",
+              "title": "string",
+              "duration": number,
+              "taskCategory": "focus" | "learning" | "review" | "research",
+              "projectType": "string" (optional),
+              "isFrog": boolean
+            }
+          ],
+          "startTime": "ISO string",
+          "endTime": "ISO string"
+        }
+      ],
+      "totalDuration": number
+    }
+  ]
+}
+
+Remember these critical rules:
+- NEVER exceed ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes of continuous work time without a substantial break
+- NEVER change the story or task order provided
+- Preserve all task properties exactly as provided
+- Use ISO date strings for all times
+- Include empty tasks array for break time boxes
+- Ensure all durations are in minutes
+- Calculate accurate start and end times for each time box`
         }]
       })
 
@@ -612,12 +594,87 @@ export async function POST(req: Request) {
           )
         }
 
+        // Transform fields to ensure consistent property names
+        if (parsedData.storyBlocks && Array.isArray(parsedData.storyBlocks)) {
+          parsedData.storyBlocks = parsedData.storyBlocks.map((block: any) => {
+            // Transform the story block itself
+            const transformedBlock = transformStoryData(block);
+            
+            // Transform timeBoxes and their tasks
+            if (transformedBlock.timeBoxes && Array.isArray(transformedBlock.timeBoxes)) {
+              transformedBlock.timeBoxes = transformedBlock.timeBoxes.map((timeBox: any) => {
+                // Transform tasks within each time box
+                if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
+                  timeBox.tasks = timeBox.tasks.map(transformTaskData);
+                }
+                return timeBox;
+              });
+            }
+            
+            // Transform story properties if needed
+            if (!transformedBlock.storyType && transformedBlock.type) {
+              console.log(`Transforming story type -> storyType for "${transformedBlock.title}"`)
+              transformedBlock.storyType = transformedBlock.type
+            }
+            
+            if (!transformedBlock.projectType && transformedBlock.project) {
+              console.log(`Transforming story project -> projectType for "${transformedBlock.title}"`)
+              transformedBlock.projectType = transformedBlock.project
+              delete transformedBlock.project
+            }
+            
+            return transformedBlock;
+          });
+        }
+
         // Create a map of original task durations for validation
         const originalTaskDurations = new Map<string, number>()
         stories.forEach((story: z.infer<typeof StorySchema>) => {
           story.tasks.forEach((task: z.infer<typeof TaskSchema>) => {
             originalTaskDurations.set(task.title, task.duration)
           })
+        })
+
+        // After processing and transforming the data, validate it
+        // This ensures any renamed properties (type->taskCategory, project->projectType) are properly processed
+        console.log('Validating processed session plan...')
+        const storyBlocks = parsedData.storyBlocks || []
+
+        // Verify all tasks have the correct properties
+        storyBlocks.forEach((block: any) => {
+          // Transform story properties if needed
+          if (!block.storyType && block.type) {
+            console.log(`Transforming story type -> storyType for "${block.title}"`)
+            block.storyType = block.type
+          }
+          
+          if (!block.projectType && block.project) {
+            console.log(`Transforming story project -> projectType for "${block.title}"`)
+            block.projectType = block.project
+            delete block.project
+          }
+          
+          if (block.timeBoxes && Array.isArray(block.timeBoxes)) {
+            block.timeBoxes.forEach((timeBox: any) => {
+              if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
+                timeBox.tasks.forEach((task: any) => {
+                  // Ensure task has taskCategory property (originally might have been type)
+                  if (!task.taskCategory && task.type) {
+                    console.log(`Transforming task type -> taskCategory for "${task.title}"`)
+                    task.taskCategory = task.type
+                    delete task.type
+                  }
+                  
+                  // Ensure task has projectType property (originally might have been project)
+                  if (!task.projectType && task.project) {
+                    console.log(`Transforming task project -> projectType for "${task.title}"`)
+                    task.projectType = task.project
+                    delete task.project
+                  }
+                })
+              }
+            })
+          }
         })
 
         // Add additional duration validations

@@ -1,10 +1,11 @@
-import type { SessionPlan, TimeBox } from "./types"
+import type { SessionPlan, TimeBox, TimeBoxTask, StoryBlock } from "./types"
 
 export interface StoredSession extends SessionPlan {
   totalSessions: number
   startTime: string
   endTime: string
   status?: "planned" | "in-progress" | "completed"
+  lastUpdated?: string // Add to track when session was last updated
 }
 
 const SESSION_PREFIX = 'session-'
@@ -15,7 +16,12 @@ export const sessionStorage = {
    */
   saveSession(date: string, session: StoredSession): void {
     try {
-      localStorage.setItem(`${SESSION_PREFIX}${date}`, JSON.stringify(session))
+      // Always update lastUpdated timestamp when saving
+      const updatedSession = {
+        ...session,
+        lastUpdated: new Date().toISOString()
+      }
+      localStorage.setItem(`${SESSION_PREFIX}${date}`, JSON.stringify(updatedSession))
     } catch (error) {
       console.error('Failed to save session:', error)
     }
@@ -94,6 +100,172 @@ export const sessionStorage = {
   },
 
   /**
+   * Update the completion status of a specific timebox in a session
+   */
+  updateTimeBoxStatus(date: string, storyId: string, timeBoxIndex: number, status: "todo" | "completed" | "in-progress"): boolean {
+    const session = this.getSession(date)
+    if (!session) return false
+
+    let updated = false
+    const updatedStoryBlocks = session.storyBlocks.map(story => {
+      if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
+        updated = true
+        const updatedTimeBoxes = [...story.timeBoxes]
+        updatedTimeBoxes[timeBoxIndex] = {
+          ...updatedTimeBoxes[timeBoxIndex],
+          status
+        }
+        
+        // Recalculate story progress
+        const totalWorkBoxes = updatedTimeBoxes.filter(box => box.type === 'work').length
+        const completedWorkBoxes = updatedTimeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length
+        const progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
+        
+        return {
+          ...story,
+          timeBoxes: updatedTimeBoxes,
+          progress
+        }
+      }
+      return story
+    })
+
+    if (updated) {
+      // Update session status if needed
+      let sessionStatus = session.status || "planned"
+      
+      // Check if all time boxes are completed
+      const allCompleted = updatedStoryBlocks.every(story => 
+        story.timeBoxes.filter(box => box.type === 'work').every(box => box.status === 'completed')
+      )
+      
+      // Check if any time box is in progress
+      const anyInProgress = updatedStoryBlocks.some(story => 
+        story.timeBoxes.some(box => box.status === 'in-progress')
+      )
+      
+      if (allCompleted) {
+        sessionStatus = "completed"
+      } else if (anyInProgress) {
+        sessionStatus = "in-progress"
+      }
+      
+      const updatedSession = {
+        ...session,
+        storyBlocks: updatedStoryBlocks,
+        status: sessionStatus
+      }
+      
+      this.saveSession(date, updatedSession)
+    }
+    
+    return updated
+  },
+
+  /**
+   * Update task status within a time box
+   */
+  updateTaskStatus(date: string, storyId: string, timeBoxIndex: number, taskIndex: number, status: "todo" | "completed"): boolean {
+    const session = this.getSession(date)
+    if (!session) return false
+
+    let updated = false
+    const updatedStoryBlocks = session.storyBlocks.map(story => {
+      if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
+        const timeBox = story.timeBoxes[timeBoxIndex]
+        if (timeBox.tasks && timeBox.tasks[taskIndex]) {
+          updated = true
+          const updatedTasks = [...timeBox.tasks]
+          updatedTasks[taskIndex] = {
+            ...updatedTasks[taskIndex],
+            status
+          }
+          
+          // Check if all tasks in the time box are completed
+          const allTasksCompleted = updatedTasks.every(task => task.status === 'completed')
+          
+          const updatedTimeBoxes = [...story.timeBoxes]
+          updatedTimeBoxes[timeBoxIndex] = {
+            ...timeBox,
+            tasks: updatedTasks,
+            status: allTasksCompleted ? 'completed' : timeBox.status || 'todo'
+          }
+          
+          // Recalculate story progress
+          const totalWorkBoxes = updatedTimeBoxes.filter(box => box.type === 'work').length
+          const completedWorkBoxes = updatedTimeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length
+          const progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
+          
+          return {
+            ...story,
+            timeBoxes: updatedTimeBoxes,
+            progress
+          }
+        }
+      }
+      return story
+    })
+
+    if (updated) {
+      const updatedSession = {
+        ...session,
+        storyBlocks: updatedStoryBlocks
+      }
+      
+      this.saveSession(date, updatedSession)
+    }
+    
+    return updated
+  },
+
+  /**
+   * Calculate and update progress for all stories in a session
+   */
+  updateSessionProgress(date: string): boolean {
+    const session = this.getSession(date)
+    if (!session) return false
+
+    const updatedStoryBlocks = session.storyBlocks.map(story => {
+      const totalWorkBoxes = story.timeBoxes.filter(box => box.type === 'work').length
+      const completedWorkBoxes = story.timeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length
+      const progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
+      
+      return {
+        ...story,
+        progress
+      }
+    })
+    
+    // Update session status if needed
+    let sessionStatus = session.status || "planned"
+    
+    // Check if all time boxes are completed
+    const allCompleted = updatedStoryBlocks.every(story => 
+      story.timeBoxes.filter(box => box.type === 'work').every(box => box.status === 'completed')
+    )
+    
+    // Check if any time box is in progress
+    const anyInProgress = updatedStoryBlocks.some(story => 
+      story.timeBoxes.some(box => box.status === 'in-progress')
+    )
+    
+    if (allCompleted) {
+      sessionStatus = "completed"
+    } else if (anyInProgress) {
+      sessionStatus = "in-progress"
+    }
+    
+    const updatedSession = {
+      ...session,
+      storyBlocks: updatedStoryBlocks,
+      status: sessionStatus
+    }
+    
+    this.saveSession(date, updatedSession)
+    return true
+  },
+
+  /**
    * Validate session data structure
    */
   isValidSession(data: any): data is StoredSession {
@@ -110,12 +282,42 @@ export const sessionStorage = {
    * Normalize session data to ensure consistent structure
    */
   normalizeSession(session: StoredSession): StoredSession {
+    // Ensure all story blocks have a progress property
+    const normalizedStoryBlocks = session.storyBlocks.map(block => {
+      // Ensure timeBoxes is an array
+      const timeBoxes = Array.isArray(block.timeBoxes) ? block.timeBoxes : []
+      
+      // Ensure all timeBoxes have a status property
+      const normalizedTimeBoxes = timeBoxes.map(box => ({
+        ...box,
+        status: box.status || 'todo',
+        tasks: Array.isArray(box.tasks) ? box.tasks.map(task => ({
+          ...task,
+          status: task.status || 'todo'
+        })) : []
+      }))
+      
+      // Calculate progress if not present
+      let progress = block.progress
+      if (progress === undefined || progress === null) {
+        const totalWorkBoxes = normalizedTimeBoxes.filter(box => box.type === 'work').length
+        const completedWorkBoxes = normalizedTimeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length
+        progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
+      }
+      
+      return {
+        ...block,
+        timeBoxes: normalizedTimeBoxes,
+        progress,
+        taskIds: block.taskIds || []
+      }
+    })
+    
     return {
       ...session,
-      storyBlocks: session.storyBlocks.map(block => ({
-        ...block,
-        timeBoxes: Array.isArray(block.timeBoxes) ? block.timeBoxes : []
-      }))
+      storyBlocks: normalizedStoryBlocks,
+      status: session.status || 'planned',
+      lastUpdated: session.lastUpdated || session.startTime
     }
   }
 } 

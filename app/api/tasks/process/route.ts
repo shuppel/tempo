@@ -1,7 +1,27 @@
 import { Anthropic } from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import type { TaskType, StoryType, TaskComplexity } from '@/lib/types'
+import type { 
+  TaskType, 
+  TaskCategory,
+  StoryType, 
+  TaskComplexity, 
+  TaskBreak, 
+  ProcessedTask, 
+  ProcessedStory, 
+  TimeBoxType,
+  APIProcessResponse,
+  APIProcessedStory
+} from '@/lib/types'
+import { 
+  transformTaskData, 
+  isProcessedTask, 
+  isProcessedStory 
+} from '@/lib/transformUtils'
+
+// Replace the custom ProcessedResponseFromAI with the shared API type
+// Define a type that represents the structure we expect from Claude's response
+type ProcessedResponseFromAI = APIProcessResponse;
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
@@ -12,15 +32,16 @@ const RequestSchema = z.object({
   tasks: z.array(z.string()).min(1, "At least one task is required")
 })
 
-type TaskCategory = 'UX' | 'API' | 'Development' | 'Testing' | 'Documentation' | 'Refactoring' | 'Learning' | 'Project Management' | 'Planning' | 'Research'
+// Renamed to ProjectCategory to avoid confusion with TaskCategory (task types)
+export type ProjectCategory = 'UX' | 'API' | 'Development' | 'Testing' | 'Documentation' | 'Refactoring' | 'Learning' | 'Project Management' | 'Planning' | 'Research'
 
 interface TaskAnalysis {
   hasTimeEstimate: boolean
   suggestedDuration?: number
   type: StoryType
   complexity: TaskComplexity
-  project?: string
-  category?: TaskCategory
+  projectType?: string
+  category?: ProjectCategory
 }
 
 interface PreprocessedTask {
@@ -77,13 +98,13 @@ function analyzeTaskText(task: string): TaskAnalysis {
   } as const
 
   const category = Object.entries(categoryKeywords)
-    .find(([_, pattern]) => pattern.test(task))?.[0] as TaskCategory | undefined
+    .find(([_, pattern]) => pattern.test(task))?.[0] as ProjectCategory | undefined
 
   return {
     hasTimeEstimate: hasExplicitTime,
     type: isMilestone ? "milestone" : hasExplicitTime ? "timeboxed" : "flexible",
     complexity: complexityIndicators <= 5 ? "low" : complexityIndicators <= 10 ? "medium" : "high",
-    project,
+    projectType: project,
     category
   }
 }
@@ -149,7 +170,7 @@ function estimateTaskDuration(task: string, analysis: TaskAnalysis): number {
   }[analysis.complexity]
 
   // Adjust based on category
-  const categoryMultipliers: Record<TaskCategory, number> = {
+  const categoryMultipliers: Record<ProjectCategory, number> = {
     'UX': 1.2,        // UX tasks often need more time for iteration
     'API': 1.3,       // API work typically requires testing and documentation
     'Development': 1.0,
@@ -161,7 +182,7 @@ function estimateTaskDuration(task: string, analysis: TaskAnalysis): number {
     'Planning': 1.5,
     'Research': 1.3
   }
-
+  
   const multiplier = analysis.category ? categoryMultipliers[analysis.category] : 1.0
   const suggestedDuration = Math.round(baseDuration * multiplier)
 
@@ -200,25 +221,35 @@ const TaskBreakSchema = z.object({
   reason: z.string()
 })
 
+// Get the allowed task categories excluding 'break'
+const ALLOWED_TASK_CATEGORIES: Exclude<TaskCategory, 'break'>[] = ['focus', 'learning', 'review', 'research'];
+
 const ProcessedTaskSchema = z.object({
+  id: z.string(),
   title: z.string(),
   duration: z.number(),
   isFrog: z.boolean(),
-  type: z.enum(['focus', 'learning', 'review', 'research'] as const),
+  taskCategory: z.enum(ALLOWED_TASK_CATEGORIES as [string, ...string[]]),
+  projectType: z.string().optional(),
   isFlexible: z.boolean(),
   suggestedBreaks: z.array(TaskBreakSchema).default([]),
   needsSplitting: z.boolean().optional()
 })
+
+// Get the allowed story types
+const ALLOWED_STORY_TYPES: StoryType[] = ['timeboxed', 'flexible', 'milestone'];
 
 const StorySchema = z.object({
   title: z.string(),
   summary: z.string(),
   icon: z.string(),
   estimatedDuration: z.number(),
-  type: z.enum(['timeboxed', 'flexible', 'milestone'] as const),
-  project: z.string(),
+  type: z.enum(ALLOWED_STORY_TYPES as [string, ...string[]]),
+  projectType: z.string(),
   category: z.string(),
-  tasks: z.array(ProcessedTaskSchema)
+  tasks: z.array(ProcessedTaskSchema),
+  needsBreaks: z.boolean().optional(),
+  originalTitle: z.string().optional()
 })
 
 const ProcessedDataSchema = z.object({
@@ -236,10 +267,10 @@ class TaskProcessingError extends Error {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
     // Parse and validate request body
-    const body = await request.json().catch(() => ({}))
+    const body = await req.json().catch(() => ({}))
     
     try {
       await RequestSchema.parseAsync(body)
@@ -252,197 +283,69 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // Preprocess tasks to detect FROG status
-    const preprocessedTasks = body.tasks.map((task: string) => preprocessTask(task))
-    
-    // Use processed text for analysis but keep FROG information
-    const analyzedTasks = preprocessedTasks.map((preprocessed: PreprocessedTask) => {
-      try {
-        const analysis = analyzeTaskText(preprocessed.processedText)
-        const suggestedDuration = estimateTaskDuration(preprocessed.processedText, analysis)
-        return { 
-          task: preprocessed.processedText,
-          originalTask: preprocessed.originalText,
-          isFrog: preprocessed.isFrog,
-          analysis, 
-          suggestedDuration 
-        }
-      } catch (error) {
-        throw new TaskProcessingError(
-          'Task analysis failed',
-          'ANALYSIS_ERROR',
-          { task: preprocessed.originalText, error }
-        )
-      }
-    })
-
-    // First AI call for structure analysis
-    let structureAnalysis
     try {
-      const structureMessage = await anthropic.messages.create({
+      console.log(`Processing ${body.tasks.length} tasks:`, body.tasks)
+      
+      // Send task list to Claude for processing
+      const response = await anthropic.messages.create({
         model: "claude-3-haiku-20240307",
         max_tokens: 4000,
+        temperature: 0.3,
+        system: "You are an expert at analyzing tasks and organizing them into cohesive stories/epics. Extract structure, categorize, estimate time, and provide organization hints.",
         messages: [{
           role: "user",
-          content: `Analyze these tasks and create specific, focused groupings. Important rules:
-          1. Keep projects separate - don't combine tasks from different projects
-          2. Within a project, group by specific feature/component/goal
-          3. Identify clear dependencies within each group
-          4. Don't create overly broad groupings
-          5. Respect explicit project prefixes (e.g., "Nurture:", "Retool:")
-          6. Consider task type and category when grouping
-          7. Keep responses concise and focused
-          8. CRITICAL: Do not consider or analyze task priority - this is already determined
+          content: `Create a structured task plan from this brain dump of tasks:
+${body.tasks.join('\n')}
 
-          Tasks:
-          ${JSON.stringify(analyzedTasks.map((t: { task: string; isFrog: boolean }) => ({ 
-            id: analyzedTasks.indexOf(t),
-            text: t.task,
-            isFrog: t.isFrog
-          })), null, 2)}
+Rules:
+1. Group similar tasks into cohesive stories based on project/topic
+2. Each story should have 1-5 tasks
+3. Mark high priority tasks with isFrog=true
+4. Parse time estimates from task descriptions when available
+5. Use these task categories:
+   - focus: deep focus work
+   - learning: studying or learning new material
+   - review: reviewing or providing feedback
+   - research: exploring or investigating options
 
-          Categorize each task group using ONLY these specific categories:
-          - UX: User interface and experience work
-          - API: Backend and API development
-          - Development: General software development
-          - Testing: QA and testing activities
-          - Documentation: Writing and maintaining docs
-          - Refactoring: Code improvement and cleanup
-          - Learning: Educational and training tasks
-          - Project Management: Planning and coordination
-          - Planning: Strategy and architecture
-          - Research: Investigation and analysis
-
-          Respond with your analysis in this exact JSON format:
-          {
-            "taskGroups": [{
-              "project": "Project name",
-              "feature": "Specific feature/component",
-              "category": "UX" | "API" | "Development" | "Testing" | "Documentation" | "Refactoring" | "Learning" | "Project Management" | "Planning" | "Research",
-              "relatedTasks": [task indices],
-              "dependencies": [task indices],
-              "reasoning": "Brief explanation"
-            }]
-          }`
-        }]
-      })
-
-      const structureContent = structureMessage.content[0]
-      if (!('text' in structureContent)) {
-        throw new TaskProcessingError(
-          'Invalid API response format',
-          'API_RESPONSE_ERROR',
-          'Response content does not contain text field'
-        )
-      }
-
-      try {
-        // Log the raw response for debugging
-        console.log('Raw structure analysis response:', structureContent.text)
-        
-        // Parse and validate the structure
-        const parsedStructure = JSON.parse(structureContent.text)
-        structureAnalysis = await StructureAnalysisSchema.parseAsync(parsedStructure)
-      } catch (error) {
-        console.error('Structure analysis parsing failed:', error)
-        console.error('Raw AI response:', structureContent.text)
-        
-        // Enhanced error handling for category validation
-        if (error instanceof z.ZodError) {
-          const invalidCategories = error.issues
-            .filter(issue => 
-              issue.code === 'invalid_enum_value' && 
-              issue.path.includes('category')
-            )
-            .map(issue => {
-              const enumIssue = issue as z.ZodInvalidEnumValueIssue
-              return enumIssue.received
-            })
-          
-          if (invalidCategories.length > 0) {
-            throw new TaskProcessingError(
-              'Invalid task categories detected',
-              'INVALID_CATEGORIES',
-              {
-                message: 'The AI returned categories that are not in the allowed list',
-                invalidCategories,
-                allowedCategories: TaskGroupSchema.shape.category._def.values
-              }
-            )
-          }
+Provide the result as a JSON object with this EXACT structure:
+{
+  "stories": [
+    {
+      "title": "Story title",
+      "summary": "Brief description",
+      "icon": "Emoji representing the story",
+      "estimatedDuration": number (total minutes),
+      "type": "timeboxed" | "flexible" | "milestone",
+      "projectType": "Project type or area",
+      "category": "General category",
+      "tasks": [
+        {
+          "id": "UUID",
+          "title": "Task title",
+          "duration": number (minutes),
+          "isFrog": boolean (true for high priority),
+          "taskCategory": "focus" | "learning" | "review" | "research",
+          "projectType": "string (optional)",
+          "isFlexible": boolean,
+          "needsSplitting": boolean (for tasks > 60 minutes),
+          "suggestedBreaks": [
+            {
+              "after": number (minutes into task),
+              "duration": number (break duration in minutes),
+              "reason": "string explaining reason for break"
+            }
+          ]
         }
-        
-        throw new TaskProcessingError(
-          'Invalid structure analysis format',
-          'PARSING_ERROR',
-          { error, response: structureContent.text }
-        )
-      }
-    } catch (error) {
-      if (error instanceof TaskProcessingError) throw error
-      throw new TaskProcessingError(
-        'Structure analysis failed',
-        'STRUCTURE_ERROR',
-        error
-      )
+      ]
     }
-
-    // Second AI call for story creation
-    let processedData
-    try {
-      const message = await anthropic.messages.create({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 4000,
-        messages: [{
-          role: "user",
-          content: `Create specific, focused story groupings based on this task analysis.
-          Important rules:
-          1. Each story should represent a specific, focused piece of work
-          2. Don't combine different projects into one story
-          3. Use project and feature information to create distinct groupings
-          4. Keep related tasks together (e.g., API work with its testing)
-          5. For tasks over 60 minutes, mark them as needsSplitting: true
-          6. Keep responses concise and focused
-          7. Keep original task durations - DO NOT split tasks yet
-          8. Add a note in the summary if a task will need splitting later
-          9. CRITICAL: Use the provided isFrog value for each task - DO NOT analyze priority
-          10. CRITICAL: Every task MUST include suggestedBreaks array (can be empty for short tasks)
-          
-          Original Tasks:
-          ${JSON.stringify(body.tasks.map((task: string, index: number) => ({ id: index, text: task })), null, 2)}
-
-          Task Analysis: ${JSON.stringify(analyzedTasks, null, 2)}
-          Structure Analysis: ${JSON.stringify(structureAnalysis, null, 2)}
-
-          Respond with this exact JSON format:
-          {
-            "stories": [{
-              "title": "Story title (specific to project/feature)",
-              "summary": "Brief description of the specific work",
-              "icon": "Suggested emoji icon",
-              "estimatedDuration": number (in minutes),
-              "type": "timeboxed" | "flexible" | "milestone",
-              "project": "string",
-              "category": "string",
-              "tasks": [{
-                "title": "Task title",
-                "duration": number (in minutes),
-                "isFrog": boolean (use the provided value, DO NOT determine priority),
-                "type": "focus" | "learning" | "review",
-                "isFlexible": boolean,
-                "needsSplitting": boolean (true if duration > 60),
-                "suggestedBreaks": [{
-                  "after": number (minutes),
-                  "duration": number (minutes),
-                  "reason": "string"
-                }]
-              }]
-            }]
-          }`
+  ]
+}`
         }]
       })
 
-      const messageContent = message.content[0]
+      // Extract the response content
+      const messageContent = response.content[0]
       if (!('text' in messageContent)) {
         throw new TaskProcessingError(
           'Invalid API response format',
@@ -451,96 +354,79 @@ export async function POST(request: Request) {
         )
       }
 
+      // Log the raw response for debugging
+      console.log('Raw response:', messageContent.text)
+      
+      let processedData: ProcessedResponseFromAI
       try {
-        // Log the raw response for debugging
-        console.log('Raw story creation response:', messageContent.text)
+        // Attempt to extract and parse JSON
+        const jsonMatch = messageContent.text.match(/\{[\s\S]*\}/)
+        if (!jsonMatch) {
+          throw new Error('No JSON object found in response')
+        }
+
+        const jsonText = jsonMatch[0]
+        // Type assertion for the parsed data
+        const parsedData = JSON.parse(jsonText) as any
         
-        let parsedData
-        try {
-          parsedData = JSON.parse(messageContent.text)
-        } catch (parseError) {
-          console.error('JSON parsing failed:', parseError)
-          throw new TaskProcessingError(
-            'Failed to parse AI response as JSON',
-            'JSON_PARSE_ERROR',
-            {
-              error: parseError,
-              response: messageContent.text
+        // Create processedData with proper type handling
+        processedData = {
+          stories: parsedData.stories.map((story: any) => ({
+            ...story,
+            tasks: Array.isArray(story.tasks) 
+              ? story.tasks.map(transformTaskData) 
+              : []
+          }))
+        };
+
+        // Add UUIDs for any tasks that don't have IDs
+        processedData.stories.forEach((story: any) => {
+          story.tasks = story.tasks.map((task: any) => {
+            // Ensure task has an ID
+            if (!task.id) {
+              task.id = crypto.randomUUID()
             }
-          )
-        }
+            return task
+          })
+        });
 
-        // Validate the response has the required structure before full validation
-        if (!parsedData || typeof parsedData !== 'object' || !('stories' in parsedData)) {
-          throw new TaskProcessingError(
-            'Invalid response structure',
-            'INVALID_STRUCTURE',
-            {
-              received: parsedData,
-              expected: 'Object with stories array'
+        // Validate task durations and suggest breaks
+        processedData.stories.forEach((story: any) => {
+          story.tasks.forEach((task: any) => {
+            // Round durations to the nearest 5 minutes
+            if (task.duration) {
+              task.duration = roundToNearestBlock(task.duration)
             }
-          )
-        }
 
-        // Perform full schema validation
-        processedData = await ProcessedDataSchema.parseAsync(parsedData)
-      } catch (error) {
-        console.error('Story processing parsing failed:', error)
-        console.error('Raw AI response:', messageContent.text)
-        
-        if (error instanceof TaskProcessingError) {
-          throw error
-        }
-        
-        throw new TaskProcessingError(
-          'Invalid processed data format',
-          'PARSING_ERROR',
-          { error, response: messageContent.text }
-        )
-      }
+            // Add suggestedBreaks if not present
+            if (!task.suggestedBreaks) {
+              task.suggestedBreaks = []
+            }
 
-      // Validate story data
-      if (!processedData.stories || processedData.stories.length === 0) {
-        throw new TaskProcessingError(
-          'No stories generated',
-          'EMPTY_OUTPUT',
-          'AI processing resulted in no stories'
-        )
-      }
-
-      // Validate story durations match task durations
-      for (const story of processedData.stories) {
-        // Calculate total task duration for the story
-        const totalTaskDuration = story.tasks.reduce((sum, task) => sum + task.duration, 0)
-        
-        // Set the story's estimated duration to match total task duration
-        story.estimatedDuration = totalTaskDuration
-
-        // For each task, add scheduling suggestions
-        for (const task of story.tasks) {
-          // Find the original task in analyzedTasks
-          const originalTask = analyzedTasks.find((t: { task: string; suggestedDuration: number }) => 
-            t.task.toLowerCase().includes(task.title.toLowerCase()) ||
-            task.title.toLowerCase().includes(t.task.toLowerCase())
-          )
-
-          if (originalTask) {
-            // Add scheduling suggestions for the session planner
-            if (task.duration < 15) {
+            // Add break suggestion for longer tasks
+            if (task.duration >= 60 && task.suggestedBreaks.length === 0) {
               task.suggestedBreaks.push({
-                after: 0,
-                duration: 0,
-                reason: "Consider combining with another task - duration less than recommended 15 minutes"
+                after: 25,
+                duration: 5,
+                reason: "Short break after initial focus period"
               })
+
+              if (task.duration >= 90) {
+                task.suggestedBreaks.push({
+                  after: 70,
+                  duration: 10,
+                  reason: "Longer break to maintain focus"
+                })
+              }
             }
-            if (task.duration > 60) {
+
+            // Suggest task splitting for very long tasks
+            if (task.duration > 90 && !task.needsSplitting) {
               task.needsSplitting = true
-              task.suggestedBreaks.push({
-                after: 0,
-                duration: 0,
-                reason: "Consider splitting into smaller sessions (15-60 minutes each)"
-              })
+              console.log(`Marking task "${task.title}" for splitting (${task.duration}min)`)
             }
+
+            // Suggest rounding the duration if it's not a multiple of 5
             if (task.duration % 5 !== 0) {
               task.suggestedBreaks.push({
                 after: 0,
@@ -548,26 +434,33 @@ export async function POST(request: Request) {
                 reason: "Consider rounding to nearest 5 minutes for easier scheduling"
               })
             }
-          }
-        }
-      }
+          })
+        });
 
-      // Check for task coverage
-      const processedTaskTitles = new Set(
-        processedData.stories.flatMap(story => 
-          story.tasks.map(task => task.title.toLowerCase().trim())
+        // Check for task coverage
+        const processedTaskTitles = new Set(
+          processedData.stories.flatMap((story: any) => 
+            story.tasks.map((task: any) => task.title.toLowerCase().trim())
+          )
         )
-      )
-      
-      const missingTasks = body.tasks.filter((task: string) => 
-        !processedTaskTitles.has(task.toLowerCase().trim())
-      )
+        
+        const missingTasks = body.tasks.filter((task: string) => 
+          !processedTaskTitles.has(task.toLowerCase().trim())
+        )
 
-      if (missingTasks.length > 0) {
-        console.warn('Some tasks were not included in the processed output:', missingTasks)
+        if (missingTasks.length > 0) {
+          console.warn('Some tasks were not included in the processed output:', missingTasks)
+        }
+
+        return NextResponse.json(processedData)
+      } catch (error) {
+        console.error('JSON processing error:', error)
+        throw new TaskProcessingError(
+          'Failed to process AI response',
+          'JSON_PROCESSING_ERROR',
+          error
+        )
       }
-
-      return NextResponse.json(processedData)
     } catch (error) {
       if (error instanceof TaskProcessingError) throw error
       throw new TaskProcessingError(
@@ -587,16 +480,8 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        error: 'Data validation failed',
-        code: 'VALIDATION_ERROR',
-        details: error.errors
-      }, { status: 400 })
-    }
-
     return NextResponse.json({
-      error: 'Internal server error',
+      error: 'Failed to process tasks',
       code: 'INTERNAL_ERROR',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })

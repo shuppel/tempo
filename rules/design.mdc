@@ -1,5 +1,5 @@
 ---
-description: sing fundamentals of best design practices from groups such as Nielsen Norman Group. Use Claude Sonnet 3.5 or higher.
+description: design fundamentals of best design practices from groups such as Nielsen Norman Group. Use Claude Sonnet 3.5 or higher.
 globs: *.tsx, *.svg
 ---
 # It Sucks, Make it Pop!

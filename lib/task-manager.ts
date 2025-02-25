@@ -1,5 +1,5 @@
 // lib/task-manager.ts
-import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TimeBoxType, StoryType } from "./types"
+import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType } from "./types"
 
 const DURATION_RULES = {
   FIRST_SESSION: { min: 20, max: 30 },
@@ -220,7 +220,8 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
               title: `${task.title} (Part ${partNumber} of ${totalParts})`,
               duration,
               isFrog: task.isFrog,
-              type: getTaskType(task.type),
+              taskCategory: getTaskType(task.taskCategory),
+              projectType: task.projectType,
               isFlexible: false,
               splitInfo,
               suggestedBreaks: []
@@ -254,7 +255,8 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
             title: task.title,
             duration: task.duration,
             isFrog: task.isFrog,
-            type: getTaskType(task.type),
+            taskCategory: getTaskType(task.taskCategory),
+            projectType: task.projectType,
             isFlexible: false,
             suggestedBreaks: []
           }],
@@ -353,7 +355,7 @@ export function organizeTasks(tasks: Task[]): Task[] {
 }
 
 // Update the processing of task types to include research type
-function getTaskType(rawType: string): Exclude<TaskType, "break"> {
+function getTaskType(rawType: string): Exclude<TaskCategory, "break"> {
   if (rawType === 'break') return 'focus';
   if (rawType === 'research') return 'research';
   if (rawType === 'learning') return 'learning';
