@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { Task, TaskType } from "@/lib/types"
+import type { Task, TaskCategory } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -29,7 +29,8 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [duration, setDuration] = useState("25")
-  const [type, setType] = useState<TaskType>("focus")
+  const [taskCategory, setTaskCategory] = useState<TaskCategory>("focus")
+  const [projectType, setProjectType] = useState("")
   const [difficulty, setDifficulty] = useState("25")
   const [isFrog, setIsFrog] = useState(false)
 
@@ -41,7 +42,8 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
       description,
       duration: Number.parseInt(duration),
       difficulty: Number.parseInt(difficulty),
-      type: type as TaskType,
+      taskCategory,
+      projectType: projectType || undefined,
       isFrog,
       status: "todo",
       children: [],
@@ -50,7 +52,8 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
     setTitle("")
     setDescription("")
     setDuration("25")
-    setType("focus")
+    setTaskCategory("focus")
+    setProjectType("")
     setDifficulty("25")
     setIsFrog(false)
   }
@@ -99,10 +102,10 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Task Type</Label>
+                <Label htmlFor="taskCategory">Task Category</Label>
                 <Select 
-                  value={type} 
-                  onValueChange={(value: TaskType) => setType(value)}
+                  value={taskCategory} 
+                  onValueChange={(value: TaskCategory) => setTaskCategory(value)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -116,6 +119,15 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="projectType">Project Type</Label>
+              <Input
+                id="projectType"
+                value={projectType}
+                onChange={(e) => setProjectType(e.target.value)}
+                placeholder="Enter project type (optional)"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

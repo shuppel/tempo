@@ -4,14 +4,19 @@ import { CheckCircle2, Circle, GitCommit, GitFork } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 
+// Extend the Task interface to include parentId
+interface TaskWithParent extends Task {
+  parentId?: string
+}
+
 interface TaskTreeProps {
-  tasks: Task[]
+  tasks: TaskWithParent[]
   onToggleStatus: (taskId: string) => void
   onToggleFrog: (taskId: string) => void
 }
 
 export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps) {
-  const renderTask = (task: Task, level = 0) => {
+  const renderTask = (task: TaskWithParent, level = 0) => {
     const childTasks = tasks.filter((t) => t.parentId === task.id)
 
     return (
@@ -33,6 +38,8 @@ export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps)
                 {task.title}
               </span>
               {task.isFrog && <span className="text-destructive">🐸</span>}
+              <span className="text-xs text-muted-foreground">{task.taskCategory}</span>
+              {task.projectType && <span className="text-xs text-muted-foreground">{task.projectType}</span>}
             </div>
             {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
           </div>

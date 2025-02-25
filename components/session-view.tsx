@@ -22,7 +22,8 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { TimeboxView } from "./timebox-view"
 import { TaskActionModal } from "./task-action-modal"
-import type { Session, SessionPlan, StoryBlock, TimeBox } from "@/lib/types"
+import type { SessionPlan, StoryBlock, TimeBox, TimeBoxTask } from "@/lib/types"
+import { sessionStorage, type StoredSession } from "@/lib/sessionStorage"
 import { cn } from "@/lib/utils"
 
 interface SessionViewProps {
@@ -54,8 +55,7 @@ interface SessionStatus {
 }
 
 export function SessionView({ date }: SessionViewProps) {
-  const [sessionPlan, setSessionPlan] = useState<SessionPlan>()
-  const [session, setSession] = useState<Session>()
+  const [sessionPlan, setSessionPlan] = useState<StoredSession>()
   const [metrics, setMetrics] = useState<SessionMetrics>()
   const [status, setStatus] = useState<SessionStatus>({
     isActive: false,
@@ -71,122 +71,102 @@ export function SessionView({ date }: SessionViewProps) {
 
   // Load session and calculate block start times
   useEffect(() => {
-    const storedSession = localStorage.getItem(`session-${date}`)
+    const storedSession = sessionStorage.getSession(date)
     if (storedSession) {
-      try {
-        const parsedSession = JSON.parse(storedSession)
+      // Calculate estimated start/end times for each block
+      let currentTime = new Date(storedSession.startTime || new Date())
+      const updatedStoryBlocks = storedSession.storyBlocks.map(block => {
+        const updatedTimeBoxes = block.timeBoxes.map(box => {
+          const startTime = currentTime.toISOString();
+          currentTime = addMinutes(currentTime, box.duration);
+          const endTime = currentTime.toISOString();
+          
+          return {
+            ...box,
+            estimatedStartTime: box.estimatedStartTime || startTime,
+            estimatedEndTime: box.estimatedEndTime || endTime
+          };
+        });
         
-        // Calculate estimated start/end times for each block
-        let currentTime = new Date(parsedSession.startTime || new Date())
-        parsedSession.storyBlocks.forEach((block: StoryBlock) => {
-          block.timeBoxes.forEach((box: TimeBox) => {
-            box.estimatedStartTime = currentTime.toISOString()
-            currentTime = addMinutes(currentTime, box.duration)
-            box.estimatedEndTime = currentTime.toISOString()
-          })
-        })
-
-        setSession({
-          summary: {
-            totalSessions: parsedSession.storyBlocks.length,
-            startTime: parsedSession.startTime || new Date().toISOString(),
-            endTime: parsedSession.endTime || currentTime.toISOString(),
-            totalDuration: parsedSession.totalDuration
-          },
-          storyBlocks: parsedSession.storyBlocks,
-          date,
-          status: parsedSession.status || "planned"
-        })
-        setSessionPlan(parsedSession)
-        calculateMetrics(parsedSession.storyBlocks)
-
-        // Restore session state if it was active
-        if (parsedSession.status === "active") {
-          const savedStatus = localStorage.getItem(`session-status-${date}`)
-          if (savedStatus) {
-            const parsedStatus = JSON.parse(savedStatus)
-            setStatus(parsedStatus)
+        return {
+          ...block,
+          timeBoxes: updatedTimeBoxes
+        };
+      });
+      
+      const updatedSession = {
+        ...storedSession,
+        storyBlocks: updatedStoryBlocks
+      };
+      
+      setSessionPlan(updatedSession);
+      
+      // Check for active session status
+      if (updatedSession.status === "in-progress") {
+        // Find the current active time box
+        let foundCurrentBox = false;
+        
+        for (const story of updatedSession.storyBlocks) {
+          for (let i = 0; i < story.timeBoxes.length; i++) {
+            const box = story.timeBoxes[i];
+            if (box.status === "in-progress") {
+              foundCurrentBox = true;
+              setStatus({
+                isActive: true,
+                isPaused: false,
+                currentTimeBox: box,
+                currentTaskIndex: 0,
+                elapsedTime: 0, // Will need to calculate from start time
+                remainingTime: box.duration * 60,
+                startTime: updatedSession.startTime,
+                totalPausedTime: 0,
+                estimatedEndTime: box.estimatedEndTime
+              });
+              break;
+            }
           }
+          if (foundCurrentBox) break;
         }
-      } catch (error) {
-        console.error("Failed to parse session data:", error)
       }
+      
+      // Calculate metrics
+      calculateMetrics(updatedStoryBlocks);
     }
-  }, [date])
+  }, [date]);
 
-  // Save session status when it changes
+  // Timer effect for active sessions
   useEffect(() => {
-    if (status.isActive || status.isPaused) {
-      localStorage.setItem(`session-status-${date}`, JSON.stringify(status))
-    }
-  }, [status, date])
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout
+    let timer: NodeJS.Timeout;
     
     if (status.isActive && !status.isPaused && status.currentTimeBox) {
       timer = setInterval(() => {
         setStatus(prev => {
-          const newElapsedTime = prev.elapsedTime + 1
-          const newRemainingTime = Math.max(0, prev.remainingTime - 1)
-
-          // If time box is complete
-          if (newRemainingTime === 0) {
-            // Find next time box
-            let nextTimeBox: TimeBox | undefined
-            let nextTaskIndex = prev.currentTaskIndex
-
-            if (sessionPlan) {
-              // Flatten all time boxes from all story blocks
-              const allTimeBoxes = sessionPlan.storyBlocks.flatMap(block => block.timeBoxes)
-              
-              // Find next time box if not at the end
-              if (prev.currentTaskIndex < allTimeBoxes.length - 1) {
-                nextTaskIndex = prev.currentTaskIndex + 1
-                nextTimeBox = allTimeBoxes[nextTaskIndex]
-              }
-            }
-
-            // If there's a next time box, transition to it
-            if (nextTimeBox) {
-              return {
-                ...prev,
-                currentTimeBox: nextTimeBox,
-                currentTaskIndex: nextTaskIndex,
-                elapsedTime: 0,
-                remainingTime: nextTimeBox.duration * 60,
-                estimatedEndTime: nextTimeBox.estimatedEndTime
-              }
-            }
-            
-            // Otherwise, end the session
-            return {
-              ...prev,
-              isActive: false,
-              isPaused: false,
-              currentTimeBox: undefined,
-              elapsedTime: 0,
-              remainingTime: 0
-            }
+          // Update elapsed and remaining time
+          const newElapsedTime = prev.elapsedTime + 1;
+          const newRemainingTime = Math.max(0, (prev.currentTimeBox?.duration || 0) * 60 - newElapsedTime);
+          
+          // Check if time box is complete
+          if (newRemainingTime <= 0 && sessionPlan) {
+            // Handle timebox completion
+            handleTimeBoxComplete();
+            return prev; // handleTimeBoxComplete will update the status
           }
-
-          // Continue current time box
+          
           return {
             ...prev,
             elapsedTime: newElapsedTime,
             remainingTime: newRemainingTime
-          }
-        })
-      }, 1000)
+          };
+        });
+      }, 1000);
     }
-
+    
     return () => {
-      if (timer) {
-        clearInterval(timer)
-      }
-    }
-  }, [status.isActive, status.isPaused, sessionPlan])
+      if (timer) clearInterval(timer);
+    };
+  }, [status.isActive, status.isPaused, status.currentTimeBox, sessionPlan]);
 
+  // Calculate session metrics
   const calculateMetrics = (storyBlocks: StoryBlock[]) => {
     let totalTasks = 0
     let totalFrogs = 0
@@ -203,7 +183,7 @@ export function SessionView({ date }: SessionViewProps) {
           longestBlock = Math.max(longestBlock, box.duration)
           if (box.tasks) {
             totalTasks += box.tasks.length
-            totalFrogs += box.tasks.filter(t => t.title.includes('FROG')).length
+            totalFrogs += box.tasks.filter(t => t.isFrog).length
           }
         } else {
           breakDuration += box.duration
@@ -223,12 +203,35 @@ export function SessionView({ date }: SessionViewProps) {
     })
   }
 
+  // Start session
   const startSession = () => {
     if (!sessionPlan) return
 
-    const startTime = new Date().toISOString()
-    const firstTimeBox = sessionPlan.storyBlocks[0].timeBoxes[0]
+    // Find the first work time box
+    let firstStoryIndex = 0;
+    let firstTimeBoxIndex = 0;
+    let foundFirstBox = false;
+    
+    for (let i = 0; i < sessionPlan.storyBlocks.length; i++) {
+      const story = sessionPlan.storyBlocks[i];
+      for (let j = 0; j < story.timeBoxes.length; j++) {
+        const box = story.timeBoxes[j];
+        if (box.type === 'work') {
+          firstStoryIndex = i;
+          firstTimeBoxIndex = j;
+          foundFirstBox = true;
+          break;
+        }
+      }
+      if (foundFirstBox) break;
+    }
+    
+    if (!foundFirstBox) return; // No work boxes found
+    
+    const firstTimeBox = sessionPlan.storyBlocks[firstStoryIndex].timeBoxes[firstTimeBoxIndex];
+    const startTime = new Date().toISOString();
 
+    // Update the status in the UI
     setStatus({
       isActive: true,
       isPaused: false,
@@ -239,15 +242,143 @@ export function SessionView({ date }: SessionViewProps) {
       startTime,
       totalPausedTime: 0,
       estimatedEndTime: firstTimeBox.estimatedEndTime
-    })
+    });
 
+    // Update the status in storage - mark the first time box as in-progress
+    sessionStorage.updateTimeBoxStatus(
+      date, 
+      sessionPlan.storyBlocks[firstStoryIndex].id, 
+      firstTimeBoxIndex, 
+      "in-progress"
+    );
+    
     // Update session in localStorage
     const updatedSession = {
       ...sessionPlan,
-      status: "active",
+      status: "in-progress" as const,
       startTime
+    };
+    
+    sessionStorage.saveSession(date, updatedSession);
+    setSessionPlan(updatedSession);
+  }
+
+  // Handle timebox completion
+  const handleTimeBoxComplete = () => {
+    if (!sessionPlan || !status.currentTimeBox) return;
+    
+    // Find the current time box in the session
+    let currentStoryIndex = -1;
+    let currentTimeBoxIndex = -1;
+    let foundCurrentBox = false;
+    
+    for (let i = 0; i < sessionPlan.storyBlocks.length; i++) {
+      const story = sessionPlan.storyBlocks[i];
+      for (let j = 0; j < story.timeBoxes.length; j++) {
+        const box = story.timeBoxes[j];
+        if (isCurrentTimeBox(box)) {
+          currentStoryIndex = i;
+          currentTimeBoxIndex = j;
+          foundCurrentBox = true;
+          break;
+        }
+      }
+      if (foundCurrentBox) break;
     }
-    localStorage.setItem(`session-${date}`, JSON.stringify(updatedSession))
+    
+    if (currentStoryIndex === -1 || currentTimeBoxIndex === -1) return;
+    
+    // Mark current time box as completed
+    sessionStorage.updateTimeBoxStatus(
+      date, 
+      sessionPlan.storyBlocks[currentStoryIndex].id, 
+      currentTimeBoxIndex, 
+      "completed"
+    );
+    
+    // Find the next time box to activate
+    let nextStoryIndex = currentStoryIndex;
+    let nextTimeBoxIndex = currentTimeBoxIndex + 1;
+    
+    // Check if we need to move to the next story
+    if (nextTimeBoxIndex >= sessionPlan.storyBlocks[currentStoryIndex].timeBoxes.length) {
+      nextStoryIndex++;
+      nextTimeBoxIndex = 0;
+    }
+    
+    // Check if we've reached the end of the session
+    if (nextStoryIndex >= sessionPlan.storyBlocks.length) {
+      // Session is complete
+      const updatedSession = {
+        ...sessionPlan,
+        status: "completed" as const,
+        endTime: new Date().toISOString()
+      };
+      
+      sessionStorage.saveSession(date, updatedSession);
+      setSessionPlan(updatedSession);
+      
+      setStatus({
+        isActive: false,
+        isPaused: false,
+        currentTaskIndex: 0,
+        elapsedTime: 0,
+        remainingTime: 0,
+        totalPausedTime: 0
+      });
+      
+      return;
+    }
+    
+    // Activate the next time box
+    const nextTimeBox = sessionPlan.storyBlocks[nextStoryIndex].timeBoxes[nextTimeBoxIndex];
+    
+    sessionStorage.updateTimeBoxStatus(
+      date, 
+      sessionPlan.storyBlocks[nextStoryIndex].id, 
+      nextTimeBoxIndex, 
+      "in-progress"
+    );
+    
+    // Refresh the session plan from storage to get the updated progress
+    const refreshedSession = sessionStorage.getSession(date);
+    if (refreshedSession) {
+      setSessionPlan(refreshedSession);
+      calculateMetrics(refreshedSession.storyBlocks);
+    }
+    
+    // Update UI status
+    setStatus({
+      isActive: true,
+      isPaused: false,
+      currentTimeBox: nextTimeBox,
+      currentTaskIndex: 0,
+      elapsedTime: 0,
+      remainingTime: nextTimeBox.duration * 60,
+      startTime: status.startTime,
+      totalPausedTime: status.totalPausedTime,
+      estimatedEndTime: nextTimeBox.estimatedEndTime
+    });
+  }
+
+  // Handle marking a task as completed
+  const handleTaskComplete = (storyId: string, timeBoxIndex: number, taskIndex: number) => {
+    if (!sessionPlan) return;
+    
+    sessionStorage.updateTaskStatus(
+      date,
+      storyId,
+      timeBoxIndex,
+      taskIndex,
+      "completed"
+    );
+    
+    // Refresh the session plan from storage
+    const refreshedSession = sessionStorage.getSession(date);
+    if (refreshedSession) {
+      setSessionPlan(refreshedSession);
+      calculateMetrics(refreshedSession.storyBlocks);
+    }
   }
 
   const handlePauseResume = () => {
@@ -301,6 +432,27 @@ export function SessionView({ date }: SessionViewProps) {
            box.duration === status.currentTimeBox.duration &&
            box.estimatedStartTime === status.currentTimeBox.estimatedStartTime &&
            box.estimatedEndTime === status.currentTimeBox.estimatedEndTime
+  }
+
+  // Handle task click to mark as completed
+  const handleTaskClick = (storyId: string, timeBoxIndex: number, taskIndex: number, task: TimeBoxTask) => {
+    // Toggle the task completion status
+    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+    
+    sessionStorage.updateTaskStatus(
+      date,
+      storyId,
+      timeBoxIndex,
+      taskIndex,
+      newStatus
+    );
+    
+    // Refresh the session plan from storage
+    const refreshedSession = sessionStorage.getSession(date);
+    if (refreshedSession) {
+      setSessionPlan(refreshedSession);
+      calculateMetrics(refreshedSession.storyBlocks);
+    }
   }
 
   return (
@@ -450,26 +602,33 @@ export function SessionView({ date }: SessionViewProps) {
         </div>
       )}
 
-      {sessionPlan && (
+      <div className="grid gap-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Session Timeline</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle>Session Plan</CardTitle>
             <CardDescription>
-              Your scheduled work blocks and breaks
+              Your scheduled tasks and breaks
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[600px] pr-4">
-              <TimeboxView 
-                storyBlocks={sessionPlan.storyBlocks} 
-                currentTimeBox={status.currentTimeBox}
-                isCurrentTimeBox={isCurrentTimeBox}
-                isPaused={status.isPaused}
-              />
+            <ScrollArea className="h-[500px] pr-4">
+              {sessionPlan ? (
+                <TimeboxView 
+                  storyBlocks={sessionPlan.storyBlocks}
+                  currentTimeBox={status.currentTimeBox}
+                  isCurrentTimeBox={isCurrentTimeBox}
+                  isPaused={status.isPaused}
+                  onTaskClick={handleTaskClick}
+                />
+              ) : (
+                <div className="p-8 text-center text-muted-foreground">
+                  Loading session details...
+                </div>
+              )}
             </ScrollArea>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       <TaskActionModal
         open={isActionModalOpen}

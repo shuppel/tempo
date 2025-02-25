@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle } from "lucide-react"
-import type { ProcessedTask } from "../app/features/brain-dump/lib/types"
+import type { ProcessedTask } from "@/lib/types"
 
 interface TaskListProps {
   tasks: ProcessedTask[]
@@ -33,6 +33,14 @@ export function TaskList({ tasks }: TaskListProps) {
             <span>•</span>
             <span>{task.title}</span>
             {task.isFrog && <span title="Priority Task">🐸</span>}
+            <Badge variant="outline" className="text-xs capitalize">
+              {task.taskCategory}
+            </Badge>
+            {task.projectType && (
+              <Badge variant="secondary" className="text-xs">
+                {task.projectType}
+              </Badge>
+            )}
             {task.isFlexible ? (
               <Badge variant="outline" className="text-xs">flexible</Badge>
             ) : (

@@ -42,6 +42,11 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
             <Badge variant={story.type === "flexible" ? "outline" : "default"}>
               {story.type}
             </Badge>
+            {story.projectType && (
+              <Badge variant="secondary" className="text-xs">
+                {story.projectType}
+              </Badge>
+            )}
           </div>
           <AlertDescription>
             <p className="mt-1 text-muted-foreground">{story.summary}</p>
@@ -57,6 +62,14 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
                       <Badge variant="secondary" className="bg-primary/10 text-primary text-xs px-2 py-0 h-5">
                         <span className="mr-1">🐸</span>
                         FROG
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {task.taskCategory}
+                    </Badge>
+                    {task.projectType && (
+                      <Badge variant="secondary" className="text-xs">
+                        {task.projectType}
                       </Badge>
                     )}
                     {task.isFlexible ? (

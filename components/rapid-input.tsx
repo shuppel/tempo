@@ -48,7 +48,8 @@ export function RapidInput({ onTasksGenerated }: RapidInputProps) {
             duration: refined.duration || 25, // Use refined duration or default
             difficulty: refined.difficulty || 25, // Use refined difficulty or default
             isFrog: refined.isFrog || false,
-            type: refined.type || "focus",
+            taskCategory: refined.taskCategory || "focus",
+            projectType: refined.projectType,
             status: "todo",
             children: [],
             refined: true,

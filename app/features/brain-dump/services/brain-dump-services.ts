@@ -2,10 +2,6 @@
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 import { isApiError } from "../types"
 import { 
-  BRAIN_DUMP_DURATION_RULES,
-  TASK_PROCESSING_RULES
-} from "../rules/brain-dump-rules"
-import { 
   DURATION_RULES,
   validateTaskDuration,
   roundToNearestBlock,
@@ -83,7 +79,8 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
             needsSplitting: false,
             suggestedBreaks: [],
             isFlexible: task.isFlexible,
-            type: task.type,
+            taskCategory: task.taskCategory,
+            projectType: task.projectType,
             isFrog: task.isFrog,
             originalTitle: task.title // Track original title
           }
@@ -117,7 +114,8 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
           duration: roundedDuration,
           suggestedBreaks: [...(task.suggestedBreaks || [])],
           isFlexible: task.isFlexible,
-          type: task.type,
+          taskCategory: task.taskCategory,
+          projectType: task.projectType,
           isFrog: task.isFrog
         }
         
@@ -212,7 +210,7 @@ function recalculateStoryDuration(story: ProcessedStory): void {
   console.log(`Recalculated duration for "${story.title}": ${story.estimatedDuration} minutes (work: ${totalWorkTime}, breaks: ${totalBreakTime})`)
 }
 
-const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 5) => {
+const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 10) => {
   let currentStories = [...stories]
   let retryCount = 0
   let lastError = null
@@ -267,6 +265,16 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
     try {
       console.log(`Attempting to create session (attempt ${retryCount + 1}/${maxRetries})`)
       console.log('Total duration:', totalDuration, 'minutes')
+      
+      // Ensure all tasks have IDs before sending
+      currentStories.forEach(story => {
+        story.tasks.forEach(task => {
+          if (!task.id) {
+            task.id = crypto.randomUUID();
+            console.log(`Added missing ID to task: ${task.title}`);
+          }
+        });
+      });
       
       // Add story mapping to the request
       const request = {

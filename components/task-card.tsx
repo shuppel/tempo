@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 import { Timer } from "./timer"
 import type { Task } from "@/lib/types"
 
@@ -31,6 +32,14 @@ export function TaskCard({ task, onDelete, onToggleComplete }: TaskCardProps) {
           <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
             {task.difficulty} pts
           </span>
+          <Badge variant="outline" className="text-xs capitalize">
+            {task.taskCategory}
+          </Badge>
+          {task.projectType && (
+            <Badge variant="secondary" className="text-xs">
+              {task.projectType}
+            </Badge>
+          )}
         </div>
         {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
       </div>

@@ -163,7 +163,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
         ...story,
         estimatedDuration: editedDurations[story.title] || story.estimatedDuration,
         tasks: story.tasks.map(task => ({ ...task })),
-        project: story.project || 'Default Project',
+        projectType: story.projectType || 'Default Project',
         category: story.category || 'Development'
       }))
 

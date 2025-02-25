@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, Clock, Pause, Brain, FileText } from "lucide-react"
+import { CheckCircle2, Clock, Pause, Brain, FileText, CheckCircle } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { format } from "date-fns"
-import type { StoryBlock, TimeBox } from "@/lib/types"
+import type { StoryBlock, TimeBox, TimeBoxTask } from "@/lib/types"
 
 interface TimeboxViewProps {
   storyBlocks: Array<StoryBlock & { id: string }>
@@ -13,6 +13,7 @@ interface TimeboxViewProps {
   isCurrentTimeBox: (box: TimeBox) => boolean
   isPaused?: boolean
   className?: string
+  onTaskClick?: (storyId: string, timeBoxIndex: number, taskIndex: number, task: TimeBoxTask) => void
 }
 
 const timeBoxIcons = {
@@ -39,7 +40,14 @@ const timeBoxStyles = {
   debrief: "text-rose-700 bg-rose-50 border-rose-200",
 } as const
 
-export function TimeboxView({ storyBlocks, currentTimeBox, isCurrentTimeBox, isPaused, className }: TimeboxViewProps) {
+export function TimeboxView({ 
+  storyBlocks, 
+  currentTimeBox, 
+  isCurrentTimeBox, 
+  isPaused, 
+  className,
+  onTaskClick
+}: TimeboxViewProps) {
   const formatTimeRange = (startTime?: string, endTime?: string) => {
     if (!startTime || !endTime) return ""
     return `${format(new Date(startTime), 'h:mm a')} - ${format(new Date(endTime), 'h:mm a')}`
@@ -66,10 +74,10 @@ export function TimeboxView({ storyBlocks, currentTimeBox, isCurrentTimeBox, isP
 
           {/* Timeboxes */}
           <div className="space-y-2 pl-8">
-            {story.timeBoxes.map((box, index) => {
+            {story.timeBoxes.map((box, timeBoxIndex) => {
               const Icon = timeBoxIcons[box.type]
               const isActive = isCurrentTimeBox(box)
-              const boxKey = `${story.id}-${box.type}-${index}-${box.duration}-${box.tasks?.[0]?.title || ''}`
+              const boxKey = `${story.id}-${box.type}-${timeBoxIndex}-${box.duration}-${box.tasks?.[0]?.title || ''}`
 
               return (
                 <div
@@ -78,29 +86,35 @@ export function TimeboxView({ storyBlocks, currentTimeBox, isCurrentTimeBox, isP
                     "relative flex items-center gap-4 pl-8 pr-4 py-2 rounded-lg border transition-all duration-300",
                     timeBoxStyles[box.type],
                     isActive && "ring-2 ring-primary ring-offset-2",
-                    isActive && isPaused && "opacity-75 saturate-50"
+                    isActive && isPaused && "opacity-75 saturate-50",
+                    box.status === "completed" && "opacity-75 bg-green-50 border-green-100"
                   )}
                 >
                   <div className={cn(
                     "absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-colors duration-300",
-                    timeBoxColors[box.type]
+                    box.status === "completed" ? "bg-green-500" : timeBoxColors[box.type]
                   )} />
                   
                   <div className={cn(
                     "absolute -left-6 w-4 h-4 rounded-full transition-colors duration-300",
-                    isActive ? "bg-primary" : "bg-muted-foreground/20",
+                    isActive ? "bg-primary" : box.status === "completed" ? "bg-green-500" : "bg-muted-foreground/20",
                     isActive && isPaused && "animate-pulse"
                   )} />
                   
-                  <Icon className={cn(
-                    "h-4 w-4 shrink-0 transition-transform duration-300",
-                    isActive && !isPaused && "animate-spin-slow"
-                  )} />
+                  {box.status === "completed" ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Icon className={cn(
+                      "h-4 w-4 shrink-0 transition-transform duration-300",
+                      isActive && !isPaused && "animate-spin-slow"
+                    )} />
+                  )}
                   
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <span className="font-medium capitalize">
                         {box.type === "work" ? "Focus Session" : box.type.replace("-", " ")}
+                        {box.status === "completed" && " (Completed)"}
                       </span>
                       <div className="text-xs text-muted-foreground">
                         {formatTimeRange(box.estimatedStartTime, box.estimatedEndTime)}
@@ -113,9 +127,25 @@ export function TimeboxView({ storyBlocks, currentTimeBox, isCurrentTimeBox, isP
                   
                   {box.tasks && box.tasks.length > 0 && box.type === "work" && (
                     <div className="mt-2 px-3 py-2 space-y-1.5 bg-white/50 rounded-md">
-                      {box.tasks.map((task: { title: string }, taskIndex: number) => (
-                        <div key={`${boxKey}-task-${taskIndex}-${task.title}`} className="truncate text-sm">
-                          • {task.title}
+                      {box.tasks.map((task: TimeBoxTask, taskIndex: number) => (
+                        <div 
+                          key={`${boxKey}-task-${taskIndex}-${task.title}`}
+                          className={cn(
+                            "flex items-center gap-2 py-1 px-1 rounded text-sm cursor-pointer hover:bg-white/90 transition-colors",
+                            task.status === "completed" && "line-through text-muted-foreground"
+                          )}
+                          onClick={() => onTaskClick?.(story.id, timeBoxIndex, taskIndex, task)}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border flex items-center justify-center",
+                            task.status === "completed" ? "bg-green-100 border-green-300" : "border-gray-300"
+                          )}>
+                            {task.status === "completed" && (
+                              <CheckCircle className="w-3 h-3 text-green-600" />
+                            )}
+                          </div>
+                          <span>{task.title}</span>
+                          {task.isFrog && <span className="text-amber-500">🐸</span>}
                         </div>
                       ))}
                     </div>

@@ -92,7 +92,7 @@ export function TaskActionModal({
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Current Task</span>
                 <Badge variant={currentTask.isFrog ? "default" : "outline"}>
-                  {currentTask.type}
+                  {currentTask.taskCategory}
                 </Badge>
               </div>
               <div className="flex justify-between">
