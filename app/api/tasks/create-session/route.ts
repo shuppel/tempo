@@ -114,6 +114,10 @@ function normalizeTaskTitle(title: string): string {
     // Remove part numbers from split tasks
     .replace(/\s*\(part \d+ of \d+\)\s*/i, '')
     // Don't strip FROG from title matching since it's a priority indicator
+    // Remove common time expressions to improve matching
+    .replace(/\s*\d+\s*(?:hour|hr|h)s?\s*(?:of|for|on|in)?\s*(?:work|working)?\s*(?:on|with|at|in)?\s*/i, ' ')
+    .replace(/\s*\d+\s*(?:minute|min|m)s?\s*/i, ' ')
+    // Clean up extra spaces
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -121,11 +125,19 @@ function normalizeTaskTitle(title: string): string {
 function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): string | undefined {
   const normalizedSearch = normalizeTaskTitle(searchTitle)
   
+  // Log for debugging
+  console.log(`Matching title: "${searchTitle}" normalized to "${normalizedSearch}"`)
+  
   // Try exact match first (ignoring part numbers and FROG prefix)
-  const exactMatch = availableTitles.find(title => 
-    normalizeTaskTitle(title) === normalizedSearch
-  )
-  if (exactMatch) return exactMatch
+  const exactMatch = availableTitles.find(title => {
+    const normalizedTitle = normalizeTaskTitle(title)
+    console.log(`Comparing with: "${title}" normalized to "${normalizedTitle}"`)
+    return normalizedTitle === normalizedSearch
+  })
+  if (exactMatch) {
+    console.log(`Found exact match: "${exactMatch}"`)
+    return exactMatch
+  }
 
   // Try contains match (both ways, ignoring part numbers and FROG prefix)
   const containsMatch = availableTitles.find(title => {
@@ -133,19 +145,43 @@ function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): 
     return normalizedTitle.includes(normalizedSearch) ||
            normalizedSearch.includes(normalizedTitle)
   })
-  if (containsMatch) return containsMatch
+  if (containsMatch) {
+    console.log(`Found contains match: "${containsMatch}"`)
+    return containsMatch
+  }
 
   // Try matching key terms (for project timeline case)
   const searchTerms = normalizedSearch.split(' ').filter(term => 
-    term.length > 3 && !['the', 'and', 'for', 'with'].includes(term)
+    term.length > 3 && !['the', 'and', 'for', 'with', 'this', 'that', 'work', 'app', 'development'].includes(term)
   )
-  const termMatch = availableTitles.find(title => {
+  
+  console.log(`Searching by key terms: ${searchTerms.join(', ')}`)
+  
+  // Check for substantial term overlap
+  const termMatches = availableTitles.map(title => {
     const normalizedTitle = normalizeTaskTitle(title)
-    return searchTerms.every(term => normalizedTitle.includes(term))
-  })
-  if (termMatch) return termMatch
+    const matchingTerms = searchTerms.filter(term => normalizedTitle.includes(term))
+    return {
+      title,
+      normalizedTitle,
+      matchCount: matchingTerms.length,
+      matchRatio: searchTerms.length > 0 ? matchingTerms.length / searchTerms.length : 0
+    }
+  }).filter(match => match.matchRatio > 0)
+  
+  // Sort by match ratio (highest first)
+  termMatches.sort((a, b) => b.matchRatio - a.matchRatio)
+  
+  // If we have a match with at least 50% of terms matching, use it
+  const bestMatch = termMatches.length > 0 && termMatches[0].matchRatio >= 0.5 ? termMatches[0].title : undefined
+  
+  if (bestMatch) {
+    console.log(`Found term match: "${bestMatch}" with match ratio ${termMatches[0].matchRatio}`)
+    return bestMatch
+  }
 
   // No match found
+  console.log(`No match found for "${searchTitle}"`)
   return undefined
 }
 
@@ -157,6 +193,71 @@ function isSplitTaskPart(title: string): boolean {
 // Add function to get base task title without part number
 function getBaseTaskTitle(title: string): string {
   return title.replace(/\s*\(part \d+ of \d+\)\s*$/i, '').trim()
+}
+
+function buildOriginalTasksMap(stories: any[]): Map<string, string> {
+  // Create a map of normalized task titles to original task titles
+  const tasksMap = new Map<string, string>();
+  
+  stories.forEach(story => {
+    story.tasks.forEach((task: any) => {
+      const normalizedTitle = normalizeTaskTitle(task.title);
+      tasksMap.set(normalizedTitle, task.title);
+    });
+  });
+  
+  return tasksMap;
+}
+
+function validateAllTasksIncluded(originalTasksMap: Map<string, string>, scheduledTasks: string[]): {
+  isMissingTasks: boolean;
+  missingTasks: string[];
+  originalTaskCount: number;
+  scheduledTaskCount: number;
+  scheduledTaskDetails: Record<string, string[]>;
+} {
+  // Normalize scheduled tasks
+  const normalizedScheduledTasks = scheduledTasks.map(task => normalizeTaskTitle(task));
+  
+  // Group scheduled tasks by base name (to handle split tasks)
+  const scheduledTaskGroups: Record<string, string[]> = {};
+  scheduledTasks.forEach(task => {
+    const baseTitle = getBaseTaskTitle(task);
+    if (!scheduledTaskGroups[baseTitle]) {
+      scheduledTaskGroups[baseTitle] = [];
+    }
+    scheduledTaskGroups[baseTitle].push(task);
+  });
+  
+  // Check for missing tasks
+  const missingTasks: string[] = [];
+  const normalizedOriginalTasks = Array.from(originalTasksMap.keys());
+  
+  normalizedOriginalTasks.forEach(normalizedOriginal => {
+    const originalTitle = originalTasksMap.get(normalizedOriginal);
+    if (!originalTitle) return;
+    
+    // Check if this task was included in the schedule
+    const wasIncluded = normalizedScheduledTasks.some(normalizedScheduled => {
+      // Direct match
+      if (normalizedScheduled.includes(normalizedOriginal) || normalizedOriginal.includes(normalizedScheduled)) {
+        return true;
+      }
+      return false;
+    });
+    
+    if (!wasIncluded) {
+      missingTasks.push(originalTitle);
+    }
+  });
+  
+  return {
+    isMissingTasks: missingTasks.length > 0,
+    missingTasks,
+    originalTaskCount: normalizedOriginalTasks.length,
+    scheduledTaskCount: scheduledTasks.length,
+    scheduledTaskDetails: scheduledTaskGroups
+  };
 }
 
 export async function POST(request: Request) {
@@ -186,6 +287,9 @@ export async function POST(request: Request) {
 
     const { stories, startTime } = body
     const startDateTime = new Date(startTime)
+
+    // Create a map of original tasks for validation
+    const originalTasksMap = buildOriginalTasksMap(stories);
 
     // Validate total duration doesn't exceed reasonable limits
     const totalDuration = stories.reduce((acc: number, story: z.infer<typeof StorySchema>) => acc + story.estimatedDuration, 0)
@@ -494,6 +598,31 @@ export async function POST(request: Request) {
             'VALIDATION_ERROR',
             error
           )
+        }
+
+        // Extract all scheduled task titles for validation
+        const allScheduledTasks: string[] = [];
+        
+        parsedData.storyBlocks.forEach((block: any) => {
+          block.timeBoxes.forEach((timeBox: any) => {
+            if (timeBox.tasks && timeBox.tasks.length > 0) {
+              timeBox.tasks.forEach((task: any) => {
+                allScheduledTasks.push(task.title);
+              });
+            }
+          });
+        });
+        
+        // Validate that all original tasks are included
+        const validationResult = validateAllTasksIncluded(originalTasksMap, allScheduledTasks);
+        
+        if (validationResult.isMissingTasks) {
+          console.error('Missing tasks in schedule:', validationResult.missingTasks);
+          throw new SessionCreationError(
+            'Some tasks are missing from the schedule',
+            'MISSING_TASKS',
+            validationResult
+          );
         }
 
         return NextResponse.json(parsedData)

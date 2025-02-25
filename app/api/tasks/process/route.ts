@@ -109,13 +109,31 @@ function validateTaskDuration(duration: number): boolean {
 
 function estimateTaskDuration(task: string, analysis: TaskAnalysis): number {
   if (analysis.hasTimeEstimate) {
-    const hourMatch = /(\d+)\s*(?:hour|hr|h)s?/i.exec(task)
+    // Expanded time extraction patterns to handle more formats
+    const hourPatterns = [
+      /(\d+)\s*(?:hour|hr|h)s?/i,  // Basic hour pattern (2 hours, 2hr, 2h)
+      /(\d+)\s*(?:hour|hr|h)s?\s*(?:of|for|on|in)\s+(?:work|working)/i,  // Format: "2 hours of work on"
+      /(\d+)\s*(?:hour|hr|h)s?\s*(?:work|working)/i  // Format: "2 hours working on"
+    ]
+    
     const minuteMatch = /(\d+)\s*(?:minute|min|m)s?/i.exec(task)
     const timeMatch = /(\d+):(\d+)/.exec(task)
 
     let duration = 0
-    if (hourMatch) duration = parseInt(hourMatch[1]) * 60
-    if (minuteMatch) duration = parseInt(minuteMatch[1])
+    
+    // Try all hour patterns
+    for (const pattern of hourPatterns) {
+      const hourMatch = pattern.exec(task)
+      if (hourMatch) {
+        duration = parseInt(hourMatch[1]) * 60
+        break  // Found a match, stop checking patterns
+      }
+    }
+    
+    // Add minutes if present
+    if (minuteMatch) duration += parseInt(minuteMatch[1])
+    
+    // Or use time format
     if (timeMatch) duration = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2])
 
     // Ensure minimum viable duration
