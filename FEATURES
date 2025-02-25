@@ -1,0 +1,24 @@
+#FEATURE BOARD
+
+## TO DO
+-Test the Frog's feature and count (use 3.7 high reasoning)
+- hrs and minutes (instead of total minutes)
+- Progress Modal (with different process illustration)
+- DayLoadWorkManager Service:
+  * New service between Process Tasks and Create-Session
+  * Handles tasks that don't fit in user's day schedule
+  * Features:
+    - User-defined start/end times for workday
+    - Automatic task overflow handling
+    - Scheduling optimization across multiple days
+    - Preserves task relationships when rescheduling
+    - Prioritizes important tasks (frogs) in current day
+    - Respects energy curves throughout the day 
+
+## COMPLETED
+- Story Mapping & Task Reference System:
+  * Robust tracking of original story/task titles during splitting
+  * Multiple matching strategies for finding stories (exact, base title, fuzzy)
+  * Mapping data passed to API for improved reference resolution
+  * Fixes "Story not found in original stories" errors
+  * Maintains relationship between original and split tasks 

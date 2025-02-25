@@ -1,0 +1,47 @@
+---
+description: critical thinking best practices based on iterative, relational and rule-based thinking systems and system design.
+globs: 
+---
+# Think the HOW based on the WHY!!
+Our philosophy is simple: *TAKE A DEEP BREATH. THINK VERY!! VERY!! DEEP ABOUT DATA STRUCTURE, MODELS, SYSTEMS, and RELATIONSHIPS!!!* When our data modeling isn't working, we transform it with best-in-class solutions that elevate user experience and system reliability.
+
+## Preliminary Rules for Data Context Extraction
+
+1. **Context Verification:**  
+   - Confirm the origin and domain of the data system under analysis.
+   - Validate that the data context aligns with specific system requirements and objectives.
+
+2. **System Identification:**  
+   - Identify all key components, modules, functions, and data flows.
+   - Cross-reference system metadata and dependency graphs to ensure comprehensive coverage.
+
+3. **Data Relevance & Integrity:**  
+   - Filter out irrelevant data and prioritize high-fidelity, context-specific information.
+   - Ensure that all extracted data meets defined consistency, normalization, and integrity standards.
+
+4. **Security & Compliance:**  
+   - Adhere strictly to security protocols and compliance guidelines during data extraction.
+   - Limit access to sensitive data unless explicitly authorized, maintaining robust data privacy.
+
+5. **Feedback Integration:**  
+   - Log discrepancies, missing context, or data inconsistencies.
+   - Use iterative feedback to continuously refine data extraction and context validation processes.
+
+## Deep QA .MDC Rubric for Agentic AI
+
+Below is the rubric for our Deep QA .MDC for Agentic AI, focused on critical thinking, data reasoning, and relationship-based analysis:
+
+| **QA Element**                   | **F** | **D** | **C** | **B** | **A** |
+|----------------------------------|-------|-------|-------|-------|-------|
+| **Structural Analysis**          | The system exhibits no discernible structure; code modules and dependencies are chaotic, making any troubleshooting futile. | Minimal structural insights with sporadic mapping; relationships between modules are barely identified, leading to frequent oversights. | Basic structural mapping is present; key code relationships are noted, though several interdependencies remain underexplored. | Robust analysis with clear mapping of modules, functions, and dependencies; minor details may still be improved. | Comprehensive, masterful mapping of all structural elements with deep insights into every interdependency, ensuring proactive and precise troubleshooting. |
+| **Data Model Integrity**         | Data models are inconsistent and misaligned with application logic, resulting in persistent errors and confusion. | Data models suffer from significant misalignments and redundancy; little effort is made to normalize or validate data structures. | Adequate data models with fundamental consistency; basic normalization is evident, though scalability and flexibility are limited. | Well-defined data models that closely align with system logic; minor adjustments could further optimize consistency and scalability. | Exemplary data model design—coherent, scalable, and elegantly aligned with business logic, anticipating future needs flawlessly. |
+| **Calculation Accuracy & Diagnostics** | Calculation flows are untraceable and error-prone, with no mechanisms to diagnose or resolve issues. | Basic diagnostics exist, but significant errors persist due to insufficient tracing and validation strategies. | Functional diagnostic processes capture many errors; however, some calculation issues are still unresolved. | Strong diagnostics with clear traceability and validation; calculation flows are mostly error-free with only minor discrepancies. | Innovative and optimal calculation diagnostics that ensure impeccable accuracy through advanced tracing, validation, and iterative refinement. |
+| **Iterative Deep-Dive & Feedback Loop** | No iterative process is in place; errors are sporadically addressed, and feedback is virtually non-existent. | Limited iterations with inconsistent feedback; the process fails to capture deeper, systemic issues consistently. | An acceptable iterative process with a basic feedback loop; it catches many issues but occasionally misses subtle, underlying problems. | A well-structured iterative process with detailed feedback and regular refinement that significantly improves system robustness. | Dynamic, adaptive, and thorough iterative deep-dive leveraging continuous feedback to drive exceptional system optimization and error resolution. |
+| **Integration & Correlation**    | Components operate in isolation with zero integration, resulting in fragmented insights and misaligned functionalities. | Minimal integration efforts with sporadic correlation; insights remain incomplete and disjointed across system components. | Satisfactory integration with functional correlations among components; yet, deeper synergy and holistic insights are not fully achieved. | Effective integration that ensures coherent interaction and strong correlation among components, leading to robust insights. | Flawless integration and strategic correlation transform isolated data into a cohesive system, enabling proactive issue identification and seamless operation. |
+| **System Scalability & Flexibility** | The system is rigid and fails to adapt; design constraints and inflexible architectures stifle growth and innovation. | Scalability is marginally addressed; significant design constraints hinder the system’s ability to evolve with changing demands. | Moderately scalable and flexible design; the system adapts to changes but requires enhancements to support rapid growth fully. | A well-designed, scalable, and flexible system that adapts with minor limitations; most future challenges are anticipated and managed. | Exceptional scalability and flexibility with a forward-thinking design that evolves seamlessly, anticipating and overcoming future challenges with ease. |
+| **Motivational & Reflective Approach** | The process is mechanical, lacking any motivational or reflective guidance, resulting in uninspired, perfunctory analysis. | Minimal motivational cues are provided; the guidance is sparse and fails to drive deep reflection or innovative thinking. | Basic motivational reminders encourage occasional reflection; however, the impact on overall system analysis is limited. | Consistent and thoughtful motivational guidance prompts deep reflection on every component, fostering a proactive and innovative analysis process. | Masterful integration of motivational and reflective insights that not only inspire profound critical thinking but also fuel breakthroughs in design and system optimization. |
+
+---
+
+**Remember:** *It Sucks, Make it Pop!*  
+Take a deep breath, think very, very deep about the data structures, models, systems, and relationships, and let's transform our analysis into something truly extraordinary!

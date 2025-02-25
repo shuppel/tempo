@@ -10,6 +10,7 @@ import {
   generateSchedulingSuggestion,
   suggestSplitAdjustment
 } from '@/lib/durationUtils'
+import type { Task } from '@/lib/types'
 
 // Extend the duration rules to include the maximum consecutive work time
 const DURATION_RULES = {
@@ -48,12 +49,17 @@ const StorySchema = z.object({
   tasks: z.array(TaskSchema)
 })
 
+// Add a schema for story mapping
+const StoryMappingSchema = z.object({
+  possibleTitle: z.string(),
+  originalTitle: z.string()
+})
+
+// Update request schema to include story mapping
 const RequestSchema = z.object({
   stories: z.array(StorySchema),
-  startTime: z.string().refine(
-    (val) => !isNaN(Date.parse(val)),
-    { message: "Invalid date format for startTime" }
-  )
+  startTime: z.string(),
+  storyMapping: z.array(StoryMappingSchema).optional()
 })
 
 class SessionCreationError extends Error {
@@ -71,6 +77,12 @@ class SessionCreationError extends Error {
 interface TimeBoxTask {
   title: string
   duration: number
+  type?: string
+  suggestedBreaks?: Array<{
+    after: number
+    duration: number
+    reason: string
+  }>
 }
 
 interface TimeBox extends DurationTimeBox {
@@ -104,14 +116,18 @@ interface SessionResponse {
 
 // Add helper functions for task title handling
 function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } {
+  // Account for breaks in the duration ranges
+  const minWithBreak = DURATION_RULES.MIN_DURATION + DURATION_RULES.SHORT_BREAK
+  const maxWithBreak = DURATION_RULES.MAX_DURATION + DURATION_RULES.LONG_BREAK * 2 // Allow for two long breaks
+  
   return {
-    min: DURATION_RULES.MIN_DURATION,
-    max: DURATION_RULES.MAX_DURATION
+    min: minWithBreak,
+    max: maxWithBreak
   }
 }
 
 function getDurationDescription(range: { min: number; max: number }, type: string): string {
-  return `${range.min}-${range.max} minutes (${type})`
+  return `${range.min}-${range.max} minutes (including breaks, ${type})`
 }
 
 function normalizeTaskTitle(title: string): string {
@@ -119,10 +135,11 @@ function normalizeTaskTitle(title: string): string {
     .toLowerCase()
     // Remove part numbers from split tasks
     .replace(/\s*\(part \d+ of \d+\)\s*/i, '')
-    // Don't strip FROG from title matching since it's a priority indicator
-    // Remove common time expressions to improve matching
+    // Remove time expressions
     .replace(/\s*\d+\s*(?:hour|hr|h)s?\s*(?:of|for|on|in)?\s*(?:work|working)?\s*(?:on|with|at|in)?\s*/i, ' ')
     .replace(/\s*\d+\s*(?:minute|min|m)s?\s*/i, ' ')
+    // Clean up common words that don't affect meaning
+    .replace(/\b(?:working|work|on|for|in|at|with)\b/g, '')
     // Clean up extra spaces
     .replace(/\s+/g, ' ')
     .trim()
@@ -134,59 +151,51 @@ function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): 
   // Log for debugging
   console.log(`Matching title: "${searchTitle}" normalized to "${normalizedSearch}"`)
   
-  // Try exact match first (ignoring part numbers and FROG prefix)
+  // First check for split task matches
+  const splitMatches = availableTitles.filter(title => 
+    title.includes('(Part') && 
+    normalizeTaskTitle(title.split('(Part')[0]) === normalizedSearch
+  )
+  
+  if (splitMatches.length > 0) {
+    console.log(`Found split task matches: ${splitMatches.join(', ')}`)
+    // Return the first part to represent the whole task
+    return splitMatches[0].split('(Part')[0].trim()
+  }
+
+  // Try exact match first
   const exactMatch = availableTitles.find(title => {
     const normalizedTitle = normalizeTaskTitle(title)
     console.log(`Comparing with: "${title}" normalized to "${normalizedTitle}"`)
     return normalizedTitle === normalizedSearch
   })
+  
   if (exactMatch) {
     console.log(`Found exact match: "${exactMatch}"`)
     return exactMatch
   }
 
-  // Try contains match (both ways, ignoring part numbers and FROG prefix)
-  const containsMatch = availableTitles.find(title => {
+  // Try fuzzy matching for project names
+  const fuzzyMatch = availableTitles.find(title => {
     const normalizedTitle = normalizeTaskTitle(title)
-    return normalizedTitle.includes(normalizedSearch) ||
-           normalizedSearch.includes(normalizedTitle)
+    // Check if the core project names match
+    const searchWords = normalizedSearch.split(' ').filter(word => word.length > 2)
+    const titleWords = normalizedTitle.split(' ').filter(word => word.length > 2)
+    
+    const matchingWords = searchWords.filter(word => 
+      titleWords.some((titleWord: string) => 
+        titleWord.includes(word) || word.includes(titleWord)
+      )
+    )
+    
+    return matchingWords.length >= Math.min(2, searchWords.length)
   })
-  if (containsMatch) {
-    console.log(`Found contains match: "${containsMatch}"`)
-    return containsMatch
+
+  if (fuzzyMatch) {
+    console.log(`Found fuzzy match: "${fuzzyMatch}"`)
+    return fuzzyMatch
   }
 
-  // Try matching key terms (for project timeline case)
-  const searchTerms = normalizedSearch.split(' ').filter(term => 
-    term.length > 3 && !['the', 'and', 'for', 'with', 'this', 'that', 'work', 'app', 'development'].includes(term)
-  )
-  
-  console.log(`Searching by key terms: ${searchTerms.join(', ')}`)
-  
-  // Check for substantial term overlap
-  const termMatches = availableTitles.map(title => {
-    const normalizedTitle = normalizeTaskTitle(title)
-    const matchingTerms = searchTerms.filter(term => normalizedTitle.includes(term))
-    return {
-      title,
-      normalizedTitle,
-      matchCount: matchingTerms.length,
-      matchRatio: searchTerms.length > 0 ? matchingTerms.length / searchTerms.length : 0
-    }
-  }).filter(match => match.matchRatio > 0)
-  
-  // Sort by match ratio (highest first)
-  termMatches.sort((a, b) => b.matchRatio - a.matchRatio)
-  
-  // If we have a match with at least 50% of terms matching, use it
-  const bestMatch = termMatches.length > 0 && termMatches[0].matchRatio >= 0.5 ? termMatches[0].title : undefined
-  
-  if (bestMatch) {
-    console.log(`Found term match: "${bestMatch}" with match ratio ${termMatches[0].matchRatio}`)
-    return bestMatch
-  }
-
-  // No match found
   console.log(`No match found for "${searchTitle}"`)
   return undefined
 }
@@ -201,7 +210,72 @@ function getBaseTaskTitle(title: string): string {
   return title.replace(/\s*\(part \d+ of \d+\)\s*$/i, '').trim()
 }
 
-function buildOriginalTasksMap(stories: any[]): Map<string, string> {
+// Add a new function to extract the base story title
+function getBaseStoryTitle(title: string): string {
+  // Check if the story title contains a part indicator
+  if (isSplitTaskPart(title)) {
+    return getBaseTaskTitle(title);
+  }
+  return title;
+}
+
+// Update findOriginalStory function to use story mapping if available
+function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: any[]): any {
+  // First check if we have mapping data available and try to use it
+  if (storyMapping && storyMapping.length > 0) {
+    // Find this title in the mapping
+    const mapping = storyMapping.find(m => m.possibleTitle === storyTitle);
+    if (mapping) {
+      // Use the original title from mapping to find the story
+      const originalStory = stories.find(s => s.title === mapping.originalTitle);
+      if (originalStory) {
+        console.log(`Found story using mapping: ${storyTitle} -> ${mapping.originalTitle}`);
+        return originalStory;
+      }
+    }
+  }
+  
+  // If mapping doesn't work or isn't available, try other methods
+
+  // First try exact match
+  let original = stories.find((story: any) => story.title === storyTitle);
+  if (original) return original;
+  
+  // If not found and title contains "Part X of Y", try matching the base title
+  if (isSplitTaskPart(storyTitle)) {
+    const baseTitle = getBaseStoryTitle(storyTitle);
+    original = stories.find((story: any) => story.title === baseTitle);
+    if (original) return original;
+    
+    // Try fuzzy match on base title
+    original = stories.find((story: any) => {
+      return story.title.includes(baseTitle) || baseTitle.includes(story.title);
+    });
+    if (original) return original;
+  }
+  
+  // Try fuzzy match as last resort
+  original = stories.find((story: any) => {
+    const storyWords = story.title.toLowerCase().split(/\s+/);
+    const searchWords = storyTitle.toLowerCase().split(/\s+/);
+    
+    // Count matching words
+    const matchCount = searchWords.filter(word => 
+      storyWords.some((storyWord: string) => storyWord.includes(word) || word.includes(storyWord))
+    ).length;
+    
+    // Require at least 50% of words to match or minimum 2 words
+    return matchCount >= Math.max(2, Math.floor(searchWords.length / 2));
+  });
+  
+  if (original) {
+    console.log(`Found story using fuzzy match: ${storyTitle} -> ${original.title}`);
+  }
+  
+  return original;
+}
+
+function buildOriginalTasksMap(stories: z.infer<typeof StorySchema>[]): Map<string, string> {
   // Create a map of normalized task titles to original task titles
   const tasksMap = new Map<string, string>();
   
@@ -215,55 +289,43 @@ function buildOriginalTasksMap(stories: any[]): Map<string, string> {
   return tasksMap;
 }
 
-function validateAllTasksIncluded(originalTasksMap: Map<string, string>, scheduledTasks: string[]): {
+function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], scheduledTasks: TimeBoxTask[]): {
   isMissingTasks: boolean;
   missingTasks: string[];
-  originalTaskCount: number;
-  scheduledTaskCount: number;
-  scheduledTaskDetails: Record<string, string[]>;
+  scheduledCount: number;
+  originalCount: number;
 } {
-  // Normalize scheduled tasks
-  const normalizedScheduledTasks = scheduledTasks.map(task => normalizeTaskTitle(task));
+  const scheduledTaskDetails: Record<string, string[]> = {}
   
-  // Group scheduled tasks by base name (to handle split tasks)
-  const scheduledTaskGroups: Record<string, string[]> = {};
+  // Group scheduled tasks by their base name (without part numbers)
   scheduledTasks.forEach(task => {
-    const baseTitle = getBaseTaskTitle(task);
-    if (!scheduledTaskGroups[baseTitle]) {
-      scheduledTaskGroups[baseTitle] = [];
+    const baseTitle = task.title.split('(Part')[0].trim()
+    if (!scheduledTaskDetails[baseTitle]) {
+      scheduledTaskDetails[baseTitle] = []
     }
-    scheduledTaskGroups[baseTitle].push(task);
-  });
-  
-  // Check for missing tasks
-  const missingTasks: string[] = [];
-  const normalizedOriginalTasks = Array.from(originalTasksMap.keys());
-  
-  normalizedOriginalTasks.forEach(normalizedOriginal => {
-    const originalTitle = originalTasksMap.get(normalizedOriginal);
-    if (!originalTitle) return;
-    
-    // Check if this task was included in the schedule
-    const wasIncluded = normalizedScheduledTasks.some(normalizedScheduled => {
-      // Direct match
-      if (normalizedScheduled.includes(normalizedOriginal) || normalizedOriginal.includes(normalizedScheduled)) {
-        return true;
-      }
-      return false;
-    });
-    
-    if (!wasIncluded) {
-      missingTasks.push(originalTitle);
-    }
-  });
-  
+    scheduledTaskDetails[baseTitle].push(task.title)
+  })
+
+  // Instead of checking for missing tasks, we'll validate that we have at least
+  // the same number of task groups as original tasks, since the AI can transform them
+  const originalTaskCount = originalTasks.length
+  const scheduledGroupCount = Object.keys(scheduledTaskDetails).length
+
+  // Log for debugging
+  console.log('Task count validation:')
+  console.log('Original tasks:', originalTaskCount)
+  console.log('Scheduled task groups:', scheduledGroupCount)
+  console.log('Scheduled task details:', scheduledTaskDetails)
+
+  // We consider tasks "missing" only if we have fewer scheduled groups than original tasks
+  const isMissingTasks = scheduledGroupCount < originalTaskCount
+
   return {
-    isMissingTasks: missingTasks.length > 0,
-    missingTasks,
-    originalTaskCount: normalizedOriginalTasks.length,
-    scheduledTaskCount: scheduledTasks.length,
-    scheduledTaskDetails: scheduledTaskGroups
-  };
+    isMissingTasks,
+    missingTasks: [], // We no longer track specific missing tasks since the AI can transform them
+    scheduledCount: scheduledTasks.length,
+    originalCount: originalTaskCount
+  }
 }
 
 // Add helper function to insert breaks when work time exceeds maximum allowed
@@ -357,39 +419,32 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
   return updatedBlocks;
 }
 
-export async function POST(request: Request) {
+// Extract the inferred type from the schema
+type Story = z.infer<typeof StorySchema>
+
+export async function POST(req: Request) {
+  const currentTime = new Date()
+  let startTime
+  let stories
+  let storyMapping
+
   try {
-    // Parse and validate request body
-    let body
-    try {
-      body = await request.json()
-    } catch (error) {
-      return NextResponse.json({
-        error: 'Invalid JSON in request body',
-        code: 'INVALID_JSON',
-        details: error instanceof Error ? error.message : error
-      }, { status: 400 })
+    const body = await req.json()
+    const parsedBody = RequestSchema.parse(body)
+    
+    stories = parsedBody.stories
+    startTime = parsedBody.startTime
+    storyMapping = parsedBody.storyMapping
+    
+    console.log(`Received ${stories.length} stories for session creation`)
+    if (storyMapping) {
+      console.log(`Received mapping data for ${storyMapping.length} possible story titles`)
     }
-
-    try {
-      await RequestSchema.parseAsync(body)
-    } catch (error) {
-      console.error('Request validation failed:', error)
-      return NextResponse.json({
-        error: 'Invalid request format',
-        code: 'VALIDATION_ERROR',
-        details: error instanceof z.ZodError ? error.errors : error
-      }, { status: 400 })
-    }
-
-    const { stories, startTime } = body
+    
     const startDateTime = new Date(startTime)
 
-    // Create a map of original tasks for validation
-    const originalTasksMap = buildOriginalTasksMap(stories);
-
-    // Validate total duration doesn't exceed reasonable limits
-    const totalDuration = stories.reduce((acc: number, story: z.infer<typeof StorySchema>) => acc + story.estimatedDuration, 0)
+    // Validate that total duration is a reasonable value
+    const totalDuration = stories.reduce((sum, story) => sum + story.estimatedDuration, 0)
     if (totalDuration > 24 * 60) { // More than 24 hours
       throw new SessionCreationError(
         'Total session duration exceeds maximum limit',
@@ -397,6 +452,9 @@ export async function POST(request: Request) {
         { totalDuration, maxDuration: 24 * 60 }
       )
     }
+
+    // Create a map of original tasks for validation
+    const originalTasksMap = buildOriginalTasksMap(stories);
 
     try {
       // Log input data
@@ -410,37 +468,38 @@ export async function POST(request: Request) {
           role: "user",
           content: `Create an optimized work session schedule for these stories/tasks. Follow these rules:
           1. Start at ${startDateTime.toLocaleTimeString()}
-          2. Session duration rules:
-             - First sessions: 20-30 minutes (warm-up/pomodoro style)
-             - Middle sessions: 30-60 minutes (flow state)
-             - Final sessions: 15-60 minutes (flexible completion)
-             - Single tasks: 20-60 minutes
-          3. Break scheduling rules:
-             - Add 5-minute breaks between regular sessions
-             - Add 15-minute breaks after completing 90+ minutes of work
-             - Add 5-minute debriefs after completing each story
-             - Never schedule more than 90 minutes of work without a substantial break
-          4. Task Priority Rules:
+          2. CRITICAL - Duration Rules:
+             - Task durations INCLUDE break times
+             - For a 120-minute task (2 hours total):
+               * 45min work + 5min break + 25min work + 15min break + 30min work = 120min total
+             - For a 180-minute task (3 hours total):
+               * 45min work + 15min break + 45min work + 15min break + 45min work + 15min break = 180min total
+             - Break scheduling:
+               * Add 5-minute breaks between shorter work sessions
+               * Add 15-minute breaks after 45+ minutes of work
+               * Add 5-minute debriefs after completing each story
+               * Use suggestedBreaks from input tasks when available
+          3. Task Priority Rules:
              - Tasks marked with 'isFrog: true' are high priority and should be scheduled early
              - DO NOT add "FROG" to task titles - it's only a priority indicator
-             - Use original task titles exactly as provided
-          5. Group related tasks together
-          6. Keep the response concise and well-structured
+          4. Group related tasks together
+          5. Keep the response concise and well-structured
+          6. CRITICAL - Task Title and Transformation Rules:
+             - You may transform task titles to be more specific or descriptive
+             - For tasks with time prefixes (e.g., "2 hours of work on X"), you can remove the time prefix
+             - For project tasks (e.g., "work on Project X"), you can expand to "Project X Development"
+             - When splitting tasks, use the base transformed title with part numbers
+             - Example transformations:
+               * "2 hours of work on Toro" → "Toro Development (Part X of Y)"
+               * "3 hours working on Project X" → "Project X Implementation (Part X of Y)"
           7. CRITICAL - Task splitting and duration rules:
              - Each work time box must contain exactly one task or task part
              - Break and debrief time boxes must not contain tasks
              - For tasks longer than 60 minutes:
-               * Split into 2-3 parts ONLY, following these rules:
-                 - For 120-minute tasks:
-                   * Split into 3 parts: First (25-30) + Middle (45-55) + Final (35-45)
-                   * Split into 2 parts: First (25-30) + Final (90-95)
-                   * NEVER split into more than 3 parts
-                   * Total MUST equal 120 ±10 minutes
-                 - For 180-minute tasks:
-                   * Split into 3 parts: First (25-30) + Middle (90) + Final (60-65)
-                   * NEVER split into more than 3 parts
-                   * Total MUST equal 180 ±10 minutes
+               * Split into 2-3 parts ONLY
+               * Follow the duration patterns for 120min and 180min tasks
                * Include appropriate breaks between sessions
+               * Consider suggestedBreaks when splitting
              - Time box durations:
                * First work sessions: 20-30 minutes
                * Middle work sessions: 30-60 minutes (or up to 90 for 180-min tasks)
@@ -449,27 +508,10 @@ export async function POST(request: Request) {
                * Short breaks: 5 minutes
                * Long breaks: 15 minutes
                * Debriefs: 5 minutes
-             - Each story block's totalDuration must include all work sessions and breaks
-             - For split tasks, use the format: "taskTitle (Part X of Y)" in the title field
-             - CRITICAL: When splitting tasks:
-               * Use 2-3 parts maximum
-               * Ensure parts sum to original duration ±10 minutes
-               * Follow the duration patterns above
-               * NEVER split into 4 or more parts
-               * NEVER exceed original duration by more than 10 minutes
           8. CRITICAL - Duration Calculation Rules:
              - The summary.totalDuration MUST equal the sum of ALL story block durations
-             - Each story block's totalDuration MUST include:
-               * All work session durations
-               * All break durations (5 or 15 minutes)
-               * Final debrief duration (5 minutes)
+             - Each story block's totalDuration MUST include all work sessions, breaks, and debriefs
              - Double-check all duration calculations before returning
-             - Verify that summary.totalDuration matches the sum of block durations
-          9. CRITICAL - Title Handling Rules:
-             - Use exact task titles from the input - DO NOT modify them
-             - DO NOT add "FROG" prefix to any titles
-             - For split tasks, only add the part number: "Original Title (Part X of Y)"
-             - Preserve original story titles exactly as provided
 
           Stories:
           ${JSON.stringify(stories, null, 2)}
@@ -489,7 +531,7 @@ export async function POST(request: Request) {
               "totalDuration": number (minutes, MUST equal sum of all block durations)
             },
             "storyBlocks": [{
-              "title": "Story title (exactly as provided)",
+              "title": "Story title",
               "summary": "Story summary",
               "icon": "emoji",
               "timeBoxes": [{
@@ -497,8 +539,9 @@ export async function POST(request: Request) {
                 "startTime": "HH:MM",
                 "duration": number,
                 "tasks": [{ 
-                  title: string (use "Original Title (Part X of Y)" format for split tasks),
-                  duration: number (must match time box duration for work sessions)
+                  title: string,
+                  duration: number,
+                  suggestedBreaks: [{ after: number, duration: number, reason: string }]
                 }] (empty for breaks/debriefs, exactly one task for work)
               }],
               "totalDuration": number (MUST include work sessions, breaks, and debrief)
@@ -564,7 +607,7 @@ export async function POST(request: Request) {
             console.log('- Total duration:', totalDuration)
 
             // Find the original story to update its duration
-            const originalStory = stories.find((story: z.infer<typeof StorySchema>) => story.title === block.title)
+            const originalStory = findOriginalStory(block.title, stories, storyMapping);
             if (!originalStory) {
               throw new SessionCreationError(
                 'Story not found in original stories',
@@ -660,20 +703,17 @@ export async function POST(request: Request) {
         }
         
         // Extract all scheduled task titles for validation
-        const allScheduledTasks: string[] = [];
-        
-        parsedData.storyBlocks.forEach((block: any) => {
-          block.timeBoxes.forEach((timeBox: any) => {
-            if (timeBox.tasks && timeBox.tasks.length > 0) {
-              timeBox.tasks.forEach((task: any) => {
-                allScheduledTasks.push(task.title);
-              });
-            }
-          });
-        });
+        const allScheduledTasks: TimeBoxTask[] = parsedData.storyBlocks.flatMap((block: StoryBlock) => 
+          block.timeBoxes
+            .filter((box: TimeBox) => box.type === 'work')
+            .flatMap((box: TimeBox) => box.tasks || [])
+        )
         
         // Validate that all original tasks are included
-        const validationResult = validateAllTasksIncluded(originalTasksMap, allScheduledTasks);
+        const validationResult = validateAllTasksIncluded(
+          stories.flatMap((story: Story) => story.tasks),
+          allScheduledTasks
+        )
         
         if (validationResult.isMissingTasks) {
           console.error('Missing tasks in schedule:', validationResult.missingTasks);

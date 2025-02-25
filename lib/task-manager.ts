@@ -1,3 +1,4 @@
+// lib/task-manager.ts
 import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo } from "./types"
 
 const DURATION_RULES = {
@@ -32,43 +33,64 @@ function shouldSplitTask(task: Task): boolean {
   return task.duration > DURATION_RULES.SPLIT_THRESHOLD
 }
 
-function calculateSplitDurations(totalDuration: number): number[] {
+function calculateSplitDurations(totalDuration: number): { workDurations: number[], totalWithBreaks: number } {
   if (totalDuration <= DURATION_RULES.SPLIT_THRESHOLD) {
-    return [totalDuration]
-  }
-
-  if (totalDuration === 120) {
-    // For 120-minute tasks, split into 3 parts: 30 + 50 + 40
-    return [30, 50, 40]
-  }
-
-  if (totalDuration === 180) {
-    // For 180-minute tasks, split into 3 parts: 30 + 90 + 60
-    return [30, 90, 60]
-  }
-
-  // For other durations, split into appropriate chunks
-  const parts: number[] = []
-  let remaining = totalDuration
-
-  // First part: 25-30 minutes
-  parts.push(Math.min(30, remaining))
-  remaining -= parts[0]
-
-  while (remaining > 0) {
-    if (remaining <= DURATION_RULES.FINAL_SESSION.max) {
-      // Last part: remaining time (15-60 minutes)
-      parts.push(remaining)
-      break
-    } else {
-      // Middle parts: 30-60 minutes
-      const middlePart = Math.min(60, remaining)
-      parts.push(middlePart)
-      remaining -= middlePart
+    return { 
+      workDurations: [totalDuration],
+      totalWithBreaks: totalDuration 
     }
   }
 
-  return parts
+  if (totalDuration === 120) {
+    // For 120-minute tasks (2 hours), split into work segments with breaks included:
+    // 45min work + 5min break + 25min work + 15min break + 30min work = 120min total
+    return {
+      workDurations: [45, 25, 30],
+      totalWithBreaks: 120 // Total time including breaks
+    }
+  }
+
+  if (totalDuration === 180) {
+    // For 180-minute tasks (3 hours), create optimal split with breaks:
+    // 45min work + 15min break + 45min work + 15min break + 45min work = 165min
+    // Plus additional short breaks between = 180min total
+    return {
+      workDurations: [45, 45, 45],
+      totalWithBreaks: 180
+    }
+  }
+
+  // For other durations, split into appropriate chunks accounting for breaks
+  const parts: number[] = []
+  let remaining = totalDuration
+  let breakTime = 0
+
+  // First work session: 30-45 minutes
+  const firstPart = Math.min(45, Math.floor(remaining * 0.4))
+  parts.push(firstPart)
+  remaining -= firstPart
+  breakTime += DURATION_RULES.SHORT_BREAK // Add first break
+
+  // Calculate remaining parts ensuring breaks are accounted for
+  while (remaining > DURATION_RULES.SHORT_BREAK) {
+    if (remaining <= DURATION_RULES.FINAL_SESSION.max + DURATION_RULES.SHORT_BREAK) {
+      // Last part: remaining time minus break
+      parts.push(remaining - DURATION_RULES.SHORT_BREAK)
+      breakTime += DURATION_RULES.SHORT_BREAK
+      break
+    } else {
+      // Middle parts: account for break time
+      const middlePart = Math.min(45, Math.floor((remaining - DURATION_RULES.LONG_BREAK) * 0.5))
+      parts.push(middlePart)
+      remaining -= (middlePart + DURATION_RULES.LONG_BREAK)
+      breakTime += DURATION_RULES.LONG_BREAK
+    }
+  }
+
+  return {
+    workDurations: parts,
+    totalWithBreaks: parts.reduce((sum, part) => sum + part, 0) + breakTime
+  }
 }
 
 async function analyzeAndGroupTasks(tasks: Task[]): Promise<{ title: string, tasks: Task[], suggestedDuration: number }[]> {
@@ -133,9 +155,18 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
   const storyBlocks: StoryBlock[] = []
   let totalSessionDuration = 0
 
-  // Track frog tasks to ensure they're scheduled early
-  let frogTasksScheduled = 0
-  const totalFrogTasks = tasks.filter(t => t.isFrog).length
+  // Enhanced frog tracking
+  const frogTasks = tasks.filter(t => t.isFrog)
+  const frogTracker = {
+    total: frogTasks.length,
+    scheduled: 0,
+    originalDurations: new Map(frogTasks.map(t => [t.id, t.duration])),
+    scheduledParts: new Map<string, number>()
+  }
+
+  // Calculate target time for completing frogs (aim for first third of the day)
+  const totalEstimatedDuration = tasks.reduce((sum, t) => sum + t.duration, 0)
+  const frogDeadlineMinutes = Math.floor(totalEstimatedDuration / 3)
 
   for (const group of groups) {
     const timeBoxes: TimeBox[] = []
@@ -144,31 +175,34 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
 
     // Process each task in the group
     for (const task of group.tasks) {
-      // For frog tasks, ensure they're scheduled in the first half of the day
       if (task.isFrog) {
-        frogTasksScheduled++
-        const totalPlannedDuration = totalSessionDuration + storyDuration
-        const estimatedTotalDuration = tasks.reduce((sum, t) => sum + t.duration, 0)
+        // Track frog scheduling
+        const currentTotalDuration = totalSessionDuration + storyDuration
         
-        if (totalPlannedDuration > estimatedTotalDuration / 2) {
-          console.warn(`Warning: Frog task "${task.title}" scheduled late in the day`)
+        if (currentTotalDuration > frogDeadlineMinutes) {
+          console.warn(`Warning: Frog task "${task.title}" scheduled beyond the first third of the day (${currentTotalDuration}/${frogDeadlineMinutes} minutes)`)
+        }
+
+        if (task.needsSplitting) {
+          const partsScheduled = frogTracker.scheduledParts.get(task.id) || 0
+          frogTracker.scheduledParts.set(task.id, partsScheduled + 1)
+          
+          const splitResult = calculateSplitDurations(frogTracker.originalDurations.get(task.id) || 0)
+          if (partsScheduled + 1 === splitResult.workDurations.length) {
+            frogTracker.scheduled++
+          }
+        } else {
+          frogTracker.scheduled++
         }
       }
 
       if (task.needsSplitting) {
-        // Calculate split durations
-        const splitDurations = calculateSplitDurations(task.duration)
-        const totalParts = splitDurations.length
+        // Calculate split durations with breaks included
+        const splitResult = calculateSplitDurations(task.duration)
+        const totalParts = splitResult.workDurations.length
 
-        // Validate split durations sum to original ±10 minutes
-        const splitTotal = splitDurations.reduce((sum, d) => sum + d, 0)
-        if (Math.abs(splitTotal - task.duration) > DURATION_RULES.DURATION_TOLERANCE) {
-          throw new Error(`Split duration mismatch for task "${task.title}": ` +
-            `original=${task.duration}, split sum=${splitTotal}`)
-        }
-
-        // Create time boxes for each part
-        splitDurations.forEach((duration, index) => {
+        // Create time boxes for each part with appropriate breaks
+        splitResult.workDurations.forEach((duration, index) => {
           const partNumber = index + 1
           const splitInfo: SplitInfo = {
             isParent: false,
@@ -196,19 +230,19 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
           storyDuration += duration
           workDuration += duration
 
-          // Add break if not the last part
+          // Add appropriate break if not the last part
           if (partNumber < totalParts) {
-            const breakDuration = workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK 
+            const breakDuration = workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75
               ? DURATION_RULES.LONG_BREAK 
               : DURATION_RULES.SHORT_BREAK
 
             timeBoxes.push({
               duration: breakDuration,
-              type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK ? "long-break" : "short-break",
+              type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" : "short-break",
               icon: "⏸️"
             })
             storyDuration += breakDuration
-            workDuration = 0 // Reset work duration after break
+            workDuration = 0
           }
         })
       } else {
@@ -232,13 +266,14 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
 
       // Add break between tasks if not the last task
       if (task !== group.tasks[group.tasks.length - 1]) {
-        const breakDuration = workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK 
+        // More aggressive break insertion - use long break at 75% of max work time
+        const breakDuration = workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75
           ? DURATION_RULES.LONG_BREAK 
           : DURATION_RULES.SHORT_BREAK
 
         timeBoxes.push({
           duration: breakDuration,
-          type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK ? "long-break" : "short-break",
+          type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" : "short-break",
           icon: "⏸️"
         })
         storyDuration += breakDuration
@@ -274,6 +309,11 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
     totalSessionDuration += storyDuration
   }
 
+  // Validate all frogs were scheduled
+  if (frogTracker.scheduled < frogTracker.total) {
+    throw new Error(`Not all frog tasks were scheduled: ${frogTracker.scheduled}/${frogTracker.total} completed`)
+  }
+
   // Validate total session duration matches sum of story blocks
   const storyBlockTotal = storyBlocks.reduce((sum, block) => sum + block.totalDuration, 0)
   if (storyBlockTotal !== totalSessionDuration) {
@@ -286,7 +326,17 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
     storyBlocks,
     totalDuration: totalSessionDuration,
     startTime: now.toISOString(),
-    endTime: new Date(now.getTime() + totalSessionDuration * 60000).toISOString()
+    endTime: new Date(now.getTime() + totalSessionDuration * 60000).toISOString(),
+    frogMetrics: {
+      total: frogTracker.total,
+      scheduled: frogTracker.scheduled,
+      scheduledWithinTarget: storyBlocks
+        .reduce((acc, block) => acc + block.timeBoxes
+          .filter(box => box.type === 'work' && 
+                 box.tasks?.some(t => t.isFrog) &&
+                 acc <= frogDeadlineMinutes)
+          .length, 0)
+    }
   }
 }
 

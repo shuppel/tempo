@@ -205,8 +205,8 @@ const ProcessedTaskSchema = z.object({
   isFrog: z.boolean(),
   type: z.enum(['focus', 'learning', 'review']),
   isFlexible: z.boolean(),
-  suggestedBreaks: z.array(TaskBreakSchema),
-  needsSplitting: z.boolean().optional() // Add this field to indicate if task needs splitting
+  suggestedBreaks: z.array(TaskBreakSchema).default([]),
+  needsSplitting: z.boolean().optional()
 })
 
 const StorySchema = z.object({
@@ -405,6 +405,7 @@ export async function POST(request: Request) {
           7. Keep original task durations - DO NOT split tasks yet
           8. Add a note in the summary if a task will need splitting later
           9. CRITICAL: Use the provided isFrog value for each task - DO NOT analyze priority
+          10. CRITICAL: Every task MUST include suggestedBreaks array (can be empty for short tasks)
           
           Original Tasks:
           ${JSON.stringify(body.tasks.map((task: string, index: number) => ({ id: index, text: task })), null, 2)}

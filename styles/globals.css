@@ -1,51 +1,185 @@
+/* Remove Google Fonts imports since we're using Next.js font system */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
  
 @layer base {
+  /* Font family definitions are now handled by Next.js */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    /* NES-inspired color palette - Light Theme */
+    --background: 215 50% 95%;      /* Light sky blue background */
+    --foreground: 240 25% 15%;      /* Dark navy text */
+    --card: 215 50% 98%;            /* Slightly lighter than background */
+    --card-foreground: 240 25% 15%; /* Same as foreground */
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
+    --popover-foreground: 240 25% 15%;
+    
+    /* Primary: NES-inspired deep blue */
+    --primary: 240 85% 40%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+    
+    /* Secondary: Softer contrast for less emphasis */
+    --secondary: 40 100% 85%;       /* NES-inspired soft yellow */
+    --secondary-foreground: 240 25% 15%;
+    
+    /* Muted state colors */
+    --muted: 215 25% 90%;
+    --muted-foreground: 240 10% 45%;
+    
+    /* Accent colors for highlights */
+    --accent: 330 80% 60%;          /* NES-inspired magenta/purple */
+    --accent-foreground: 0 0% 100%;
+    
+    /* Destructive action colors */
+    --destructive: 0 85% 60%;       /* Classic NES red */
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    
+    /* UI element colors */
+    --border: 215 20% 80%;
+    --input: 215 20% 85%;
+    --ring: 240 85% 40%;            /* Matches primary */
+    
+    /* Additional NES-inspired game colors */
+    --success: 120 85% 40%;         /* NES green */
+    --warning: 40 100% 60%;         /* NES orange */
+    --info: 200 90% 60%;            /* NES sky blue */
+    
+    /* Pixel art friendly borders and radius */
+    --radius: 0.25rem;              /* Smaller radius for more pixel-like appearance */
+    
+    /* Chart colors */
+    --chart-1: 240 85% 40%;         /* Primary blue */
+    --chart-2: 330 80% 60%;         /* Magenta */
+    --chart-3: 120 85% 40%;         /* Green */
+    --chart-4: 40 100% 60%;         /* Orange */
+    --chart-5: 200 90% 60%;         /* Sky blue */
   }
- 
+
+  /* Apply default font family */
+  html {
+    font-family: var(--font-nunito-sans);
+  }
+
+  /* Typography scale */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-happy-monkey);
+    @apply tracking-normal font-normal; /* Happy Monkey works better with normal tracking */
+    @apply leading-tight; /* Tighter line height for headings */
+  }
+
+  /* Heading sizes following a more dramatic scale */
+  h1 { 
+    @apply text-5xl mb-6; /* 48px */ 
+    letter-spacing: -0.02em;
+  }
+  h2 { 
+    @apply text-4xl mb-4; /* 32px */
+    letter-spacing: -0.01em;
+  }
+  h3 { 
+    @apply text-3xl mb-3; /* 24px */
+  }
+  h4 { @apply text-2xl mb-3; }
+  h5 { @apply text-xl mb-2; }
+  h6 { @apply text-lg mb-2; }
+
+  /* Accent text class - now using Text Me One with more emphasis */
+  .accent-text {
+    font-family: var(--font-text-me-one);
+    @apply text-lg tracking-wider uppercase;
+  }
+
+  /* Special label class for UI elements with more presence */
+  .ui-label {
+    font-family: var(--font-text-me-one);
+    @apply text-base tracking-wider uppercase text-foreground/90;
+  }
+
+  /* Body text sizes with improved readability */
+  .text-body-large {
+    @apply text-lg leading-relaxed; /* 18px */
+  }
+  
+  .text-body {
+    @apply text-base leading-relaxed; /* 16px */
+  }
+  
+  .text-body-small {
+    @apply text-sm leading-normal; /* 14px */
+  }
+  
+  .text-pixel {
+    @apply text-xs leading-normal; /* 12px */
+  }
+
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
+    /* NES-inspired color palette - Dark Theme */
+    --background: 240 25% 12%;      /* Dark navy background */
+    --foreground: 210 40% 90%;      /* Light blue-ish text */
+    --card: 240 25% 15%;            /* Slightly lighter than background */
+    --card-foreground: 210 40% 98%; /* Slightly lighter than foreground */
+    
+    --popover: 240 25% 10%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary: NES-inspired bright blue */
+    --primary: 210 100% 75%;
+    --primary-foreground: 240 25% 12%;
+    
+    /* Secondary: Dimmer contrast for dark mode */
+    --secondary: 40 70% 60%;        /* Muted golden yellow */
+    --secondary-foreground: 240 25% 12%;
+    
+    /* Muted state colors */
+    --muted: 240 20% 20%;
+    --muted-foreground: 210 20% 75%;
+    
+    /* Accent colors for highlights */
+    --accent: 330 80% 45%;          /* Darker magenta/purple */
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    
+    /* Destructive action colors */
+    --destructive: 0 70% 40%;       /* Darker red for dark mode */
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    
+    /* UI element colors */
+    --border: 240 20% 25%;
+    --input: 240 20% 20%;
+    --ring: 210 100% 75%;           /* Matches primary */
+    
+    /* Additional NES-inspired game colors */
+    --success: 120 70% 35%;         /* Darker NES green */
+    --warning: 40 70% 45%;          /* Darker NES orange */
+    --info: 200 80% 45%;            /* Darker NES sky blue */
+    
+    /* Chart colors - slightly dimmer for dark mode */
+    --chart-1: 210 100% 70%;
+    --chart-2: 330 80% 45%;
+    --chart-3: 120 70% 35%;
+    --chart-4: 40 70% 45%;
+    --chart-5: 200 80% 45%;
+  }
+
+  /* Add styles for placeholder text */
+  ::placeholder {
+    @apply text-muted-foreground opacity-50;
+    white-space: pre-line; /* This ensures line breaks are respected */
+  }
+
+  textarea::placeholder {
+    @apply text-muted-foreground opacity-50;
+    white-space: pre-line;
+  }
+
+  input::placeholder {
+    @apply text-muted-foreground opacity-50;
+    white-space: pre-line;
+  }
+
+  /* Ensure textareas respect line breaks */
+  textarea {
+    white-space: pre-line;
   }
 }
  
@@ -55,5 +189,76 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Add pixel grid alignment for improved retro feel */
+    image-rendering: pixelated;
   }
+
+  /* Add pixel-like borders to UI elements */
+  .pixel-border {
+    @apply border-2 border-solid;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  /* Create pixel-art buttons */
+  .pixel-button {
+    @apply pixel-border bg-primary text-primary-foreground font-medium px-4 py-2;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  
+  .pixel-button:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+  }
+  
+  .pixel-button:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.25);
+  }
+} 
+
+/* Add a retro-styled container with pixel borders */
+.nes-container {
+  @apply p-4 border-2 border-solid border-foreground bg-background;
+  position: relative;
+  margin: 8px 0;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Apply 8x8 pixel grid alignment as recommended in the brand guide */
+.pixel-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fill, 8px);
+  grid-template-rows: repeat(auto-fill, 8px);
+}
+
+/* Apply a retro pixel pattern background */
+.pixel-pattern-bg {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+/* Add scanlines effect for more retro feeling */
+.scanlines {
+  position: relative;
+}
+
+.scanlines::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0) 50%,
+      rgba(0, 0, 0, 0.02) 50%,
+      rgba(0, 0, 0, 0)
+    );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 10;
 } 

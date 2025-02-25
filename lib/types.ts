@@ -36,6 +36,7 @@ export interface ProcessedTask {
   needsSplitting?: boolean
   splitInfo?: SplitInfo
   suggestedBreaks: TaskBreak[]
+  originalTitle?: string
 }
 
 export interface TaskGroup {
@@ -56,6 +57,7 @@ export interface ProcessedStory {
   category: string
   tasks: ProcessedTask[]
   needsBreaks?: boolean
+  originalTitle?: string
 }
 
 export interface TimeBoxTask {
@@ -89,11 +91,18 @@ export interface StoryBlock {
   type?: "timeboxed" | "flexible" | "milestone"
 }
 
+export interface FrogMetrics {
+  total: number
+  scheduled: number
+  scheduledWithinTarget: number
+}
+
 export interface SessionPlan {
   storyBlocks: StoryBlock[]
   totalDuration: number
   startTime?: string
   endTime?: string
+  frogMetrics: FrogMetrics
 }
 
 // Add session-specific types

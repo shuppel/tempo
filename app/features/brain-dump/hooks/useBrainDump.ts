@@ -1,6 +1,7 @@
 // /features/brain-dump/hooks/useBrainDump.ts
 import { useState, useEffect, useCallback } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
+import { sessionStorage } from "@/lib/sessionStorage"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
@@ -153,8 +154,8 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   const handleCreateSession = async () => {
     setIsCreatingSession(true)
     setSessionCreationError(null)
-    setSessionCreationStep("Creating session...")
-    setSessionCreationProgress(0)
+    setSessionCreationStep("Preparing session data...")
+    setSessionCreationProgress(10)
 
     try {
       // Apply edited durations to stories while preserving all fields
@@ -166,98 +167,231 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
         category: story.category || 'Development'
       }))
 
-      // Log the stories being sent for debugging
-      console.log('Sending stories to create session:', JSON.stringify(updatedStories, null, 2))
-
-      const startTime = new Date().toISOString()
-      setSessionCreationProgress(20)
-      setSessionCreationStep("Preparing session plan...")
-      
-      try {
-        // Update the UI to show retry attempts
-        const handleRetryAttempt = (attempt: number, maxRetries: number) => {
-          setSessionCreationStep(`Attempt ${attempt}/${maxRetries}: Optimizing session plan...`)
-          setSessionCreationProgress(20 + Math.min(60, attempt * 15)) // Progress increases with each attempt
-        }
-        
-        // Listen for console logs from brainDumpService to update UI
-        const originalConsoleLog = console.log
-        console.log = (...args) => {
-          originalConsoleLog(...args)
-          const message = args.join(' ')
-          if (message.includes('Attempting to create session (attempt ')) {
-            const match = message.match(/attempt (\d+)\/(\d+)/)
-            if (match && match.length >= 3) {
-              const attempt = parseInt(match[1])
-              const maxRetries = parseInt(match[2])
-              handleRetryAttempt(attempt, maxRetries)
-            }
-          }
-        }
-        
-        const result = await brainDumpService.createSession(updatedStories, startTime)
-        
-        // Restore original console.log
-        console.log = originalConsoleLog
-        
-        setSessionCreationProgress(100)
-        setSessionCreationStep("Session created successfully!")
-        
-        // Use window.location for a full page navigation to avoid hydration issues
-        if (result?.sessionUrl) {
-          window.location.href = result.sessionUrl
-        }
-      } catch (error) {
-        console.error("Failed to create session:", error)
-        
-        let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
-        let errorDetails = error instanceof Error ? error.cause : error
-        
-        // Provide more helpful error messages for specific error types
-        if (error instanceof Error && error.message.includes('Too much work time without a substantial break')) {
-          errorMessage = 'Session planning failed: Work blocks are too long without breaks'
-          if (error.cause && typeof error.cause === 'object') {
-            const details = error.cause as any
-            if (details.details?.block) {
-              errorMessage += `\n\nThe story "${details.details.block}" has ${details.details.consecutiveWorkTime} minutes of work without a break (maximum is ${details.details.maxAllowed} minutes).`
-              errorMessage += '\n\nTry reducing the duration of some tasks or splitting them into smaller tasks.'
-            }
-          }
-        }
-
-        setSessionCreationError({
-          message: errorMessage,
-          code: "SESSION_ERROR",
-          details: errorDetails
-        })
-        
-        setSessionCreationProgress(0)
-        setSessionCreationStep("Error creating session")
-      } finally {
-        setTimeout(() => {
-          setIsCreatingSession(false)
-          setSessionCreationProgress(0)
-          setSessionCreationStep("")
-        }, 1000)
+      // Pre-validation: Check if we have any stories with tasks
+      if (updatedStories.length === 0 || updatedStories.some(story => !story.tasks || story.tasks.length === 0)) {
+        throw new Error('No valid tasks found for session creation')
       }
+
+      // Log the stories being sent for debugging
+      console.log('Stories for session creation:', JSON.stringify(updatedStories, null, 2))
+
+      // Get current time and ensure it's valid
+      const now = new Date()
+      if (isNaN(now.getTime())) {
+        throw new Error('Invalid current date/time')
+      }
+
+      const startTime = now.toISOString()
+      setSessionCreationProgress(20)
+      setSessionCreationStep("Creating session plan...")
+
+      // Call service to create session
+      const sessionPlan = await brainDumpService.createSession(updatedStories, startTime)
+      
+      setSessionCreationProgress(60)
+      setSessionCreationStep("Processing session data...")
+
+      // Validate session plan
+      if (!sessionPlan || typeof sessionPlan !== 'object') {
+        console.error('Invalid session plan:', sessionPlan)
+        throw new Error('Failed to create a valid session plan')
+      }
+
+      // Check required properties
+      if (!sessionPlan.storyBlocks || !Array.isArray(sessionPlan.storyBlocks)) {
+        console.error('Session plan missing story blocks:', sessionPlan)
+        throw new Error('Session plan missing required story blocks')
+      }
+
+      if (sessionPlan.storyBlocks.length === 0) {
+        console.error('Session plan has empty story blocks array:', sessionPlan)
+        throw new Error('Session plan contains no story blocks')
+      }
+
+      // Ensure we have a valid total duration
+      const validTotalDuration = validateSessionDuration(sessionPlan)
+      console.log(`Validated session duration: ${validTotalDuration} minutes`)
+
+      // Format today's date as YYYY-MM-DD for the session key
+      const today = now.toISOString().split('T')[0]
+
+      // Calculate end time with duration validation
+      const durationMs = Math.floor(validTotalDuration) * 60 * 1000
+      
+      // Validate duration range (between 1 minute and 24 hours)
+      if (durationMs <= 0) {
+        console.error('Invalid duration (too small):', validTotalDuration)
+        throw new Error(`Session duration is too short: ${validTotalDuration} minutes`)
+      }
+      
+      if (durationMs > 24 * 60 * 60 * 1000) {
+        console.error('Invalid duration (too large):', validTotalDuration)
+        throw new Error(`Session duration exceeds maximum allowed: ${validTotalDuration} minutes`)
+      }
+
+      // Calculate end time
+      const endTime = new Date(now.getTime() + durationMs)
+      
+      // Validate end time
+      if (isNaN(endTime.getTime())) {
+        console.error('End time calculation failed:', {
+          now: now.toISOString(),
+          durationMs,
+          totalDuration: validTotalDuration
+        })
+        throw new Error('Failed to calculate a valid end time')
+      }
+
+      setSessionCreationProgress(80)
+      setSessionCreationStep("Saving session...")
+
+      // Save the session to localStorage with validated values
+      const storedSession = {
+        ...sessionPlan,
+        totalSessions: sessionPlan.storyBlocks.length,
+        startTime: startTime,
+        endTime: endTime.toISOString(),
+        status: "planned",
+        totalDuration: validTotalDuration
+      }
+
+      // Log session details for debugging
+      console.log('Session timing details:', {
+        start: startTime,
+        end: endTime.toISOString(),
+        duration: validTotalDuration,
+        durationMs,
+        storyBlocks: sessionPlan.storyBlocks.length
+      })
+
+      sessionStorage.saveSession(today, storedSession)
+
+      setSessionCreationProgress(100)
+      setSessionCreationStep("Session created successfully!")
+
+      // Redirect to the session view
+      window.location.href = `/session/${today}`
+
     } catch (error) {
-      console.error("Error preparing session data:", error)
+      console.error("Failed to create session:", error)
+      
+      // Detailed error handling
+      let errorMessage = error instanceof Error ? error.message : 'Failed to create session'
+      let errorCode = 'SESSION_ERROR'
+      let errorDetails = error
+      
+      // Try to extract more details if available
+      if (error instanceof Error) {
+        if (error.message.includes('Details:')) {
+          try {
+            const [message, details] = error.message.split('\n\nDetails:')
+            errorMessage = message.trim()
+            try {
+              errorDetails = JSON.parse(details.trim())
+            } catch {
+              errorDetails = details.trim()
+            }
+          } catch (e) {
+            // If parsing fails, use the original error message
+            errorDetails = error.message
+          }
+        }
+        
+        // Check for specific error messages
+        if (error.message.includes('work time') && error.message.includes('break')) {
+          errorCode = 'EXCESSIVE_WORK_TIME'
+          errorMessage = 'Session contains too much consecutive work time without breaks. Try splitting large tasks or adding breaks.'
+        } else if (error.message.includes('duration')) {
+          errorCode = 'INVALID_DURATION'
+          errorMessage = 'Invalid session duration. Please check your task durations.'
+        }
+      }
       
       setSessionCreationError({
-        message: "Failed to prepare session data",
-        code: "PREPARATION_ERROR",
-        details: error
+        message: errorMessage,
+        code: errorCode,
+        details: errorDetails
       })
       
       setSessionCreationProgress(0)
-      setSessionCreationStep("Error preparing session")
-      
+      setSessionCreationStep("Error creating session")
+    } finally {
       setTimeout(() => {
-        setIsCreatingSession(false)
-        setSessionCreationProgress(0)
-        setSessionCreationStep("")
+        if (!sessionCreationError) {
+          setIsCreatingSession(false)
+          setSessionCreationProgress(0)
+          setSessionCreationStep("")
+        }
       }, 1000)
     }
+  }
+
+  // Helper function to validate and extract session duration
+  function validateSessionDuration(sessionPlan: any): number {
+    console.log('Validating session duration for plan:', sessionPlan)
+    
+    // Check if totalDuration is directly available and valid
+    if (typeof sessionPlan.totalDuration === 'number' && sessionPlan.totalDuration > 0) {
+      console.log(`Using provided totalDuration: ${sessionPlan.totalDuration}`)
+      return sessionPlan.totalDuration
+    }
+    
+    console.warn('Session plan missing valid totalDuration, calculating from story blocks')
+    
+    // Calculate from story blocks if available
+    if (Array.isArray(sessionPlan.storyBlocks) && sessionPlan.storyBlocks.length > 0) {
+      const calculatedDuration = sessionPlan.storyBlocks.reduce(
+        (sum: number, block: { totalDuration?: number }) => sum + (block.totalDuration || 0),
+        0
+      )
+      
+      if (calculatedDuration > 0) {
+        console.log(`Calculated duration from blocks: ${calculatedDuration}`)
+        
+        // Update the session plan with the calculated value
+        sessionPlan.totalDuration = calculatedDuration
+        
+        return calculatedDuration
+      }
+    }
+    
+    // If we can't calculate from blocks, try using the sum of story estimatedDurations
+    if (Array.isArray(sessionPlan.stories) && sessionPlan.stories.length > 0) {
+      const durationFromStories = sessionPlan.stories.reduce(
+        (sum: number, story: { estimatedDuration?: number }) => sum + (story.estimatedDuration || 0),
+        0
+      )
+      
+      if (durationFromStories > 0) {
+        console.log(`Calculated duration from stories: ${durationFromStories}`)
+        
+        // Update the session plan
+        sessionPlan.totalDuration = durationFromStories
+        
+        return durationFromStories
+      }
+    }
+    
+    // Last resort: check if we have the original stories with durations
+    if (processedStories.length > 0) {
+      const originalDuration = processedStories.reduce(
+        (sum, story) => sum + (editedDurations[story.title] || story.estimatedDuration || 0),
+        0
+      )
+      
+      if (originalDuration > 0) {
+        console.log(`Using original story durations as fallback: ${originalDuration}`)
+        
+        // Update the session plan
+        sessionPlan.totalDuration = originalDuration
+        
+        return originalDuration
+      }
+    }
+    
+    // If all else fails, throw an error
+    console.error('Could not determine valid session duration from any source')
+    throw new Error('Unable to determine valid session duration')
   }
 
   const handleDurationChange = (storyTitle: string, newDuration: number) => {
