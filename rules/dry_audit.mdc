@@ -1,0 +1,57 @@
+---
+description:   A clear, human-readable explanation of what the rule does, why it exists, and the specific purpose it serves. This helps both developers and the AI understand the intent behind the rule.
+globs: *.js, *.ts, *.tsx
+---
+# DRY Audit
+
+## Purpose
+The purpose of this DRY Audit is to systematically review the codebase to ensure that the DRY ("Don't Repeat Yourself") principle is strictly enforced. By eliminating redundancy, we improve maintainability, consistency, and overall system reliability.
+
+## Audit Methodology
+
+1. **Module Analysis**
+   - **Catalog Modules:** Identify and list all modules, libraries, and components.
+   - **Duplication Check:** Examine modules for repeated logic or similar functionalities.
+   - **Centralization Verification:** Ensure that shared logic is abstracted into common utilities rather than duplicated.
+
+2. **Function & Method Inspection**
+   - **Consolidation Review:** Check that functions with identical or similar purposes are not implemented multiple times.
+   - **Abstraction Opportunities:** Identify common code patterns that can be refactored into reusable functions or classes.
+   - **Refactoring Assessment:** Verify that any necessary refactoring has been completed to centralize repeated code.
+
+3. **Configuration & Constants Centralization**
+   - **Single Source of Truth:** Ensure that configuration values, constants, and environment settings are defined in one central location.
+   - **Redundancy Elimination:** Confirm that these values are not redefined in multiple parts of the codebase.
+
+4. **Utility & Code Snippet Audit**
+   - **Code Duplication Scan:** Use static analysis tools and manual review to detect copy-pasted code or near-duplicate blocks.
+   - **Reusable Components:** Verify that utility functions and components are created to serve multiple parts of the system rather than being reimplemented.
+
+5. **Iterative Feedback Loop**
+   - **Document Findings:** Record any identified duplications and refactoring opportunities.
+   - **Continuous Improvement:** Integrate feedback from code reviews and automated tools into regular updates.
+   - **Monitor Trends:** Track improvements over successive audits to ensure the codebase evolves toward full DRY compliance.
+
+## Audit Checklist
+
+- [ ] All modules are cataloged and analyzed for duplication.
+- [ ] Functions with similar logic are consolidated and abstracted.
+- [ ] Configuration values and constants are centralized.
+- [ ] Static analysis tools have been run to flag redundant code.
+- [ ] Documentation reflects DRY practices and ongoing improvements.
+- [ ] An iterative feedback loop is in place to continuously monitor and refine DRY enforcement.
+
+## Audit Rubric
+
+| **DRY Enforcement**                   | **F** | **D** | **C** | **B** | **A** |
+|---------------------------------------|-------|-------|-------|-------|-------|
+| **Module Uniqueness**                 | Duplicate modules and functionalities across the codebase with no centralization. | Minimal centralization; several duplicate functionalities exist. | Basic centralization; moderate duplication present. | Good centralization; minor duplications remain. | Excellent centralization; all functionalities are abstracted and non-redundant. |
+| **Function Consolidation**            | Functions with identical logic are scattered and unrefactored. | Some consolidation exists, but many functions are still duplicated. | Adequate consolidation; common patterns are identified but not fully abstracted. | Strong consolidation; most duplicate functions have been refactored. | Complete consolidation; every function is uniquely defined and reused appropriately. |
+| **Configuration Centralization**      | Configuration values are scattered and redefined in multiple locations. | Some centralization exists, but many values are still repeated. | Moderate centralization; configuration values are partially abstracted. | Good centralization; configuration values are mostly defined in one location. | Complete centralization; all configuration values and constants are defined in a single, authoritative source. |
+| **Utility & Code Reuse**              | Minimal code reuse; nearly all utility functions are duplicated. | Low reuse; significant potential for abstraction remains. | Moderate reuse; some duplication is present but manageable. | High reuse; most utilities are abstracted and effectively reused. | Optimal reuse; utilities are fully abstracted and widely reused without duplication. |
+| **Iterative Improvement & Feedback**  | No ongoing process for DRY audit and feedback. | Limited iterative improvements; feedback is rarely incorporated. | Basic iterative process; occasional improvements are made. | Strong iterative process; regular audits lead to continuous improvements. | Comprehensive iterative process; feedback is fully integrated into a proactive DRY enforcement strategy. |
+
+## Conclusion
+This DRY Audit framework is designed to ensure that our codebase remains lean, maintainable, and scalable by enforcing the DRY principle. By systematically reviewing and refactoring our modules, functions, configurations, and utilities, we strive to eliminate redundancy and foster a culture of continuous improvement.
+
+**Remember:** Every instance of duplication removed is a step toward a more robust, efficient, and reliable system. Keep it DRY, keep it clean!
