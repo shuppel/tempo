@@ -101,32 +101,39 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
         )}
 
         <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Input Format Tips</AlertTitle>
-          <AlertDescription>
-            <ul className="mt-2 space-y-1 text-sm">
-              <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
-              <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
-              <li>• Mark priorities: Add "FROG" for high-priority tasks</li>
-              <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
-              <li>• Group related tasks: Use similar prefixes for related items</li>
-              <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
-            </ul>
-            <div className="mt-2 text-sm font-medium">Examples:</div>
-            <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
-              Create landing page mockup for client FROG{"\n"}
-              Review Q1 metrics report - 30 mins{"\n"}
-              Update team documentation - flexible{"\n"}
-              Complete project proposal by EOD{"\n"}
-              Daily standup and team sync
-            </pre>
-          </AlertDescription>
+          <div className="flex w-full justify-end items-start gap-2">
+            <Info className="h-4 w-4" />
+            <div className="text-right">
+              <AlertTitle>Input Format Tips</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-2 space-y-1 text-sm">
+                  <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
+                  <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
+                  <li>• Mark priorities: Add <span className="font-medium text-primary">FROG</span> to indicate high-priority tasks</li>
+                  <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
+                  <li>• Group related tasks: Use similar prefixes for related items</li>
+                  <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
+                </ul>
+                <div className="mt-2 text-sm font-medium">Examples:</div>
+                <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
+                  Create landing page mockup for client FROG{"\n"}
+                  Review Q1 metrics report - 30 mins{"\n"}
+                  Update team documentation - flexible{"\n"}
+                  Complete project proposal by EOD{"\n"}
+                  Daily standup and team sync
+                </pre>
+              </AlertDescription>
+            </div>
+          </div>
         </Alert>
 
         <div className="relative">
           <Textarea
             className={`min-h-[200px] font-mono ${isInputLocked ? 'opacity-50' : ''}`}
-            placeholder="Task 1&#10;Task 2 FROG&#10;Task 3 - flexible&#10;Task 4 - due by 5pm"
+            placeholder={`Task 1
+Task 2 FROG
+Task 3 - flexible
+Task 4 - due by 5pm`}
             value={tasks}
             onChange={(e) => !isInputLocked && setTasks(e.target.value)}
             disabled={isInputLocked}

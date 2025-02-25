@@ -18,6 +18,12 @@ import { StoryCard } from "./StoryCard"
 import { useBrainDump } from "../hooks/useBrainDump"
 import { ProcessedStories } from "./ProcessedStories"
 import type { ProcessedStory } from "@/lib/types"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 interface BrainDumpProps {
   onTasksProcessed?: (stories: ProcessedStory[]) => void
@@ -41,37 +47,50 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     handleRetry
   } = useBrainDump(onTasksProcessed)
   
+  const placeholderText = `Create landing page mockup for client FROG
+Review Q1 metrics report - 30 mins
+Update team documentation - flexible
+Complete project proposal by EOD
+Daily standup and team sync`
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-4">
-          <div className="flex-1 min-w-0">
-            <CardTitle>Brain Dump</CardTitle>
-            <CardDescription>
-              Enter your tasks, one per line. Just brain dump everything you need to do...
-            </CardDescription>
-          </div>
-          <div className="w-[48px] shrink-0">
-            {isProcessing || isCreatingSession ? (
-              <div className="relative">
-                <CircularProgress 
-                  progress={processingProgress} 
-                  size={48}
-                  className="bg-background rounded-full shadow-sm"
-                />
-                <div className="absolute top-full mt-1 right-0 text-xs text-muted-foreground whitespace-nowrap">
-                  {processingStep}
+    <Card className="border-2">
+      <CardHeader className="space-y-3">
+        <CardTitle className="text-3xl">Brain Dump</CardTitle>
+        <CardDescription className="text-body text-muted-foreground">
+          Enter your tasks, one per line. Just brain dump everything you need to do...
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <Textarea
+          placeholder={placeholderText}
+          value={tasks}
+          onChange={(e) => !isInputLocked && setTasks(e.target.value)}
+          disabled={isInputLocked}
+          className="font-mono min-h-[200px] text-base leading-relaxed"
+        />
+
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="format-tips" className="border-none">
+            <AccordionTrigger className="flex justify-end gap-2 py-2 hover:no-underline">
+              <Info className="h-5 w-5 text-muted-foreground" />
+              <span className="font-accent tracking-wide text-base">Input Format Tips</span>
+            </AccordionTrigger>
+            <AccordionContent className="pt-4 pb-2">
+              <div className="space-y-4 text-right">
+                <div className="space-y-2 text-body">
+                  <p>• Start with action verbs: "Create", "Review", "Update", etc.</p>
+                  <p>• Add time estimates (optional): "2 hours of work on Project X"</p>
+                  <p>• Mark priorities: Add <span className="font-medium text-primary">FROG</span> to indicate high-priority tasks</p>
+                  <p>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</p>
+                  <p>• Group related tasks: Use similar prefixes for related items</p>
+                  <p>• Be specific: "Review Q1 metrics report" vs "Review report"</p>
                 </div>
               </div>
-            ) : (
-              <div className="w-[48px] h-[48px] flex items-center justify-center">
-                {isInputLocked && <Lock className="h-5 w-5 text-muted-foreground" />}
-              </div>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
         {error && (
           <Alert variant="destructive" className="animate-in fade-in-50">
             <div className="flex items-start gap-2">
@@ -81,12 +100,12 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
                 <XCircle className="h-4 w-4 mt-1" />
               )}
               <div className="space-y-2 flex-1">
-                <AlertTitle>
+                <AlertTitle className="font-heading">
                   {error.code === 'PARSING_ERROR' ? 'AI Processing Error' : 
                    error.code === 'SESSION_ERROR' ? 'Session Planning Error' : 
                    'Error Processing Tasks'}
                 </AlertTitle>
-                <AlertDescription>
+                <AlertDescription className="font-body text-body">
                   <p className="whitespace-pre-line">{error.message}</p>
                   {error.code === 'SESSION_ERROR' && error.message.includes('Work blocks are too long') && (
                     <div className="mt-2 p-2 bg-muted/50 rounded-md">
@@ -123,47 +142,6 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
           </Alert>
         )}
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Input Format Tips</AlertTitle>
-          <AlertDescription>
-            <ul className="mt-2 space-y-1 text-sm">
-              <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
-              <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
-              <li>• Mark priorities: Add "FROG" for high-priority tasks</li>
-              <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
-              <li>• Group related tasks: Use similar prefixes for related items</li>
-              <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
-            </ul>
-            <div className="mt-2 text-sm font-medium">Examples:</div>
-            <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
-              Create landing page mockup for client FROG{"\n"}
-              Review Q1 metrics report - 30 mins{"\n"}
-              Update team documentation - flexible{"\n"}
-              Complete project proposal by EOD{"\n"}
-              Daily standup and team sync
-            </pre>
-          </AlertDescription>
-        </Alert>
-
-        <div className="relative">
-          <Textarea
-            className={`min-h-[200px] font-mono ${isInputLocked ? 'opacity-50' : ''}`}
-            placeholder="Task 1&#10;Task 2 FROG&#10;Task 3 - flexible&#10;Task 4 - due by 5pm"
-            value={tasks}
-            onChange={(e) => !isInputLocked && setTasks(e.target.value)}
-            disabled={isInputLocked}
-          />
-          {isInputLocked && (
-            <div className="absolute inset-0 bg-background/5 backdrop-blur-[1px] rounded-md flex items-center justify-center">
-              <div className="bg-background/90 px-4 py-2 rounded-md shadow-sm flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                <span className="text-sm font-medium">Input locked</span>
-              </div>
-            </div>
-          )}
-        </div>
-        
         <div className="flex justify-end gap-2">
           {processedStories.length > 0 && (
             <Button 
@@ -200,7 +178,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
         {processedStories.length > 0 && (
           <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">Processed Stories</h3>
+              <h3 className="font-heading">Processed Stories</h3>
               <div className="flex gap-2">
                 <Button onClick={handleRetry} variant="outline" size="sm">
                   Try Again

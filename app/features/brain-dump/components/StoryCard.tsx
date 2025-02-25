@@ -50,8 +50,15 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
                 <li key={i}>
                   <div className="flex items-center gap-2">
                     <span>•</span>
-                    <span>{task.title}</span>
-                    {task.isFrog && <span title="Priority Task">🐸</span>}
+                    <span className={task.isFrog ? "font-medium text-primary" : ""}>
+                      {task.title}
+                    </span>
+                    {task.isFrog && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary text-xs px-2 py-0 h-5">
+                        <span className="mr-1">🐸</span>
+                        FROG
+                      </Badge>
+                    )}
                     {task.isFlexible ? (
                       <Badge variant="outline" className="text-xs">flexible</Badge>
                     ) : (
