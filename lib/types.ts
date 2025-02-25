@@ -4,7 +4,17 @@ export interface SplitInfo {
   totalParts?: number
   originalDuration?: number
   parentTaskId?: string
+  originalTitle?: string
+  storyId?: string
 }
+
+// Create central types as a single source of truth
+export type TaskType = "focus" | "learning" | "review" | "break" | "research"
+export type TaskStatus = "todo" | "completed" | "pending" | "in-progress"
+export type StoryType = "timeboxed" | "flexible" | "milestone"
+export type TimeBoxType = "work" | "short-break" | "long-break" | "debrief"
+export type DifficultyLevel = "low" | "medium" | "high"
+export type TaskComplexity = DifficultyLevel
 
 export interface Task {
   id: string
@@ -12,13 +22,16 @@ export interface Task {
   description: string
   duration: number
   difficulty: number
-  type: "focus" | "learning" | "review" | "break"
+  type: TaskType  // Use the union type here
   isFrog: boolean
   status: "todo" | "completed"
   children: Task[]
   refined: boolean
   needsSplitting?: boolean
   splitInfo?: SplitInfo
+  storyId?: string
+  groupId?: string
+  originalTitle?: string
 }
 
 export interface TaskBreak {
@@ -31,7 +44,7 @@ export interface ProcessedTask {
   title: string
   duration: number
   isFrog: boolean
-  type: "focus" | "learning" | "review"
+  type: Exclude<TaskType, "break">  // Use the TaskType but exclude "break" type
   isFlexible: boolean
   needsSplitting?: boolean
   splitInfo?: SplitInfo
@@ -52,7 +65,7 @@ export interface ProcessedStory {
   summary: string
   icon: string
   estimatedDuration: number
-  type: "timeboxed" | "flexible" | "milestone"
+  type: StoryType
   project: string
   category: string
   tasks: ProcessedTask[]
@@ -64,21 +77,21 @@ export interface TimeBoxTask {
   title: string
   duration: number
   isFrog?: boolean
-  type?: "focus" | "learning" | "review"
+  type?: Exclude<TaskType, "break">  // Use the TaskType but exclude "break" type
   isFlexible?: boolean
   splitInfo?: SplitInfo
   suggestedBreaks?: TaskBreak[]
-  status?: "pending" | "in-progress" | "completed"
+  status?: TaskStatus
 }
 
 export interface TimeBox {
-  type: 'work' | 'short-break' | 'long-break' | 'debrief'
+  type: TimeBoxType
   duration: number
   tasks?: TimeBoxTask[]
   estimatedStartTime?: string
   estimatedEndTime?: string
   icon?: string
-  status?: "pending" | "in-progress" | "completed"
+  status?: TaskStatus
 }
 
 export interface StoryBlock {
@@ -88,7 +101,10 @@ export interface StoryBlock {
   totalDuration: number
   progress: number
   icon?: string
-  type?: "timeboxed" | "flexible" | "milestone"
+  type?: StoryType
+  originalTitle?: string
+  parentStoryId?: string
+  taskIds: string[]
 }
 
 export interface FrogMetrics {
@@ -106,6 +122,8 @@ export interface SessionPlan {
 }
 
 // Add session-specific types
+export type SessionState = "planned" | "in-progress" | "completed"
+
 export interface SessionSummary {
   totalSessions: number
   startTime: string
@@ -130,7 +148,7 @@ export interface Session {
   summary: SessionSummary
   storyBlocks: StoryBlock[]
   date: string
-  status: "planned" | "in-progress" | "completed"
+  status: SessionState
   currentStoryIndex?: number
   currentTimeBoxIndex?: number
 }

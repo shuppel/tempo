@@ -1,5 +1,5 @@
 // lib/task-manager.ts
-import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo } from "./types"
+import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TimeBoxType, StoryType } from "./types"
 
 const DURATION_RULES = {
   FIRST_SESSION: { min: 20, max: 30 },
@@ -215,12 +215,12 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
           // Add work session
           timeBoxes.push({
             duration,
-            type: "work",
+            type: "work" as TimeBoxType,
             tasks: [{
               title: `${task.title} (Part ${partNumber} of ${totalParts})`,
               duration,
               isFrog: task.isFrog,
-              type: task.type === 'break' ? 'focus' : task.type,
+              type: getTaskType(task.type),
               isFlexible: false,
               splitInfo,
               suggestedBreaks: []
@@ -238,7 +238,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
 
             timeBoxes.push({
               duration: breakDuration,
-              type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" : "short-break",
+              type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" as TimeBoxType : "short-break" as TimeBoxType,
               icon: "⏸️"
             })
             storyDuration += breakDuration
@@ -249,12 +249,12 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
         // Regular task processing
         timeBoxes.push({
           duration: task.duration,
-          type: "work",
+          type: "work" as TimeBoxType,
           tasks: [{
             title: task.title,
             duration: task.duration,
             isFrog: task.isFrog,
-            type: task.type === 'break' ? 'focus' : task.type,
+            type: getTaskType(task.type),
             isFlexible: false,
             suggestedBreaks: []
           }],
@@ -273,7 +273,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
 
         timeBoxes.push({
           duration: breakDuration,
-          type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" : "short-break",
+          type: workDuration >= DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.75 ? "long-break" as TimeBoxType : "short-break" as TimeBoxType,
           icon: "⏸️"
         })
         storyDuration += breakDuration
@@ -284,7 +284,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
     // Add debrief at the end of story
     timeBoxes.push({
       duration: DURATION_RULES.DEBRIEF,
-      type: "debrief",
+      type: "debrief" as TimeBoxType,
       icon: "📝"
     })
     storyDuration += DURATION_RULES.DEBRIEF
@@ -303,7 +303,8 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
       totalDuration: storyDuration,
       progress: 0,
       icon: await getTaskIcon(group.title),
-      type: "timeboxed"
+      type: "timeboxed" as StoryType,
+      taskIds: group.tasks.map(task => task.id)
     })
 
     totalSessionDuration += storyDuration
@@ -349,4 +350,13 @@ export function organizeTasks(tasks: Task[]): Task[] {
     // Then sort by difficulty
     return b.difficulty - a.difficulty
   })
+}
+
+// Update the processing of task types to include research type
+function getTaskType(rawType: string): Exclude<TaskType, "break"> {
+  if (rawType === 'break') return 'focus';
+  if (rawType === 'research') return 'research';
+  if (rawType === 'learning') return 'learning';
+  if (rawType === 'review') return 'review';
+  return 'focus';
 } 

@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { Task } from "@/lib/types"
+import type { Task, TaskType } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -29,7 +29,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [duration, setDuration] = useState("25")
-  const [type, setType] = useState<"focus" | "learning" | "review" | "break">("focus")
+  const [type, setType] = useState<TaskType>("focus")
   const [difficulty, setDifficulty] = useState("25")
   const [isFrog, setIsFrog] = useState(false)
 
@@ -41,7 +41,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
       description,
       duration: Number.parseInt(duration),
       difficulty: Number.parseInt(difficulty),
-      type,
+      type: type as TaskType,
       isFrog,
       status: "todo",
       children: [],
@@ -100,7 +100,10 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Task Type</Label>
-                <Select value={type} onValueChange={setType}>
+                <Select 
+                  value={type} 
+                  onValueChange={(value: TaskType) => setType(value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -109,6 +112,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
                     <SelectItem value="learning">Active Learning</SelectItem>
                     <SelectItem value="review">Review/Recall</SelectItem>
                     <SelectItem value="break">Diffuse Break</SelectItem>
+                    <SelectItem value="research">Research/Investigation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

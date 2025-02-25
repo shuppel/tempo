@@ -10,7 +10,7 @@ import {
   generateSchedulingSuggestion,
   suggestSplitAdjustment
 } from '@/lib/durationUtils'
-import type { Task } from '@/lib/types'
+import type { Task, TaskType, StoryType } from '@/lib/types'
 
 // Extend the duration rules to include the maximum consecutive work time
 const DURATION_RULES = {
@@ -30,12 +30,20 @@ const TaskBreakSchema = z.object({
 })
 
 const TaskSchema = z.object({
+  id: z.string(),
   title: z.string(),
   duration: z.number(),
+  type: z.enum(['focus', 'learning', 'review', 'research'] as const),
   isFrog: z.boolean(),
-  type: z.enum(['focus', 'learning', 'review']),
   isFlexible: z.boolean(),
-  suggestedBreaks: z.array(TaskBreakSchema)
+  originalTitle: z.string().optional(),
+  splitInfo: z.object({
+    originalTitle: z.string().optional(),
+    isParent: z.boolean(),
+    partNumber: z.number().optional(),
+    totalParts: z.number().optional()
+  }).optional(),
+  suggestedBreaks: z.array(TaskBreakSchema).default([])
 })
 
 const StorySchema = z.object({
@@ -43,7 +51,7 @@ const StorySchema = z.object({
   summary: z.string(),
   icon: z.string(),
   estimatedDuration: z.number(),
-  type: z.enum(['timeboxed', 'flexible', 'milestone']),
+  type: z.enum(['timeboxed', 'flexible', 'milestone'] as const),
   project: z.string(),
   category: z.string(),
   tasks: z.array(TaskSchema)
@@ -75,9 +83,17 @@ class SessionCreationError extends Error {
 
 // Add types for response data structure
 interface TimeBoxTask {
+  id: string
   title: string
   duration: number
-  type?: string
+  type?: TaskType
+  originalTitle?: string
+  splitInfo?: {
+    originalTitle?: string
+    isParent: boolean
+    partNumber?: number
+    totalParts?: number
+  }
   suggestedBreaks?: Array<{
     after: number
     duration: number
@@ -295,36 +311,51 @@ function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], s
   scheduledCount: number;
   originalCount: number;
 } {
-  const scheduledTaskDetails: Record<string, string[]> = {}
+  // Create maps to track tasks by ID and title
+  const originalTaskMap = new Map<string, z.infer<typeof TaskSchema>>()
+  const scheduledTaskMap = new Map<string, TimeBoxTask>()
+  const titleToIdMap = new Map<string, string>()
   
-  // Group scheduled tasks by their base name (without part numbers)
-  scheduledTasks.forEach(task => {
-    const baseTitle = task.title.split('(Part')[0].trim()
-    if (!scheduledTaskDetails[baseTitle]) {
-      scheduledTaskDetails[baseTitle] = []
+  // Build maps of original tasks
+  originalTasks.forEach(task => {
+    originalTaskMap.set(task.id, task)
+    titleToIdMap.set(task.title.toLowerCase(), task.id)
+    if (task.originalTitle) {
+      titleToIdMap.set(task.originalTitle.toLowerCase(), task.id)
     }
-    scheduledTaskDetails[baseTitle].push(task.title)
   })
 
-  // Instead of checking for missing tasks, we'll validate that we have at least
-  // the same number of task groups as original tasks, since the AI can transform them
-  const originalTaskCount = originalTasks.length
-  const scheduledGroupCount = Object.keys(scheduledTaskDetails).length
+  // Track scheduled tasks and their relationships
+  scheduledTasks.forEach(task => {
+    scheduledTaskMap.set(task.title.toLowerCase(), task)
+    
+    // Handle split tasks
+    if (task.splitInfo?.originalTitle) {
+      const originalId = titleToIdMap.get(task.splitInfo.originalTitle.toLowerCase())
+      if (originalId) {
+        const originalTask = originalTaskMap.get(originalId)
+        if (originalTask) {
+          // Mark the original task as accounted for
+          originalTaskMap.delete(originalId)
+        }
+      }
+    } else {
+      // Handle regular tasks
+      const taskId = titleToIdMap.get(task.title.toLowerCase())
+      if (taskId) {
+        originalTaskMap.delete(taskId)
+      }
+    }
+  })
 
-  // Log for debugging
-  console.log('Task count validation:')
-  console.log('Original tasks:', originalTaskCount)
-  console.log('Scheduled task groups:', scheduledGroupCount)
-  console.log('Scheduled task details:', scheduledTaskDetails)
-
-  // We consider tasks "missing" only if we have fewer scheduled groups than original tasks
-  const isMissingTasks = scheduledGroupCount < originalTaskCount
-
+  // Any tasks remaining in originalTaskMap are missing from the schedule
+  const missingTasks = Array.from(originalTaskMap.values()).map(task => task.title)
+  
   return {
-    isMissingTasks,
-    missingTasks: [], // We no longer track specific missing tasks since the AI can transform them
+    isMissingTasks: missingTasks.length > 0,
+    missingTasks,
     scheduledCount: scheduledTasks.length,
-    originalCount: originalTaskCount
+    originalCount: originalTasks.length
   }
 }
 

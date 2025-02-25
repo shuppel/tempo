@@ -7,7 +7,8 @@
 
 import type { 
   Task, ProcessedTask, ProcessedStory, SessionPlan, 
-  TimeBox, StoryBlock, TaskBreak 
+  TimeBox, StoryBlock, TaskBreak, TaskType, StoryType,
+  SessionState, TimeBoxType
 } from "../../../../lib/types"
 import { DURATION_RULES } from "../../../../lib/durationUtils"
 
@@ -94,8 +95,8 @@ export const DAY_LOAD_WORK_MANAGER_RULES = {
  * --------------------
  */
 export const TASK_PROCESSING_RULES = {
-  // Task Types
-  VALID_TYPES: ["focus", "learning", "review", "break"] as const,
+  // Task Types - Use the imported type
+  VALID_TYPES: ["focus", "learning", "review", "break", "research"] as Array<TaskType>,
   
   // Task Splitting
   SPLIT_CONDITIONS: {
@@ -168,7 +169,7 @@ export const STORY_MAPPING_RULES = {
  */
 export const STORY_RULES = {
   // Story Types
-  TYPES: ["timeboxed", "flexible", "milestone"] as const,
+  TYPES: ["timeboxed", "flexible", "milestone"] as const as Array<StoryType>,
 
   // Story Grouping
   GROUPING: {
@@ -211,7 +212,7 @@ export const SESSION_RULES = {
   },
 
   // Session States
-  STATES: ["planned", "in-progress", "completed"] as const,
+  STATES: ["planned", "in-progress", "completed"] as const as Array<SessionState>,
 
   // Progress Tracking
   TRACKING: {

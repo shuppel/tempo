@@ -1,6 +1,7 @@
 import { Anthropic } from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import type { TaskType, StoryType, TaskComplexity } from '@/lib/types'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
@@ -16,8 +17,8 @@ type TaskCategory = 'UX' | 'API' | 'Development' | 'Testing' | 'Documentation' |
 interface TaskAnalysis {
   hasTimeEstimate: boolean
   suggestedDuration?: number
-  type: "timeboxed" | "flexible" | "milestone"
-  complexity: "low" | "medium" | "high"
+  type: StoryType
+  complexity: TaskComplexity
   project?: string
   category?: TaskCategory
 }
@@ -203,7 +204,7 @@ const ProcessedTaskSchema = z.object({
   title: z.string(),
   duration: z.number(),
   isFrog: z.boolean(),
-  type: z.enum(['focus', 'learning', 'review']),
+  type: z.enum(['focus', 'learning', 'review', 'research'] as const),
   isFlexible: z.boolean(),
   suggestedBreaks: z.array(TaskBreakSchema).default([]),
   needsSplitting: z.boolean().optional()
@@ -214,7 +215,7 @@ const StorySchema = z.object({
   summary: z.string(),
   icon: z.string(),
   estimatedDuration: z.number(),
-  type: z.enum(['timeboxed', 'flexible', 'milestone']),
+  type: z.enum(['timeboxed', 'flexible', 'milestone'] as const),
   project: z.string(),
   category: z.string(),
   tasks: z.array(ProcessedTaskSchema)
