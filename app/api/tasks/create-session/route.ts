@@ -2,7 +2,7 @@ import { Anthropic } from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import {
-  DURATION_RULES,
+  DURATION_RULES as BaseDurationRules,
   TimeBox as DurationTimeBox,
   calculateDurationSummary,
   calculateTotalDuration,
@@ -10,6 +10,12 @@ import {
   generateSchedulingSuggestion,
   suggestSplitAdjustment
 } from '@/lib/durationUtils'
+
+// Extend the duration rules to include the maximum consecutive work time
+const DURATION_RULES = {
+  ...BaseDurationRules,
+  MAX_WORK_WITHOUT_BREAK: 90 // Maximum consecutive work minutes without a substantial break
+}
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
@@ -260,6 +266,97 @@ function validateAllTasksIncluded(originalTasksMap: Map<string, string>, schedul
   };
 }
 
+// Add helper function to insert breaks when work time exceeds maximum allowed
+function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
+  // Create a deep copy to avoid modifying the original directly
+  const updatedBlocks = JSON.parse(JSON.stringify(storyBlocks));
+  
+  for (let blockIndex = 0; blockIndex < updatedBlocks.length; blockIndex++) {
+    const block = updatedBlocks[blockIndex];
+    const updatedTimeBoxes: TimeBox[] = [];
+    
+    let consecutiveWorkTime = 0;
+    let currentTime = new Date();
+    
+    // Set the start time for the first time box
+    if (block.timeBoxes.length > 0) {
+      const [hours, minutes] = block.timeBoxes[0].startTime.split(':').map(Number);
+      currentTime.setHours(hours, minutes, 0, 0);
+    }
+    
+    for (let i = 0; i < block.timeBoxes.length; i++) {
+      const timeBox = block.timeBoxes[i];
+      
+      // Add the current timeBox to our updated list
+      updatedTimeBoxes.push(timeBox);
+      
+      // Update current time based on this time box
+      const [hours, minutes] = timeBox.startTime.split(':').map(Number);
+      currentTime.setHours(hours, minutes, 0, 0);
+      
+      // Get next time after this box
+      const nextTime = new Date(currentTime);
+      nextTime.setMinutes(nextTime.getMinutes() + timeBox.duration);
+      
+      // Track consecutive work time
+      if (timeBox.type === 'work') {
+        consecutiveWorkTime += timeBox.duration;
+        
+        // Check if we need to insert a break
+        if (consecutiveWorkTime > DURATION_RULES.MAX_WORK_WITHOUT_BREAK && 
+            (i === block.timeBoxes.length - 1 || block.timeBoxes[i + 1].type === 'work')) {
+          
+          console.log(`Inserting break after ${timeBox.duration} min work session at ${nextTime.toTimeString().slice(0, 5)} (consecutive work time: ${consecutiveWorkTime} min)`);
+          
+          // Create a new break time box
+          const breakDuration = 15; // Use a long break when hitting the max work threshold
+          const breakStartTime = nextTime.toTimeString().slice(0, 5); // Format as HH:MM
+          
+          const breakTimeBox: TimeBox = {
+            type: 'long-break',
+            startTime: breakStartTime,
+            duration: breakDuration,
+            tasks: []
+          };
+          
+          // Add the break
+          updatedTimeBoxes.push(breakTimeBox);
+          
+          // Reset consecutive work time counter
+          consecutiveWorkTime = 0;
+          
+          // Update the next start time for subsequent time boxes
+          nextTime.setMinutes(nextTime.getMinutes() + breakDuration);
+        }
+      } else if (timeBox.type === 'long-break') {
+        consecutiveWorkTime = 0;
+      } else if (timeBox.type === 'short-break') {
+        consecutiveWorkTime = Math.max(0, consecutiveWorkTime - 25); // Reduce accumulated work time
+      }
+      
+      // Update start times for all subsequent time boxes
+      if (i < block.timeBoxes.length - 1) {
+        for (let j = i + 1; j < block.timeBoxes.length; j++) {
+          const nextBox = block.timeBoxes[j];
+          nextBox.startTime = nextTime.toTimeString().slice(0, 5);
+          
+          // Update next time for following boxes
+          nextTime.setMinutes(nextTime.getMinutes() + nextBox.duration);
+        }
+      }
+    }
+    
+    // Update the timeBoxes array with our modified version
+    block.timeBoxes = updatedTimeBoxes;
+    
+    // Recalculate the block's total duration
+    const { totalDuration } = calculateDurationSummary(block.timeBoxes);
+    block.totalDuration = totalDuration;
+  }
+  
+  return updatedBlocks;
+}
+
 export async function POST(request: Request) {
   try {
     // Parse and validate request body
@@ -451,6 +548,10 @@ export async function POST(request: Request) {
 
         // Add additional duration validations
         try {
+          // After parsing the AI response but before validation, insert missing breaks
+          console.log('Checking for and inserting missing breaks...');
+          parsedData.storyBlocks = insertMissingBreaks(parsedData.storyBlocks);
+          
           // Validate each story block's duration matches its time boxes
           for (const block of parsedData.storyBlocks) {
             console.log(`\nValidating story block: ${block.title}`)
@@ -477,7 +578,7 @@ export async function POST(request: Request) {
 
             // Validate total duration includes both work and breaks
             if (totalDuration !== workDuration + breakDuration) {
-          throw new SessionCreationError(
+              throw new SessionCreationError(
                 'Story block duration calculation error',
                 'BLOCK_DURATION_ERROR',
                 {
@@ -536,7 +637,7 @@ export async function POST(request: Request) {
               }
             }
           }
-
+          
           // Validate total session duration
           const calculatedDuration = parsedData.storyBlocks.reduce(
             (acc: number, block: StoryBlock) => acc + calculateTotalDuration(block.timeBoxes),
@@ -549,48 +650,6 @@ export async function POST(request: Request) {
 
           // Update the summary total duration to match calculated
           parsedData.summary.totalDuration = calculatedDuration
-
-          // Validate all tasks from original stories are included
-          const scheduledTasks = new Map<string, string[]>()
-          parsedData.storyBlocks.forEach((block: StoryBlock) => {
-            block.timeBoxes.forEach((timeBox: TimeBox) => {
-              if (timeBox.tasks) {
-                timeBox.tasks.forEach((task: TimeBoxTask) => {
-                  const baseTitle = getBaseTaskTitle(task.title)
-                  if (!scheduledTasks.has(baseTitle)) {
-                    scheduledTasks.set(baseTitle, [])
-                  }
-                  scheduledTasks.get(baseTitle)?.push(task.title)
-                })
-              }
-            })
-          })
-
-          const missingTasks = Array.from(originalTaskDurations.keys())
-            .filter(title => {
-              const normalizedTitle = normalizeTaskTitle(title)
-              return !Array.from(scheduledTasks.keys()).some(scheduledTitle => 
-                normalizeTaskTitle(scheduledTitle) === normalizedTitle
-              )
-            })
-
-          if (missingTasks.length > 0) {
-            // Log more details about the task matching
-            console.log('Original tasks:', Array.from(originalTaskDurations.keys()))
-            console.log('Scheduled tasks:', Object.fromEntries(scheduledTasks))
-            console.log('Missing tasks:', missingTasks)
-            
-            throw new SessionCreationError(
-              'Some tasks are missing from the schedule',
-              'MISSING_TASKS',
-              {
-                missingTasks,
-                originalTaskCount: originalTaskDurations.size,
-                scheduledTaskCount: scheduledTasks.size,
-                scheduledTaskDetails: Object.fromEntries(scheduledTasks)
-              }
-            )
-          }
         } catch (error) {
           if (error instanceof SessionCreationError) throw error
           throw new SessionCreationError(
@@ -599,7 +658,7 @@ export async function POST(request: Request) {
             error
           )
         }
-
+        
         // Extract all scheduled task titles for validation
         const allScheduledTasks: string[] = [];
         
