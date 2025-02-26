@@ -23,7 +23,12 @@ import {
   RefreshCw,
   ChevronLeft,
   MinusCircle,
-  PlusCircle
+  PlusCircle,
+  Bug,
+  ListChecks,
+  Timer,
+  Hourglass,
+  BarChart2
 } from "lucide-react"
 import { useSession } from "../hooks/useSession"
 import { SessionStorageService } from "../services/session-storage.service"
@@ -48,6 +53,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
+import { LiaFrogSolid } from "react-icons/lia"
 
 interface SessionViewProps {
   id?: string;
@@ -915,15 +921,99 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between mb-2 mt-1">
-              <span className="text-sm font-medium">Overall Progress</span>
-              <span className="text-sm font-semibold">{completedPercentage}%</span>
+            {/* Replace the simple progress bar with detailed metric cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-1 mt-1">
+              {/* Card 1: Completed Frogs (Stories) */}
+              <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800/50 rounded-lg p-3 flex flex-col items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/50 mb-1">
+                  <LiaFrogSolid className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <span className="text-xs font-medium text-violet-600 dark:text-violet-400 mb-1">Frogs Completed</span>
+                <span className="text-lg font-bold">
+                  {session.storyBlocks.filter(story => 
+                    story.timeBoxes.every(box => box.type === 'work' ? box.status === 'completed' : true)
+                  ).length}
+                  <span className="text-sm font-medium text-violet-500/70 dark:text-violet-400/70"> / {session.storyBlocks.length}</span>
+                </span>
+              </div>
+              
+              {/* Card 2: Completed Tasks */}
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-lg p-3 flex flex-col items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 mb-1">
+                  <ListChecks className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Tasks Completed</span>
+                <span className="text-lg font-bold">
+                  {session.storyBlocks.reduce(
+                    (sum, story) => sum + story.timeBoxes.reduce(
+                      (boxSum, box) => boxSum + (box.tasks?.filter(t => t.status === 'completed').length || 0), 0
+                    ), 0
+                  )}
+                  <span className="text-sm font-medium text-emerald-500/70 dark:text-emerald-400/70"> / {
+                    session.storyBlocks.reduce(
+                      (sum, story) => sum + story.timeBoxes.reduce(
+                        (boxSum, box) => boxSum + (box.tasks?.length || 0), 0
+                      ), 0
+                    )
+                  }</span>
+                </span>
+              </div>
+              
+              {/* Card 3: Time Worked */}
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg p-3 flex flex-col items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 mb-1">
+                  <Timer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Time Worked</span>
+                <span className="text-lg font-bold">
+                  {/* Calculate time worked based on completed timeboxes */}
+                  {(() => {
+                    const completedMinutes = session.storyBlocks.reduce(
+                      (total, story) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
+                        (sum, box) => sum + box.duration, 0
+                      ), 0
+                    );
+                    const hours = Math.floor(completedMinutes / 60);
+                    const minutes = completedMinutes % 60;
+                    return `${hours}h ${minutes}m`;
+                  })()}
+                </span>
+              </div>
+              
+              {/* Card 4: Time Remaining */}
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 flex flex-col items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 mb-1">
+                  <Hourglass className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Time Remaining</span>
+                <span className="text-lg font-bold">
+                  {(() => {
+                    const totalMinutes = session.totalDuration;
+                    const completedMinutes = session.storyBlocks.reduce(
+                      (total, story) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
+                        (sum, box) => sum + box.duration, 0
+                      ), 0
+                    );
+                    const remainingMinutes = totalMinutes - completedMinutes;
+                    const hours = Math.floor(remainingMinutes / 60);
+                    const minutes = remainingMinutes % 60;
+                    return `${hours}h ${minutes}m`;
+                  })()}
+                </span>
+              </div>
+              
+              {/* Card 5: Completion Rate */}
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-lg p-3 flex flex-col items-center">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 mb-1">
+                  <BarChart2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-1">Progress Rate</span>
+                <span className="text-lg font-bold">
+                  {completedPercentage}%
+                  <span className="text-sm font-medium text-indigo-500/70 dark:text-indigo-400/70"> completed</span>
+                </span>
+              </div>
             </div>
-            <Progress 
-              value={completedPercentage} 
-              className="h-2.5" 
-              indicatorClassName="story-progress-gradient"
-            />
           </CardContent>
         </Card>
 
