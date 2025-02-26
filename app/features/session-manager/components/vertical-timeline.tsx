@@ -599,36 +599,58 @@ export const VerticalTimeline = ({
           </AlertDialogContent>
         </AlertDialog>
         
-        {/* Timeline header with overall progress */}
+        {/* Enhanced timeline header with overall progress */}
         <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/30 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">Session Progress</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">Session Timeline</h3>
+            </div>
             <Badge variant="outline" className="px-3 py-1 border-indigo-200 dark:border-indigo-700/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-indigo-700 dark:text-indigo-300">
               <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               {completedPercentage}% Complete
             </Badge>
           </div>
+          
           <div className="relative">
-            <div className="absolute inset-0 flex items-center px-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div 
-                  key={i} 
-                  className="flex-1 flex justify-center"
-                >
-                  <div className="h-6 w-px bg-indigo-200/50 dark:bg-indigo-700/30"></div>
-                </div>
-              ))}
+            {/* Progress bar with gradient background and position indicator */}
+            <div className="h-5 w-full rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-inner relative">
+              <div 
+                className="h-full transition-all duration-500 ease-in-out rounded-full progress-gradient"
+                style={{ width: `${completedPercentage}%` }}
+              ></div>
+              
+              {/* Position indicator triangle */}
+              <div 
+                className="absolute top-[-8px] transform -translate-x-1/2 transition-all duration-500 ease-in-out"
+                style={{ left: `${completedPercentage}%` }}
+              >
+                <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-indigo-500 dark:border-t-indigo-400"></div>
+              </div>
             </div>
-            <Progress 
-              value={completedPercentage}
-              className="h-3 bg-white/50 dark:bg-gray-800/50"
-            />
-            <div className="mt-2 flex text-xs text-gray-500 dark:text-gray-400 justify-between px-1">
-              <span>Start</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>Complete</span>
+            
+            {/* Progress markers with color-coded numeric percentages - active percentage is emphasized */}
+            <div className="mt-2 flex justify-between text-xs px-1">
+              <span className={cn(
+                "font-medium text-pink-500 dark:text-pink-400",
+                completedPercentage < 12.5 && "text-sm font-bold"
+              )}>0%</span>
+              <span className={cn(
+                "font-medium text-orange-500 dark:text-orange-400",
+                completedPercentage >= 12.5 && completedPercentage < 37.5 && "text-sm font-bold"
+              )}>25%</span>
+              <span className={cn(
+                "font-medium text-purple-500 dark:text-purple-400",
+                completedPercentage >= 37.5 && completedPercentage < 62.5 && "text-sm font-bold"
+              )}>50%</span>
+              <span className={cn(
+                "font-medium text-indigo-500 dark:text-indigo-400",
+                completedPercentage >= 62.5 && completedPercentage < 87.5 && "text-sm font-bold"
+              )}>75%</span>
+              <span className={cn(
+                "font-medium text-emerald-500 dark:text-emerald-400",
+                completedPercentage >= 87.5 && "text-sm font-bold"
+              )}>100%</span>
             </div>
           </div>
         </div>
@@ -1478,6 +1500,43 @@ export const VerticalTimeline = ({
           
           .animate-play-icon {
             animation: play-icon-pulse 1.5s ease-in-out infinite;
+          }
+          
+          /* Progress gradient styling */
+          .progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #f472b6, /* Pink */
+              #fb923c, /* Orange */
+              #a78bfa, /* Light purple */
+              #4ade80  /* Green */
+            );
+            background-size: 300% 100%;
+            animation: progress-gradient-shift 3s ease infinite;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          }
+          
+          .dark .progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #db2777, /* Darker pink for dark mode */
+              #ea580c, /* Darker orange for dark mode */
+              #8b5cf6, /* Darker purple for dark mode */
+              #22c55e  /* Darker green for dark mode */
+            );
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          }
+          
+          @keyframes progress-gradient-shift {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
           }
         `}</style>
       </div>
