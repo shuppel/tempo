@@ -225,7 +225,13 @@ export class SessionStorageService {
       console.error("Cannot update task status: storyId is undefined");
       return false;
     }
-    return sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
+    
+    console.log(`[SessionStorageService] Updating task status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex} to ${status}`);
+    
+    const result = sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
+    console.log(`[SessionStorageService] Task status update result: ${result}`);
+    
+    return result;
   }
 
   /**

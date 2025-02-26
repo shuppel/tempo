@@ -353,6 +353,8 @@ export const useSession = ({
       return
     }
 
+    console.log("TASK UPDATE - Checking if task status changed in props:", task.status);
+
     const updatedSession = { ...session }
     const storyIndex = updatedSession.storyBlocks.findIndex(story => story.id === storyId)
     
@@ -368,17 +370,22 @@ export const useSession = ({
       return
     }
 
-    // Add confirmation for unchecking a completed task
-    if (task.status === 'completed') {
-      const shouldRevert = window.confirm('Are you sure you want to mark this task as incomplete?')
-      if (!shouldRevert) {
-        return
-      }
+    // Get the current task
+    const currentTask = timeBox.tasks[taskIndex];
+    
+    // Only proceed if the status has actually changed
+    if (currentTask.status === task.status) {
+      console.log("Task status unchanged, no update needed");
+      return;
     }
     
-    // Toggle task status
-    const newStatus = task.status === 'completed' ? 'todo' : 'completed'
-    timeBox.tasks[taskIndex].status = newStatus
+    console.log("Updating task status from", currentTask.status, "to", task.status);
+    
+    // Update the task with the new status
+    timeBox.tasks[taskIndex] = {
+      ...timeBox.tasks[taskIndex],
+      status: task.status
+    };
     
     // Check if all tasks are completed in this timebox
     const allTasksCompleted = timeBox.tasks.every(t => t.status === 'completed')
@@ -405,11 +412,12 @@ export const useSession = ({
     // Call server-side action to update task status
     storageService.updateTaskStatus(
       session.date,
-        storyId,
-        timeBoxIndex,
-        taskIndex,
-        newStatus
-      )
+      storyId,
+      timeBoxIndex,
+      taskIndex,
+      // Convert any status to either 'todo' or 'completed' for API compatibility
+      (task.status === 'completed' ? 'completed' : 'todo') as 'todo' | 'completed'
+    )
   }, [session, activeTimeBox, updateSession, storageService])
 
   // Pause the timer

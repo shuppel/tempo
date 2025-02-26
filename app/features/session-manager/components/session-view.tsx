@@ -27,7 +27,7 @@ import { useSession } from "../hooks/useSession"
 import { SessionStorageService } from "../services/session-storage.service"
 import type { Session, TimeBox, TimeBoxTask, StoryBlock } from "@/lib/types"
 import { format } from "date-fns"
-import { TimeboxView } from './timebox-view'
+import { VerticalTimeline } from './vertical-timeline'
 import { 
   AnimatePresence, 
   motion, 
@@ -673,20 +673,20 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     if (!session) return null;
     
     if (isSessionComplete) {
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+      return <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700/60">
         <CheckCircle2 className="mr-1 h-3 w-3" />
         Completed
       </Badge>;
     }
     
     if (activeTimeBox) {
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+      return <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700/60">
         <Clock className="mr-1 h-3 w-3 animate-pulse" />
         In Progress
       </Badge>;
     }
     
-    return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+    return <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700/60">
       <Calendar className="mr-1 h-3 w-3" />
       Planned
     </Badge>;
@@ -830,18 +830,18 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
               Session for {format(new Date(session.date), 'EEEE, MMMM d, yyyy')}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
+              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-white dark:bg-gray-900/80 border-gray-200 dark:border-gray-700/60 text-gray-700 dark:text-gray-300">
+                <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                 <span>Total: {Math.floor(session.totalDuration / 60)}h {session.totalDuration % 60}m</span>
               </Badge>
               
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-indigo-50 border-indigo-200">
-                <CheckCircle2 className="h-4 w-4 text-indigo-600" />
+              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-700/60 text-indigo-700 dark:text-indigo-300">
+                <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 <span>Work: {Math.floor(workDuration / 60)}h {workDuration % 60}m</span>
               </Badge>
               
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-teal-50 border-teal-200">
-                <Pause className="h-4 w-4 text-teal-600" />
+              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-700/60 text-teal-700 dark:text-teal-300">
+                <Pause className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                 <span>Breaks: {Math.floor(breakDuration / 60)}h {breakDuration % 60}m</span>
               </Badge>
               
@@ -1079,71 +1079,47 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
         )}
       </div>
 
-      {/* Session Content */}
-      <TimeboxView 
-        storyBlocks={session.storyBlocks}
-        isCurrentTimeBox={isCurrentTimeBox}
-        onTaskClick={handleTaskClick}
-        onStartTimeBox={startTimeBox}
-        onCompleteTimeBox={completeTimeBox}
-        onUndoCompleteTimeBox={undoCompleteTimeBox}
-        hideOverview={true} // Hide the redundant overview
-      />
-
-      {/* Session Footer */}
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 mt-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {isSessionComplete ? 'Session completed' : `Session in progress: ${completedPercentage}% complete`}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {isSessionComplete ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full bg-green-50 border-green-200 text-green-700">
-                      <CheckCircle2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>All tasks completed</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="h-9 w-9 rounded-full bg-blue-50 border-blue-200 text-blue-700"
-                      onClick={() => {
-                        const nextTimeBox = session.storyBlocks.flatMap(story => 
-                          story.timeBoxes
-                            .map((timeBox, index) => ({ timeBox, storyId: story.id, index }))
-                            .filter(item => item.timeBox.type === 'work' && item.timeBox.status === 'todo')
-                        )[0];
-                        
-                        if (nextTimeBox) {
-                          startTimeBox(nextTimeBox.storyId, nextTimeBox.index, nextTimeBox.timeBox.duration);
-                        }
-                      }}
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Start next task</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-        </div>
+      {/* Add vertical timeline view - this shows a React-Chrono inspired visual progress timeline */}
+      <div className="mt-8">
+        <Card className="border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Session Timeline</CardTitle>
+            <CardDescription>
+              Track your progress through the session with this interactive timeline
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VerticalTimeline 
+              storyBlocks={session.storyBlocks}
+              activeTimeBoxId={activeTimeBox ? `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}` : undefined}
+              activeStoryId={activeTimeBox?.storyId}
+              activeTimeBoxIndex={activeTimeBox?.timeBoxIndex}
+              startTime={session.lastUpdated || new Date().toISOString()}
+              completedPercentage={completedPercentage}
+              onTaskClick={handleTaskClick}
+              onTimeBoxClick={(storyId, timeBoxIndex) => {
+                const story = session.storyBlocks.find(s => s.id === storyId);
+                if (!story) return;
+                
+                const timeBox = story.timeBoxes[timeBoxIndex];
+                if (!timeBox) return;
+                
+                if (isCurrentTimeBox(timeBox)) {
+                  // If already current, show details instead
+                  console.log("Show details for current timebox:", timeBox);
+                }
+              }}
+              onStartTimeBox={startTimeBox}
+              onCompleteTimeBox={(storyId, timeBoxIndex) => {
+                completeTimeBox(storyId, timeBoxIndex);
+              }}
+              onUndoCompleteTimeBox={(storyId, timeBoxIndex) => {
+                undoCompleteTimeBox(storyId, timeBoxIndex);
+              }}
+              isCompactView={false}
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

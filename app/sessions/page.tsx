@@ -3,28 +3,19 @@
 import { useEffect, useState } from "react"
 import { format, parseISO } from "date-fns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Calendar, ChevronDown, CheckCircle2, Brain, Timer, AlertCircle } from "lucide-react"
-import type { Session, TimeBox } from "@/lib/types"
+import { Clock, ArrowRight } from "lucide-react"
+import type { Session } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { SessionStorageService } from "@/app/features/session-manager"
-
-const timeBoxIcons = {
-  work: CheckCircle2,
-  "short-break": Timer,
-  "long-break": Brain,
-} as const
 
 const storageService = new SessionStorageService()
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
-  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -42,20 +33,14 @@ export default function SessionsPage() {
     loadSessions()
   }, [])
 
-  const toggleSession = (date: string) => {
-    setExpandedSessions(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(date)) {
-        newSet.delete(date)
-      } else {
-        newSet.add(date)
-      }
-      return newSet
-    })
-  }
-
   if (loading) {
-    return <div>Loading sessions...</div>
+    return (
+      <main className="flex-1 container mx-auto p-4 md:p-8 max-w-4xl">
+        <div className="flex justify-center items-center min-h-[300px]">
+          <p className="text-muted-foreground">Loading sessions...</p>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -72,125 +57,44 @@ export default function SessionsPage() {
           {sessions
             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
             .map((session) => (
-              <Collapsible
-                key={session.date}
-                open={expandedSessions.has(session.date)}
-                onOpenChange={() => toggleSession(session.date)}
-              >
-                <Card className="transition-colors hover:bg-muted/50">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <CardTitle className="text-xl">
-                          {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
-                        </CardTitle>
-                        <Badge variant="secondary" className={cn(
-                          "capitalize",
-                          session.status === 'completed' && "bg-green-100 text-green-800",
-                          session.status === 'in-progress' && "bg-blue-100 text-blue-800",
-                          session.status === 'planned' && "bg-gray-100 text-gray-800"
-                        )}>
-                          {session.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-2">
-                            <ChevronDown className={cn(
-                              "h-4 w-4 transition-transform duration-200",
-                              expandedSessions.has(session.date) && "rotate-180"
-                            )} />
-                            {expandedSessions.has(session.date) ? "Hide Details" : "Show Details"}
-                          </Button>
-                        </CollapsibleTrigger>
-                        <Link href={`/session/${session.date}`}>
-                          <Button variant="outline" size="sm">
-                            View Session
-                          </Button>
-                        </Link>
-                      </div>
+              <Card key={session.date} className="transition-colors hover:bg-muted/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-3">
+                      <CardTitle className="text-xl">
+                        {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
+                      </CardTitle>
+                      <Badge variant="secondary" className={cn(
+                        "capitalize",
+                        session.status === 'completed' && "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+                        session.status === 'in-progress' && "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
+                        session.status === 'planned' && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                      )}>
+                        {session.status}
+                      </Badge>
                     </div>
-                    <CardDescription className="flex items-center gap-4 mt-2">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {session.totalDuration} minutes
-                      </span>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-end gap-2 text-sm">
-                          <span className="text-muted-foreground">Progress</span>
-                          <Progress 
-                            value={session.storyBlocks.reduce((sum, block) => sum + (block.progress || 0), 0) / session.storyBlocks.length} 
-                            className="w-24" 
-                          />
-                        </div>
-                      </div>
-                    </CardDescription>
-                  </CardHeader>
-                  <CollapsibleContent>
-                    <CardContent>
-                      <ScrollArea className="h-[300px]">
-                        <div className="space-y-6">
-                          {session.storyBlocks.map((block, blockIndex) => (
-                            <div key={block.id || blockIndex} className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl">{block.icon}</span>
-                                <div className="flex-1">
-                                  <h3 className="font-medium">{block.title}</h3>
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Progress value={block.progress || 0} className="flex-1" />
-                                    <span>{block.progress || 0}%</span>
-                                  </div>
-                                </div>
-                                <span className="text-sm text-muted-foreground">
-                                  {Math.floor(block.totalDuration / 60)}h {block.totalDuration % 60}m
-                                </span>
-                              </div>
-
-                              <div className="pl-8 space-y-2">
-                                {block.timeBoxes.map((box: TimeBox, boxIndex) => {
-                                  const Icon = timeBoxIcons[box.type as keyof typeof timeBoxIcons] || AlertCircle
-                                  return (
-                                    <div
-                                      key={`${block.id}-${boxIndex}`}
-                                      className={cn(
-                                        "flex items-center gap-3 p-2 rounded-lg border",
-                                        box.type === "work" ? "bg-indigo-50 border-indigo-100" :
-                                        box.type === "short-break" ? "bg-teal-50 border-teal-100" :
-                                        "bg-violet-50 border-violet-100"
-                                      )}
-                                    >
-                                      <Icon className="h-4 w-4" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                          <span className="font-medium capitalize">
-                                            {box.type === "work" ? "Focus Session" : box.type.replace("-", " ")}
-                                          </span>
-                                          <span className="text-sm text-muted-foreground">
-                                            {box.duration} mins
-                                          </span>
-                                        </div>
-                                        {box.tasks && box.tasks.length > 0 && (
-                                          <div className="mt-1 text-sm text-muted-foreground">
-                                            {box.tasks.map((task, taskIndex) => (
-                                              <div key={`${block.id}-${boxIndex}-${taskIndex}`} className="truncate">
-                                                • {task.title}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
+                    <Link href={`/session/${session.date}`}>
+                      <Button variant="outline" className="gap-2">
+                        View Session
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <CardDescription className="flex items-center justify-between gap-4 mt-2">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {session.totalDuration} minutes
+                    </span>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <Progress 
+                        value={session.storyBlocks.reduce((sum, block) => sum + (block.progress || 0), 0) / session.storyBlocks.length} 
+                        className="w-24" 
+                      />
+                    </div>
+                  </CardDescription>
+                </CardHeader>
+              </Card>
             ))}
 
           {sessions.length === 0 && (
