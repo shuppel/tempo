@@ -56,6 +56,7 @@ export interface VerticalTimelineProps {
   onStartTimeBox?: (storyId: string, timeBoxIndex: number, duration: number) => void
   onCompleteTimeBox?: (storyId: string, timeBoxIndex: number) => void
   onUndoCompleteTimeBox?: (storyId: string, timeBoxIndex: number) => void
+  onStartSessionDebrief?: (duration: number) => void
   isCompactView?: boolean
 }
 
@@ -71,6 +72,7 @@ export const VerticalTimeline = ({
   onStartTimeBox,
   onCompleteTimeBox,
   onUndoCompleteTimeBox,
+  onStartSessionDebrief,
   isCompactView = false
 }: VerticalTimelineProps) => {
   const [visibleBoxes, setVisibleBoxes] = useState<Set<string>>(new Set())
@@ -82,6 +84,10 @@ export const VerticalTimeline = ({
   const [hasShownPopup, setHasShownPopup] = useState(false)
   // Track the current next action to detect changes
   const [lastNextActionId, setLastNextActionId] = useState<string | null>(null)
+  
+  // Add state to track if session debrief is active
+  const [sessionDebriefActive, setSessionDebriefActive] = useState(false)
+  const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
   
   // Override the default confirm dialog with our own dialogs
   // This prevents the browser's built-in confirm dialog from showing
@@ -829,9 +835,14 @@ export const VerticalTimeline = ({
                                 )}
                                 {nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && (
                                   <Badge 
-                                    className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-800 ml-1 animate-pulse-scale shadow-md px-2.5 py-1.5"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-800 ml-1 animate-pulse-scale shadow-md px-3 py-1.5 font-medium tracking-wide"
                                   >
-                                    <span className="mr-1">▶️</span> Next Up
+                                    <span className="inline-flex items-center justify-center mr-1.5 text-xs">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-pulse animate-play-icon">
+                                        <path d="M5 3L19 12L5 21V3Z" fill="currentColor" />
+                                      </svg>
+                                    </span>
+                                    Next Up
                                   </Badge>
                                 )}
                               </div>
@@ -1081,13 +1092,110 @@ export const VerticalTimeline = ({
               )
             })}
             
-            {/* End marker */}
-            <div className="flex items-center ml-7">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 dark:from-pink-600 dark:to-purple-700 flex items-center justify-center z-10 border-2 border-white dark:border-gray-800 shadow-sm">
-                <Calendar className="h-4 w-4 text-white" />
+            {/* Replace the basic End marker with a Debrief TimeBox */}
+            <div className="ml-7 relative">
+              {/* Vertical connecting line to debrief */}
+              <motion.div 
+                className="absolute left-[-36px] top-[-16px] w-[0.125rem] z-0 opacity-60 bg-gradient-to-b from-gray-200 to-pink-200 dark:from-gray-700 dark:to-pink-700"
+                style={{ height: "24px" }}
+                initial={{ height: 0 }}
+                animate={{ height: "24px" }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              />
+              
+              {/* Timeline node */}
+              <div className="absolute left-[-40px] top-0 flex items-center justify-center z-10">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 border-2">
+                  <FileText className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                </div>
               </div>
-              <div className="ml-4 py-2 px-4 bg-pink-50 dark:bg-pink-950/40 rounded-lg border border-pink-200 dark:border-pink-700/50 text-pink-800 dark:text-pink-300">
-                <span className="text-sm font-medium">Session End</span>
+              
+              {/* Main content box */}
+              <div className="rounded-xl p-4 border-l-4 mb-2 transition-all overflow-hidden relative bg-white hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900 border-rose-200 dark:border-rose-800 hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200 ml-8 pl-6">
+                <div className="flex items-center justify-between mb-2 relative">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-rose-700 dark:text-rose-400">
+                      Session Debrief
+                    </span>
+                    <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-1.5 py-0.5 text-xs">
+                      5-15 min
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-3">
+                  <p>Reflect on your completed session and capture any important insights.</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Suggested questions:</div>
+                  <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 pl-4 list-disc">
+                    <li>What went well in this session?</li>
+                    <li>What challenges did you encounter?</li>
+                    <li>What can you improve for next time?</li>
+                  </ul>
+                </div>
+                
+                {/* Session Debrief Button */}
+                <div className="mt-3.5 flex justify-between items-center">
+                  <div className="flex-1 mr-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>Session completed</span>
+                    </div>
+                  </div>
+                  
+                  {sessionDebriefActive && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+                          onClick={() => {
+                            setSessionDebriefCompleted(true);
+                            setSessionDebriefActive(false);
+                          }}
+                        >
+                          <CheckCircle2 className="h-4.5 w-4.5 mr-1.5" />
+                          <span className="text-sm font-medium">Complete Debrief</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
+                        <p>Mark your debrief as completed</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  
+                  {!sessionDebriefActive && !sessionDebriefCompleted && onStartSessionDebrief && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+                          onClick={() => {
+                            // 10 minutes for the debrief by default
+                            onStartSessionDebrief(10);
+                            setSessionDebriefActive(true);
+                          }}
+                        >
+                          <FileText className="h-4.5 w-4.5 mr-1.5" />
+                          <span className="text-sm font-medium">Start Debrief</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
+                        <p>Begin your session reflection</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  
+                  {sessionDebriefCompleted && (
+                    <Badge className="bg-green-500 text-white dark:bg-green-700 dark:text-white px-2.5 py-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      <span>Completed</span>
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1141,13 +1249,15 @@ export const VerticalTimeline = ({
           @keyframes pulse-scale {
             0% {
               transform: scale(1);
+              box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
             }
             50% {
-              transform: scale(1.05);
-              box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+              transform: scale(1.07);
+              box-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
             }
             100% {
               transform: scale(1);
+              box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
             }
           }
           
@@ -1198,7 +1308,7 @@ export const VerticalTimeline = ({
           }
           
           .animate-pulse-scale {
-            animation: pulse-scale 2s ease-in-out infinite;
+            animation: pulse-scale 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
           }
           
           .animate-pulse-border {
@@ -1230,11 +1340,33 @@ export const VerticalTimeline = ({
             box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
             position: relative;
             animation: attention-flash 3s ease-in-out infinite;
+            /* Add a left border highlight */
+            border-left: 4px solid rgba(139, 92, 246, 0.9) !important;
+          }
+          
+          /* Enhance the left border with a glow effect */
+          .next-action-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -2px;
+            height: 100%;
+            width: 6px;
+            background: linear-gradient(to right, 
+              rgba(139, 92, 246, 0.9) 0%, 
+              rgba(168, 85, 247, 0.7) 50%, 
+              rgba(139, 92, 246, 0.1) 100%
+            );
+            border-radius: 4px;
+            filter: blur(3px);
+            animation: purple-flare-pulse 2s ease-in-out infinite;
+            z-index: 1;
           }
           
           /* Stop animations when hovering over the card or start button */
           .next-action-card:hover,
-          .next-action-card:hover::after {
+          .next-action-card:hover::after,
+          .next-action-card:hover::before {
             animation-play-state: paused;
             box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
           }
@@ -1254,6 +1386,22 @@ export const VerticalTimeline = ({
             opacity: 0.9;
             z-index: 0;
             animation: pulse-border 2s infinite;
+          }
+          
+          /* Add a special animation for the purple flare effect */
+          @keyframes purple-flare-pulse {
+            0% {
+              opacity: 0.6;
+              filter: blur(3px) brightness(1);
+            }
+            50% {
+              opacity: 1;
+              filter: blur(4px) brightness(1.5);
+            }
+            100% {
+              opacity: 0.6;
+              filter: blur(3px) brightness(1);
+            }
           }
           
           /* Ensure tooltips appear above all other elements */
@@ -1288,6 +1436,48 @@ export const VerticalTimeline = ({
             height: 0;
             overflow: visible;
             z-index: 9999;
+          }
+          
+          /* Dark mode adjustments for the next-action-card */
+          .dark .next-action-card {
+            border-left: 4px solid rgba(168, 85, 247, 0.9) !important;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+          }
+          
+          .dark .next-action-card::before {
+            background: linear-gradient(to right, 
+              rgba(168, 85, 247, 0.9) 0%, 
+              rgba(192, 132, 252, 0.7) 50%, 
+              rgba(168, 85, 247, 0.1) 100%
+            );
+            filter: blur(4px);
+          }
+          
+          .dark .next-action-card:hover {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+          }
+          
+          .dark .next-action-card::after {
+            background: linear-gradient(to right, rgba(168, 85, 247, 0.7), rgba(192, 132, 252, 0.7));
+          }
+          
+          @keyframes play-icon-pulse {
+            0% {
+              transform: scale(1) translateX(0);
+              opacity: 0.9;
+            }
+            50% {
+              transform: scale(1.1) translateX(1px);
+              opacity: 1;
+            }
+            100% {
+              transform: scale(1) translateX(0);
+              opacity: 0.9;
+            }
+          }
+          
+          .animate-play-icon {
+            animation: play-icon-pulse 1.5s ease-in-out infinite;
           }
         `}</style>
       </div>

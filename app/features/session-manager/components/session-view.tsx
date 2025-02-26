@@ -21,7 +21,9 @@ import {
   ArrowRight,
   Loader2,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  MinusCircle,
+  PlusCircle
 } from "lucide-react"
 import { useSession } from "../hooks/useSession"
 import { SessionStorageService } from "../services/session-storage.service"
@@ -45,6 +47,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
 
 interface SessionViewProps {
   id?: string;
@@ -123,7 +126,8 @@ const FloatingTimerContent = React.memo(({
   onComplete,
   showRed,
   timeBoxType,
-  onAdjustTime
+  onAdjustTime,
+  onGoToTimeline
 }: { 
   title: string;
   formattedTime: string;
@@ -135,23 +139,47 @@ const FloatingTimerContent = React.memo(({
   showRed: boolean;
   timeBoxType?: string;
   onAdjustTime?: (minutes: number) => void;
+  onGoToTimeline?: () => void;
 }) => {
   // Add state for edit mode
   const [showEdit, setShowEdit] = useState(false);
   
   return (
-    <div className="p-4 flex flex-col items-center">
+    <div className="p-5 flex flex-col items-center">
       {/* Task title with drop shadow */}
-      <div className="w-full mb-1.5 text-center relative">
-        <span className="text-sm font-medium text-center drop-shadow-sm line-clamp-1">
+      <div className="w-full mb-2 text-center relative">
+        <span 
+          onClick={onGoToTimeline} 
+          className={cn(
+            "text-sm font-semibold text-center drop-shadow-sm line-clamp-1 cursor-pointer relative",
+            onGoToTimeline && "hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline underline-offset-2"
+          )}
+        >
           {title}
+          {onGoToTimeline && (
+            <span className="absolute -right-4 top-1/2 -translate-y-1/2 text-indigo-500 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ArrowRight className="h-3 w-3" />
+            </span>
+          )}
         </span>
+        
+        {/* Go to timeline button */}
+        {onGoToTimeline && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onGoToTimeline}
+            className="absolute -right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 rounded-full opacity-70 hover:opacity-100 transition-opacity hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
       
       {/* Timer badge - positioned at the top */}
       {timeBoxType && (
         <Badge variant="outline" className={cn(
-          "mb-2 font-normal text-xs px-2 py-0.5 shadow-sm",
+          "mb-2.5 font-normal text-xs px-2.5 py-0.5 shadow-sm",
           timeBoxType === 'work' 
             ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400"
             : timeBoxType === 'short-break' || timeBoxType === 'long-break'
@@ -163,7 +191,7 @@ const FloatingTimerContent = React.memo(({
       )}
       
       {/* Enhanced timer display with larger font */}
-      <div className="relative -mx-2 my-1.5 px-2 py-1 rounded-xl">
+      <div className="relative -mx-2 my-2 px-2 py-1.5 rounded-xl">
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent dark:from-orange-900/10 dark:to-transparent rounded-xl"></div>
         <div className="relative">
           <TimerDisplay 
@@ -180,7 +208,7 @@ const FloatingTimerContent = React.memo(({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity pr-4"
+                    className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
                     onClick={() => setShowEdit(prev => !prev)}
                   >
                     <svg 
@@ -199,7 +227,7 @@ const FloatingTimerContent = React.memo(({
                     </svg>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
+                <TooltipContent side="top">
                   <p>Edit Timer</p>
                 </TooltipContent>
               </Tooltip>
@@ -209,63 +237,61 @@ const FloatingTimerContent = React.memo(({
       </div>
       
       {/* Time Adjustment Controls */}
-      <AnimatePresence>
-        {showEdit && onAdjustTime && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="w-full mb-2"
+      {showEdit && onAdjustTime && (
+        <div className="flex items-center justify-center gap-2 mt-1 mb-2 bg-indigo-50/50 dark:bg-gray-800/30 rounded-lg p-1.5">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-6 w-6 rounded-full text-indigo-700 dark:text-indigo-400"
+            onClick={() => {
+              onAdjustTime(-1);
+              setShowEdit(false);
+            }}
           >
-            <div className="border border-transparent rounded-lg p-2 bg-transparent text-xs">
-              <h4 className="text-xs font-medium text-center mb-1.5 text-muted-foreground">Add/Remove Time</h4>
-              <div className="flex justify-center items-center gap-1.5 mx-auto">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                  onClick={() => onAdjustTime(-5)}
-                >
-                  <ChevronLeft className="h-3 w-3 mr-0.5" />
-                  <ChevronLeft className="h-3 w-3 -ml-1.5" />
-                  <span className="ml-0.5 text-[10px] font-bold">-5m</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                  onClick={() => onAdjustTime(-1)}
-                >
-                  <ChevronLeft className="h-3 w-3 mr-0.5" />
-                  <span className="ml-0.5 text-[10px] font-bold">-1m</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                  onClick={() => onAdjustTime(1)}
-                >
-                  <span className="mr-0.5 text-[10px] font-bold">+1m</span>
-                  <ChevronRight className="h-3 w-3 ml-0.5" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                  onClick={() => onAdjustTime(5)}
-                >
-                  <span className="mr-0.5 text-[10px] font-bold">+5m</span>
-                  <ChevronRight className="h-3 w-3 ml-0.5" />
-                  <ChevronRight className="h-3 w-3 -ml-1.5" />
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <MinusCircle className="h-4 w-4" />
+          </Button>
+          <span className="text-xs font-medium">Adjust Time</span>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-6 w-6 rounded-full text-indigo-700 dark:text-indigo-400"
+            onClick={() => {
+              onAdjustTime(1);
+              setShowEdit(false);
+            }}
+          >
+            <PlusCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       
-      {/* Controls with enhanced styling */}
-      <div className="flex gap-6 mt-3 relative z-10">
+      <div className="flex gap-5 mt-3 relative z-10">
+        {/* Add Go To Timeline button */}
+        {onGoToTimeline && (
+          <div className="relative group">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={onGoToTimeline}
+                    className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800/50 dark:text-indigo-400 dark:hover:bg-indigo-950/50 transition-all duration-200 hover:scale-105"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Go to timeline</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+              Go to
+            </span>
+          </div>
+        )}
+        
         <div className="relative group">
           {isTimerRunning ? (
             <TooltipProvider>
@@ -275,12 +301,12 @@ const FloatingTimerContent = React.memo(({
                     variant="outline" 
                     size="icon" 
                     onClick={onPause}
-                    className="h-9 w-9 rounded-full bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800/50 dark:text-blue-400 dark:hover:bg-blue-950/50 transition-all duration-200 hover:scale-105"
+                    className="h-10 w-10 rounded-full bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800/50 dark:text-blue-400 dark:hover:bg-blue-950/50 transition-all duration-200 hover:scale-105"
                   >
                     <Pause className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="top">
                   <p>Pause</p>
                 </TooltipContent>
               </Tooltip>
@@ -293,13 +319,13 @@ const FloatingTimerContent = React.memo(({
                     variant="outline" 
                     size="icon" 
                     onClick={onResume}
-                    className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-all duration-200 hover:scale-105"
+                    className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-all duration-200 hover:scale-105"
                     disabled={timeRemaining === 0}
                   >
                     <Play className="h-4 w-4 ml-0.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="top">
                   <p>Resume</p>
                 </TooltipContent>
               </Tooltip>
@@ -318,12 +344,12 @@ const FloatingTimerContent = React.memo(({
                   variant="outline" 
                   size="icon" 
                   onClick={onComplete}
-                  className="h-9 w-9 rounded-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-800/50 dark:text-green-400 dark:hover:bg-green-950/50 transition-all duration-200 hover:scale-105"
+                  className="h-10 w-10 rounded-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-800/50 dark:text-green-400 dark:hover:bg-green-950/50 transition-all duration-200 hover:scale-105"
                 >
                   <CheckCircle className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent side="top">
                 <p>Complete</p>
               </TooltipContent>
             </Tooltip>
@@ -342,9 +368,9 @@ FloatingTimerContent.displayName = 'FloatingTimerContent';
 // Animation container that doesn't re-render with timer ticks
 const FloatingTimerContainer = React.memo(({ 
   children, 
-  isVisible,
-  springOpacity,
-  springY,
+  isVisible, 
+  springOpacity, 
+  springY, 
   springScale
 }: { 
   children: React.ReactNode,
@@ -361,24 +387,35 @@ const FloatingTimerContainer = React.memo(({
       {isVisible && (
         <motion.div 
           key={animationKey.current}
-          className="fixed bottom-4 right-4 z-50 shadow-xl timer-card-container floating transform-gpu bg-white dark:bg-gray-900"
+          className="fixed bottom-6 right-6 z-[100] shadow-xl timer-card-container floating transform-gpu bg-white dark:bg-gray-900 group"
           style={{
             opacity: springOpacity,
             y: springY,
             scale: springScale,
             borderColor: "var(--timer-border-color)",
             background: "var(--timer-background)",
+            width: "auto",
+            minWidth: "240px",
+            boxShadow: "0 0 25px rgba(0, 0, 0, 0.15), 0 0 15px rgba(99, 102, 241, 0.2)"
           }}
           initial={{ opacity: 0, y: 100, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 100, scale: 0.9 }}
           transition={{ 
             type: 'spring', 
-            damping: 30, 
-            stiffness: 350,
-            mass: 1.2
+            damping: 25, 
+            stiffness: 300,
+            mass: 1.0
+          }}
+          whileHover={{
+            boxShadow: "0 0 30px rgba(99, 102, 241, 0.4), 0 10px 25px rgba(0, 0, 0, 0.2)",
+            scale: 1.02,
+            transition: { duration: 0.2 }
           }}
         >
+          {/* Pulsing indicator to draw attention to the go-to feature */}
+          <div className="absolute -right-1 -top-1 w-3 h-3 rounded-full bg-indigo-500 dark:bg-amber-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 group-hover:animate-ping"></div>
+          
           {/* Sparkle decoration elements */}
           <div className="sparkle-decoration">
             <div className="sparkle-dot"></div>
@@ -409,7 +446,8 @@ const FloatingTimerWrapper = React.memo(({
   onComplete,
   showRed,
   timeBoxType,
-  onAdjustTime
+  onAdjustTime,
+  onGoToTimeline
 }: { 
   title: string;
   formattedTime: string;
@@ -421,6 +459,7 @@ const FloatingTimerWrapper = React.memo(({
   showRed: boolean;
   timeBoxType?: string;
   onAdjustTime?: (minutes: number) => void;
+  onGoToTimeline?: () => void;
 }) => {
   // Use local state for the formatted time that updates independently
   const [localFormattedTime, setLocalFormattedTime] = useState(initialFormattedTime);
@@ -464,6 +503,7 @@ const FloatingTimerWrapper = React.memo(({
       showRed={showRed}
       timeBoxType={timeBoxType}
       onAdjustTime={onAdjustTime}
+      onGoToTimeline={onGoToTimeline}
     />
   );
 });
@@ -477,6 +517,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
   // Ref for timer section to detect when it's out of viewport
   const timerCardRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   
   // Track intersection ratio for smooth animation
   const intersectionRatio = useRef(1);
@@ -526,6 +567,42 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
 
   // State for active time update
   const [currentFormattedTime, setCurrentFormattedTime] = useState('00:00');
+  
+  // Stable visibility state for floating timer
+  const [stableFloatingVisible, setStableFloatingVisible] = useState(false);
+  
+  // Function to scroll to the active timeBox in the timeline
+  const scrollToActiveTimeBox = useCallback(() => {
+    if (!activeTimeBox) return;
+    
+    const timeBoxId = `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}`;
+    
+    // Find the timeline item
+    const timelineItem = document.querySelector(`[data-id="${timeBoxId}"]`);
+    
+    if (timelineItem) {
+      // Add a visual highlight effect to the element temporarily
+      timelineItem.classList.add('timeline-highlight-pulse');
+      
+      // Scroll to the timeline first if needed
+      if (timelineRef.current) {
+        timelineRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      
+      // Then after a short delay, scroll to the specific item
+      setTimeout(() => {
+        timelineItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Remove the highlight effect after animation
+        setTimeout(() => {
+          timelineItem.classList.remove('timeline-highlight-pulse');
+        }, 2000);
+      }, 500);
+      
+      // Hide the floating timer
+      setStableFloatingVisible(false);
+    }
+  }, [activeTimeBox]);
   
   // Ensure time display is updated regularly
   useEffect(() => {
@@ -712,9 +789,6 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     }
   }, [activeTimeBox, completeTimeBox]);
 
-  // Stable visibility state for floating timer
-  const [stableFloatingVisible, setStableFloatingVisible] = useState(false);
-  
   // Initialize the floating timer visibility when a timebox is active
   useEffect(() => {
     if (activeTimeBox !== null && timeRemaining !== null) {
@@ -819,6 +893,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
           showRed={timeRemaining !== null && timeRemaining < 60}
           timeBoxType={activeTimeBoxDetails?.timeBox.type}
           onAdjustTime={adjustTimer}
+          onGoToTimeline={scrollToActiveTimeBox}
         />
       </FloatingTimerContainer>
       
@@ -913,7 +988,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                         </svg>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="right">
+                    <TooltipContent side="top">
                       <p>Edit Timer</p>
                     </TooltipContent>
                   </Tooltip>
@@ -1011,7 +1086,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                         <RefreshCw className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent side="top">
                       <p>Reset timer</p>
                     </TooltipContent>
                   </Tooltip>
@@ -1030,7 +1105,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                           <Pause className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="top">
                         <p>Pause timer</p>
                       </TooltipContent>
                     </Tooltip>
@@ -1049,7 +1124,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                           <Play className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="top">
                         <p>Resume timer</p>
                       </TooltipContent>
                     </Tooltip>
@@ -1068,7 +1143,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                         <CheckCircle className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent side="top">
                       <p>Complete this timebox</p>
                     </TooltipContent>
                   </Tooltip>
@@ -1080,7 +1155,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
       </div>
 
       {/* Add vertical timeline view - this shows a React-Chrono inspired visual progress timeline */}
-      <div className="mt-8">
+      <div className="mt-8" ref={timelineRef}>
         <Card className="border">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl">Session Timeline</CardTitle>
@@ -1115,6 +1190,20 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
               }}
               onUndoCompleteTimeBox={(storyId, timeBoxIndex) => {
                 undoCompleteTimeBox(storyId, timeBoxIndex);
+              }}
+              onStartSessionDebrief={(duration) => {
+                // Create a synthetic timebox for the debrief
+                const debriefId = "session-debrief";
+                
+                // Set up a special timer for the debrief
+                // In a real implementation, we could add this to the storyBlocks,
+                // but for simplicity we'll just run the timer
+                startTimeBox(debriefId, 0, duration);
+                
+                toast({
+                  title: "Debrief Started",
+                  description: `Take the next ${duration} minutes to reflect on your session.`,
+                })
               }}
               isCompactView={false}
             />
