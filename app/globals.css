@@ -35,6 +35,10 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    
+    /* Timer-specific variables for light mode */
+    --timer-border-color: rgba(165, 180, 252, 0.7);
+    --timer-background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(238, 242, 255, 1) 100%);
   }
   .dark {
     --background: 240 10% 3.9%;
@@ -61,6 +65,10 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    
+    /* Timer-specific variables for dark mode */
+    --timer-border-color: rgba(253, 186, 116, 0.7);
+    --timer-background: linear-gradient(180deg, rgba(17, 24, 39, 1) 0%, rgba(49, 46, 40, 1) 100%);
   }
 }
 
@@ -71,6 +79,20 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Theme transition animation */
+@keyframes theme-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.theme-transition {
+  animation: theme-fade 0.5s ease-in-out;
 }
 
 @keyframes shimmer {
@@ -124,4 +146,407 @@
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+/* Timer animations */
+@keyframes number-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes digit-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes colon-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.timer-digit {
+  animation: digit-pulse 2s ease-in-out infinite;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.timer-digit:hover {
+  transform: scale(1.15) translateY(-2px);
+}
+
+.timer-colon {
+  animation: colon-blink 1s ease-in-out infinite;
+}
+
+.timer-urgent {
+  animation: number-bounce 0.5s ease-in-out infinite;
+}
+
+/* Timer Card Animation and Effects */
+@keyframes timer-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes subtle-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes subtle-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px 2px rgba(99, 102, 241, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px 4px rgba(99, 102, 241, 0.3);
+  }
+}
+
+@keyframes border-pulse {
+  0%, 100% {
+    border-color: rgba(165, 180, 252, 0.7);
+  }
+  50% {
+    border-color: rgba(79, 70, 229, 0.9);
+  }
+}
+
+/* Dark mode animations and effects */
+@keyframes dark-subtle-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px 2px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px 4px rgba(249, 115, 22, 0.3);
+  }
+}
+
+@keyframes dark-border-pulse {
+  0%, 100% {
+    border-color: rgba(253, 186, 116, 0.7);
+  }
+  50% {
+    border-color: rgba(249, 115, 22, 0.9);
+  }
+}
+
+/* Add these fun sparkle and shine effects for the timer */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes shine-line {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.timer-card-container {
+  --sparkle-color: rgba(165, 180, 252, 0.8);
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 0.9rem;
+  position: relative;
+  overflow: hidden;
+  animation: subtle-float 5s ease-in-out infinite, 
+             subtle-glow 6s ease-in-out infinite,
+             border-pulse 4s alternate infinite;
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.2),
+              0 8px 10px -6px rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(165, 180, 252, 0.7);
+  transform: translateZ(0);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+/* Add back the gradient border top */
+.timer-card-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #a5b4fc, #818cf8, #4f46e5, #818cf8, #a5b4fc);
+  background-size: 200% auto;
+  animation: timer-gradient-shift 8s ease infinite;
+  z-index: 2;
+}
+
+/* Add back the bottom line */
+.timer-card-container::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.7), transparent);
+  z-index: 2;
+}
+
+/* Sparkling dots decoration */
+.timer-card-container .sparkle-decoration {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timer-card-container .sparkle-dot {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: rgba(165, 180, 252, 0.8);
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.timer-card-container .sparkle-dot:nth-child(1) {
+  top: 15%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.timer-card-container .sparkle-dot:nth-child(2) {
+  top: 25%;
+  right: 15%;
+  animation-delay: 0.4s;
+}
+
+.timer-card-container .sparkle-dot:nth-child(3) {
+  bottom: 20%;
+  left: 20%;
+  animation-delay: 0.8s;
+}
+
+.timer-card-container .sparkle-dot:nth-child(4) {
+  bottom: 10%;
+  right: 10%;
+  animation-delay: 1.2s;
+}
+
+.timer-card-container .sparkle-dot:nth-child(5) {
+  top: 50%;
+  right: 5%;
+  animation-delay: 1.6s;
+}
+
+/* Shine effect line */
+.timer-card-container .shine-line {
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    transparent 30%,
+    rgba(165, 180, 252, 0.8) 50%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  top: 20%;
+  left: 0;
+  animation: shine-line 4s linear infinite;
+}
+
+.timer-card-container.floating {
+  animation: subtle-float 4s ease-in-out infinite, 
+             subtle-glow 5s ease-in-out infinite,
+             border-pulse 3.5s alternate infinite;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 1.25rem;
+  border-width: 1px;
+  box-shadow: 
+    0 0 1px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(99, 102, 241, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  animation: 
+    subtle-glow 4s ease-in-out infinite alternate,
+    float 6s ease-in-out infinite alternate;
+  transform: translateZ(0);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Add a subtle black outline in light mode */
+  outline: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced dark mode floating timer with more visible white outline */
+.dark .timer-card-container.floating {
+  animation: subtle-float 4s ease-in-out infinite, 
+             dark-subtle-glow 5s ease-in-out infinite,
+             dark-border-pulse 3.5s alternate infinite;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 0 4px rgba(255, 255, 255, 0.4),
+    0 0 15px rgba(249, 115, 22, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.2);
+  animation: 
+    dark-subtle-glow 4s ease-in-out infinite alternate,
+    float 6s ease-in-out infinite alternate;
+  border-color: rgba(253, 186, 116, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* Add a more visible white outline in dark mode */
+  outline: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Gradient border appearance for floating timer */
+.timer-card-container.floating::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg, 
+    rgba(224, 231, 255, 0.6) 0%, 
+    rgba(199, 210, 254, 0.2) 50%,
+    rgba(224, 231, 255, 0.4) 100%
+  );
+  opacity: 0.4;
+  z-index: -5;
+  border-radius: inherit;
+}
+
+/* Add gradient border top for floating timer */
+.timer-card-container.floating::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, 
+    rgba(165, 180, 252, 0.05) 0%, 
+    rgba(129, 140, 248, 0.3) 20%, 
+    rgba(79, 70, 229, 0.5) 50%, 
+    rgba(129, 140, 248, 0.3) 80%, 
+    rgba(165, 180, 252, 0.05) 100%
+  );
+  animation: timer-gradient-shift 6s ease infinite;
+  z-index: 2;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.dark .timer-card-container.floating::before {
+  background: linear-gradient(
+    135deg, 
+    rgba(254, 215, 170, 0.2) 0%, 
+    rgba(251, 146, 60, 0.1) 50%,
+    rgba(254, 215, 170, 0.15) 100%
+  );
+  opacity: 0.25;
+}
+
+.dark .timer-card-container.floating::after {
+  background: linear-gradient(90deg, 
+    rgba(253, 186, 116, 0.05) 0%, 
+    rgba(251, 146, 60, 0.3) 20%, 
+    rgba(249, 115, 22, 0.5) 50%, 
+    rgba(251, 146, 60, 0.3) 80%, 
+    rgba(253, 186, 116, 0.05) 100%
+  );
+}
+
+/* Enhance timer content styling */
+.timer-card-container.floating .timer-display {
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .timer-card-container.floating .timer-display {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Add float animation for the floating timer */
+@keyframes float {
+  0% {
+    transform: translateY(0) translateZ(0);
+  }
+  100% {
+    transform: translateY(-5px) translateZ(0);
+  }
+}
+
+/* Enhanced hover states with outlines */
+.timer-card-container.floating:hover {
+  box-shadow: 
+    0 0 2px rgba(0, 0, 0, 0.3),
+    0 0 25px rgba(99, 102, 241, 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px) translateZ(0) scale(1.01);
+  outline: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.dark .timer-card-container.floating:hover {
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 0 6px rgba(255, 255, 255, 0.5),
+    0 0 20px rgba(249, 115, 22, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px) translateZ(0) scale(1.01);
+  border-color: rgba(253, 186, 116, 0.6);
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Dark mode adjustments */
+.dark .timer-card-container {
+  --sparkle-color: rgba(253, 186, 116, 0.8);
+  animation: subtle-float 5s ease-in-out infinite, 
+             dark-subtle-glow 6s ease-in-out infinite,
+             dark-border-pulse 4s alternate infinite;
+  box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.1),
+              0 8px 10px -6px rgba(249, 115, 22, 0.05);
+}
+
+.dark .timer-card-container::before {
+  background: linear-gradient(90deg, rgba(253, 186, 116, 0.3), rgba(251, 146, 60, 0.4), rgba(249, 115, 22, 0.5), rgba(251, 146, 60, 0.4), rgba(253, 186, 116, 0.3));
+}
+
+.dark .timer-card-container::after {
+  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.5), transparent);
+}
+
+.dark .timer-card-container .sparkle-dot {
+  background-color: rgba(253, 186, 116, 0.5);
+}
+
+.dark .timer-card-container .shine-line {
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    transparent 30%,
+    rgba(253, 186, 116, 0.4) 50%,
+    transparent 70%,
+    transparent 100%
+  );
 }

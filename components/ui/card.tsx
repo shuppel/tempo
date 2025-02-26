@@ -1,7 +1,13 @@
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
 
+/**
+ * Card Component:
+ * - The root container for a styled card.
+ * - Provides a rounded border, shadow, and background.
+ * - Supports additional classes via `className`.
+ */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -17,6 +23,11 @@ const Card = React.forwardRef<
 ))
 Card.displayName = "Card"
 
+/**
+ * CardHeader Component:
+ * - Wraps the header section of the card.
+ * - Adds padding and vertical spacing.
+ */
 const CardHeader = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -29,6 +40,11 @@ const CardHeader = React.forwardRef<
 ))
 CardHeader.displayName = "CardHeader"
 
+/**
+ * CardTitle Component:
+ * - Displays the title inside a card.
+ * - Uses a bold font with tight tracking.
+ */
 const CardTitle = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -41,6 +57,11 @@ const CardTitle = React.forwardRef<
 ))
 CardTitle.displayName = "CardTitle"
 
+/**
+ * CardDescription Component:
+ * - Provides a smaller, muted text description.
+ * - Often used below the `CardTitle`.
+ */
 const CardDescription = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -53,6 +74,11 @@ const CardDescription = React.forwardRef<
 ))
 CardDescription.displayName = "CardDescription"
 
+/**
+ * CardContent Component:
+ * - Wraps the main content area of the card.
+ * - Removes top padding to align closely with the header.
+ */
 const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -61,6 +87,11 @@ const CardContent = React.forwardRef<
 ))
 CardContent.displayName = "CardContent"
 
+/**
+ * CardFooter Component:
+ * - Wraps the footer section of the card.
+ * - Typically used for buttons or additional actions.
+ */
 const CardFooter = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -73,4 +104,5 @@ const CardFooter = React.forwardRef<
 ))
 CardFooter.displayName = "CardFooter"
 
+// Exporting all components for modular use.
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }

@@ -86,4 +86,53 @@ export function suggestSplitAdjustment(originalDuration: number, splitDuration: 
   
   return `Consider adding ${suggestedParts} more part${suggestedParts > 1 ? 's' : ''} ` +
          `to cover the remaining ${remaining} minutes`
+}
+
+/**
+ * Formats a duration in minutes to a human-readable string
+ * @param totalMinutes Total duration in minutes
+ * @returns Formatted string like "2 hrs 30 min" or "45 min"
+ */
+export function formatDuration(totalMinutes: number): string {
+  if (!totalMinutes || isNaN(totalMinutes)) return '0 min';
+  
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  if (hours > 0) {
+    return `${hours} hr${hours > 1 ? 's' : ''}${minutes > 0 ? ` ${minutes} min` : ''}`;
+  } else {
+    return `${minutes} min`;
+  }
+}
+
+/**
+ * Calculates the estimated end time given a duration in minutes
+ * @param durationInMinutes Duration in minutes
+ * @param startTime Optional start time, defaults to now
+ * @returns Formatted end time string (e.g., "3:45 PM")
+ */
+export function calculateEstimatedEndTime(durationInMinutes: number, startTime: Date = new Date()): string {
+  if (!durationInMinutes || isNaN(durationInMinutes)) return 'N/A';
+  
+  const endTime = new Date(startTime.getTime() + durationInMinutes * 60000);
+  
+  // Format as h:mm a (e.g., 3:45 PM)
+  return endTime.toLocaleTimeString([], { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+}
+
+/**
+ * Get time estimates for a session
+ * @param totalDurationInMinutes Total duration in minutes
+ * @returns Object with formatted total time and estimated completion time
+ */
+export function getSessionTimeEstimates(totalDurationInMinutes: number) {
+  return {
+    totalTime: formatDuration(totalDurationInMinutes),
+    estimatedEnd: calculateEstimatedEndTime(totalDurationInMinutes)
+  };
 } 

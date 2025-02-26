@@ -20,7 +20,8 @@ import {
   XCircle,
   ArrowRight,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft
 } from "lucide-react"
 import { useSession } from "../hooks/useSession"
 import { SessionStorageService } from "../services/session-storage.service"
@@ -43,6 +44,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useRouter } from "next/navigation"
 
 interface SessionViewProps {
   id?: string;
@@ -53,20 +55,60 @@ interface SessionViewProps {
 // Separate timer display component to prevent re-animations
 const TimerDisplay = React.memo(({ 
   time, 
-  showRed 
+  showRed,
+  hideHurryBadge = false
 }: { 
   time: string, 
-  showRed: boolean 
-}) => (
-  <span 
-    className={cn(
-      "text-xl font-mono font-semibold",
-      showRed && "text-red-600 animate-pulse"
-    )}
-  >
-    {time}
-  </span>
-));
+  showRed: boolean,
+  hideHurryBadge?: boolean
+}) => {
+  // Split the time into digits and separator for individual styling
+  const [minutes, seconds] = time.split(':');
+  
+  return (
+    <div className="flex items-center justify-center">
+      <span 
+        className={cn(
+          "font-display font-bold tracking-tight relative",
+          showRed 
+            ? "text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500" 
+            : "text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-blue-500 dark:from-indigo-400 dark:to-blue-300"
+        )}
+      >
+        <span className={cn(
+          "timer-digit text-5xl", 
+          showRed && "timer-urgent"
+        )} style={{ animationDelay: "0ms" }}>
+          {minutes[0]}
+        </span>
+        <span className={cn(
+          "timer-digit text-5xl", 
+          showRed && "timer-urgent"
+        )} style={{ animationDelay: "150ms" }}>
+          {minutes[1]}
+        </span>
+        <span className="timer-colon text-4xl mx-1">:</span>
+        <span className={cn(
+          "timer-digit text-5xl", 
+          showRed && "timer-urgent"
+        )} style={{ animationDelay: "300ms" }}>
+          {seconds[0]}
+        </span>
+        <span className={cn(
+          "timer-digit text-5xl", 
+          showRed && "timer-urgent"
+        )} style={{ animationDelay: "450ms" }}>
+          {seconds[1]}
+        </span>
+        {showRed && !hideHurryBadge && (
+          <span className="absolute -top-2 -right-6 text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded-full animate-bounce">
+            Hurry!
+          </span>
+        )}
+      </span>
+    </div>
+  );
+});
 
 TimerDisplay.displayName = 'TimerDisplay';
 
@@ -79,7 +121,9 @@ const FloatingTimerContent = React.memo(({
   onPause, 
   onResume, 
   onComplete,
-  showRed 
+  showRed,
+  timeBoxType,
+  onAdjustTime
 }: { 
   title: string;
   formattedTime: string;
@@ -89,76 +133,209 @@ const FloatingTimerContent = React.memo(({
   onResume: () => void;
   onComplete: () => void;
   showRed: boolean;
-}) => (
-  <div className="p-3 flex items-center gap-3">
-    <div className="flex flex-col">
-      <span className="text-xs text-muted-foreground">
-        {title}
-      </span>
-      <TimerDisplay 
-        time={formattedTime} 
-        showRed={showRed} 
-      />
-    </div>
-    <div className="flex gap-1">
-      {isTimerRunning ? (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={onPause}
-                className="h-8 w-8 rounded-full"
-              >
-                <Pause className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Pause</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={onResume}
-                className="h-8 w-8 rounded-full"
-                disabled={timeRemaining === 0}
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Resume</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+  timeBoxType?: string;
+  onAdjustTime?: (minutes: number) => void;
+}) => {
+  // Add state for edit mode
+  const [showEdit, setShowEdit] = useState(false);
+  
+  return (
+    <div className="p-4 flex flex-col items-center">
+      {/* Task title with drop shadow */}
+      <div className="w-full mb-1.5 text-center relative">
+        <span className="text-sm font-medium text-center drop-shadow-sm line-clamp-1">
+          {title}
+        </span>
+      </div>
+      
+      {/* Timer badge - positioned at the top */}
+      {timeBoxType && (
+        <Badge variant="outline" className={cn(
+          "mb-2 font-normal text-xs px-2 py-0.5 shadow-sm",
+          timeBoxType === 'work' 
+            ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400"
+            : timeBoxType === 'short-break' || timeBoxType === 'long-break'
+              ? "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-400"
+              : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400"
+        )}>
+          {timeBoxType === 'work' ? 'Focus' : timeBoxType === 'short-break' ? 'Short Break' : timeBoxType === 'long-break' ? 'Long Break' : 'Break'}
+        </Badge>
       )}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={onComplete}
-              className="h-8 w-8 rounded-full text-green-600"
-            >
-              <CheckCircle className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Complete</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      
+      {/* Enhanced timer display with larger font */}
+      <div className="relative -mx-2 my-1.5 px-2 py-1 rounded-xl">
+        <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/20 to-transparent dark:from-orange-900/10 dark:to-transparent rounded-xl"></div>
+        <div className="relative">
+          <TimerDisplay 
+            time={formattedTime} 
+            showRed={showRed}
+            hideHurryBadge={true} 
+          />
+          
+          {/* Add edit button if adjustment function is provided */}
+          {onAdjustTime && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute -right-8 top-1/2 -translate-y-1/2 h-7 w-7 opacity-40 hover:opacity-100 transition-opacity"
+                    onClick={() => setShowEdit(prev => !prev)}
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="14" 
+                      height="14" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Edit Timer</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </div>
+      
+      {/* Time Adjustment Controls */}
+      <AnimatePresence>
+        {showEdit && onAdjustTime && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="w-full mb-2"
+          >
+            <div className="border border-transparent rounded-lg p-2 bg-transparent text-xs">
+              <h4 className="text-xs font-medium text-center mb-1.5 text-muted-foreground">Add/Remove Time</h4>
+              <div className="flex justify-center items-center gap-1.5 mx-auto">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                  onClick={() => onAdjustTime(-5)}
+                >
+                  <ChevronLeft className="h-3 w-3 mr-0.5" />
+                  <ChevronLeft className="h-3 w-3 -ml-1.5" />
+                  <span className="ml-0.5 text-[10px] font-bold">-5m</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                  onClick={() => onAdjustTime(-1)}
+                >
+                  <ChevronLeft className="h-3 w-3 mr-0.5" />
+                  <span className="ml-0.5 text-[10px] font-bold">-1m</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                  onClick={() => onAdjustTime(1)}
+                >
+                  <span className="mr-0.5 text-[10px] font-bold">+1m</span>
+                  <ChevronRight className="h-3 w-3 ml-0.5" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                  onClick={() => onAdjustTime(5)}
+                >
+                  <span className="mr-0.5 text-[10px] font-bold">+5m</span>
+                  <ChevronRight className="h-3 w-3 ml-0.5" />
+                  <ChevronRight className="h-3 w-3 -ml-1.5" />
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Controls with enhanced styling */}
+      <div className="flex gap-6 mt-3 relative z-10">
+        <div className="relative group">
+          {isTimerRunning ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={onPause}
+                    className="h-9 w-9 rounded-full bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800/50 dark:text-blue-400 dark:hover:bg-blue-950/50 transition-all duration-200 hover:scale-105"
+                  >
+                    <Pause className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Pause</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={onResume}
+                    className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 transition-all duration-200 hover:scale-105"
+                    disabled={timeRemaining === 0}
+                  >
+                    <Play className="h-4 w-4 ml-0.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Resume</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+            {isTimerRunning ? "Pause" : "Resume"}
+          </span>
+        </div>
+        
+        <div className="relative group">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={onComplete}
+                  className="h-9 w-9 rounded-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-800/50 dark:text-green-400 dark:hover:bg-green-950/50 transition-all duration-200 hover:scale-105"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Complete</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+            Complete
+          </span>
+        </div>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
 FloatingTimerContent.displayName = 'FloatingTimerContent';
 
@@ -184,11 +361,13 @@ const FloatingTimerContainer = React.memo(({
       {isVisible && (
         <motion.div 
           key={animationKey.current}
-          className="fixed bottom-4 right-4 z-50 shadow-lg rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 transform-gpu"
+          className="fixed bottom-4 right-4 z-50 shadow-xl timer-card-container floating transform-gpu bg-white dark:bg-gray-900"
           style={{
             opacity: springOpacity,
             y: springY,
             scale: springScale,
+            borderColor: "var(--timer-border-color)",
+            background: "var(--timer-background)",
           }}
           initial={{ opacity: 0, y: 100, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -200,6 +379,16 @@ const FloatingTimerContainer = React.memo(({
             mass: 1.2
           }}
         >
+          {/* Sparkle decoration elements */}
+          <div className="sparkle-decoration">
+            <div className="sparkle-dot"></div>
+            <div className="sparkle-dot"></div>
+            <div className="sparkle-dot"></div>
+            <div className="sparkle-dot"></div>
+            <div className="sparkle-dot"></div>
+          </div>
+          <div className="shine-line"></div>
+          
           {children}
         </motion.div>
       )}
@@ -218,7 +407,9 @@ const FloatingTimerWrapper = React.memo(({
   onPause, 
   onResume, 
   onComplete,
-  showRed 
+  showRed,
+  timeBoxType,
+  onAdjustTime
 }: { 
   title: string;
   formattedTime: string;
@@ -228,6 +419,8 @@ const FloatingTimerWrapper = React.memo(({
   onResume: () => void;
   onComplete: () => void;
   showRed: boolean;
+  timeBoxType?: string;
+  onAdjustTime?: (minutes: number) => void;
 }) => {
   // Use local state for the formatted time that updates independently
   const [localFormattedTime, setLocalFormattedTime] = useState(initialFormattedTime);
@@ -269,6 +462,8 @@ const FloatingTimerWrapper = React.memo(({
       onResume={onResume}
       onComplete={onComplete}
       showRed={showRed}
+      timeBoxType={timeBoxType}
+      onAdjustTime={onAdjustTime}
     />
   );
 });
@@ -316,15 +511,17 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     activeTimeBox,
     timeRemaining,
     isTimerRunning,
-    isSessionComplete,
     completedPercentage,
+    isSessionComplete,
     handleTaskClick,
     startTimeBox,
     pauseTimer,
     resumeTimer,
     resetTimer,
     completeTimeBox,
-    isCurrentTimeBox
+    undoCompleteTimeBox,
+    isCurrentTimeBox,
+    updateTimeRemaining
   } = useSession({ id: sessionId, storageService });
 
   // State for active time update
@@ -551,6 +748,21 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     });
   }, [activeTimeBox, timeRemaining, isTimerRunning, stableFloatingVisible, isTimerVisible]);
 
+  const router = useRouter();
+
+  // Time adjustment drawer state
+  const [showTimeAdjust, setShowTimeAdjust] = useState(false);
+  
+  // Function to adjust timer
+  const adjustTimer = useCallback((minutes: number) => {
+    if (timeRemaining !== null && activeTimeBox) {
+      // Ensure we don't go below zero
+      const newTime = Math.max(0, timeRemaining + (minutes * 60));
+      // Use the updateTimeRemaining function from the useSession hook
+      updateTimeRemaining(newTime);
+    }
+  }, [timeRemaining, activeTimeBox, updateTimeRemaining]);
+
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -605,6 +817,8 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
           onResume={resumeTimer}
           onComplete={handleFloatingComplete}
           showRed={timeRemaining !== null && timeRemaining < 60}
+          timeBoxType={activeTimeBoxDetails?.timeBox.type}
+          onAdjustTime={adjustTimer}
         />
       </FloatingTimerContainer>
       
@@ -650,32 +864,140 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
         {activeTimeBox !== null && (
           <Card 
             ref={timerCardRef}
-            className="border-2 border-yellow-100 bg-white"
+            className="timer-card-container transform-gpu"
+            style={{
+              borderColor: "var(--timer-border-color)",
+              background: "var(--timer-background)"
+            }}
           >
+            {/* Sparkle decoration elements */}
+            <div className="sparkle-decoration">
+              <div className="sparkle-dot"></div>
+              <div className="sparkle-dot"></div>
+              <div className="sparkle-dot"></div>
+              <div className="sparkle-dot"></div>
+              <div className="sparkle-dot"></div>
+            </div>
+            <div className="shine-line"></div>
+            
             <CardHeader className="pb-2 text-center">
               <CardTitle className="text-center">Active Timer</CardTitle>
-              <div className="mt-2">
+              <div className="mt-2 relative">
                 <TimerDisplay 
                   time={currentFormattedTime} 
                   showRed={timeRemaining !== null && timeRemaining < 60} 
                 />
-          </div>
-              <CardDescription className="mt-1">
-                {activeTimeBoxDetails?.title || 'Loading...'} - {activeTimeBoxDetails?.timeBox.type === 'work' ? 'Focus Session' : 'Break'}
+                {/* Add edit button for timer adjustment */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute -right-8 top-1/2 -translate-y-1/2 h-7 w-7 opacity-40 hover:opacity-100 transition-opacity"
+                        onClick={() => setShowTimeAdjust(prev => !prev)}
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="14" 
+                          height="14" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Edit Timer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <CardDescription className="mt-3 flex flex-col items-center gap-2">
+                <span className="font-medium text-sm">{activeTimeBoxDetails?.title || 'Loading...'}</span>
+                <Badge variant="outline" className={cn(
+                  "font-normal",
+                  activeTimeBoxDetails?.timeBox.type === 'work' 
+                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400"
+                    : activeTimeBoxDetails?.timeBox.type === 'short-break' || activeTimeBoxDetails?.timeBox.type === 'long-break'
+                      ? "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-400"
+                      : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400"
+                )}>
+                  {activeTimeBoxDetails?.timeBox.type === 'work' ? 'Focus' : activeTimeBoxDetails?.timeBox.type === 'short-break' ? 'Short Break' : activeTimeBoxDetails?.timeBox.type === 'long-break' ? 'Long Break' : 'Break'}
+                </Badge>
               </CardDescription>
             </CardHeader>
+            
+            {/* Time Adjustment Drawer */}
+            <AnimatePresence>
+              {showTimeAdjust && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="px-4 pb-3"
+                >
+                  <div className="border border-transparent rounded-lg p-3 bg-transparent">
+                    <h4 className="text-xs font-medium text-center mb-2 text-muted-foreground">Add/Remove Time</h4>
+                    <div className="flex justify-center items-center gap-2 mx-auto">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                        onClick={() => adjustTimer(-5)}
+                      >
+                        <ChevronLeft className="h-3 w-3 mr-0.5" />
+                        <ChevronLeft className="h-3 w-3 -ml-1.5" />
+                        <span className="ml-0.5 text-[10px] font-bold">-5m</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                        onClick={() => adjustTimer(-1)}
+                      >
+                        <ChevronLeft className="h-3 w-3 mr-0.5" />
+                        <span className="ml-0.5 text-[10px] font-bold">-1m</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                        onClick={() => adjustTimer(1)}
+                      >
+                        <span className="mr-0.5 text-[10px] font-bold">+1m</span>
+                        <ChevronRight className="h-3 w-3 ml-0.5" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 px-1.5 text-xs bg-white dark:bg-gray-900 border-green-200 hover:bg-green-50 hover:text-green-700 dark:border-green-800 dark:hover:bg-green-950/30 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+                        onClick={() => adjustTimer(5)}
+                      >
+                        <span className="mr-0.5 text-[10px] font-bold">+5m</span>
+                        <ChevronRight className="h-3 w-3 ml-0.5" />
+                        <ChevronRight className="h-3 w-3 -ml-1.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
             <CardContent className="pb-2">
               <Progress 
-                value={activeTimeBoxDetails?.progress || 0} 
-                className="h-2 mb-1" 
+                value={100 - (activeTimeBoxDetails?.progress || 0)} 
+                className="h-2 mb-1 bg-gray-100 dark:bg-gray-800" 
               />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0:00</span>
-                <span>{Math.floor((activeTimeBoxDetails?.totalDuration || 0) / 60)}:{((activeTimeBoxDetails?.totalDuration || 0) % 60).toString().padStart(2, '0')}</span>
-              </div>
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
-              <div className="grid grid-cols-3 gap-4 w-full max-w-xs">
+              <div className="flex justify-center gap-6 w-full max-w-xs">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -703,7 +1025,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                           variant="outline" 
                           size="icon" 
                           onClick={pauseTimer}
-                          className="h-10 w-10 rounded-full bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          className="h-10 w-10 rounded-full bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/50"
                         >
                           <Pause className="h-4 w-4" />
                         </Button>
@@ -721,7 +1043,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                           variant="outline" 
                           size="icon" 
                           onClick={resumeTimer}
-                          className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                          className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                           disabled={!activeTimeBox || timeRemaining === 0}
                         >
                           <Play className="h-4 w-4" />
@@ -741,7 +1063,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                         variant="outline" 
                         size="icon" 
                         onClick={() => activeTimeBox && completeTimeBox(activeTimeBox.storyId, activeTimeBox.timeBoxIndex)}
-                        className="h-10 w-10 rounded-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                        className="h-10 w-10 rounded-full bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950/50"
                       >
                         <CheckCircle className="h-4 w-4" />
                       </Button>
@@ -764,6 +1086,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
         onTaskClick={handleTaskClick}
         onStartTimeBox={startTimeBox}
         onCompleteTimeBox={completeTimeBox}
+        onUndoCompleteTimeBox={undoCompleteTimeBox}
         hideOverview={true} // Hide the redundant overview
       />
 

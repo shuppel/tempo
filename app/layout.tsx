@@ -47,10 +47,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${textMeOne.variable} ${happyMonkey.variable} ${nunitoSans.variable}`} suppressHydrationWarning>
-      <body className={`min-h-screen bg-background font-body antialiased`}>
+      <body className={`min-h-screen bg-background font-body antialiased theme-transition`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >

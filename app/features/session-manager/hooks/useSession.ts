@@ -42,8 +42,11 @@ export interface UseSessionReturn {
   resumeTimer: () => void
   resetTimer: () => void
   completeTimeBox: (storyId: string, timeBoxIndex: number) => void
+  undoCompleteTimeBox: (storyId: string, timeBoxIndex: number) => void
   findNextWorkTimeBox: () => { storyId: string; timeBoxIndex: number } | null
+  findNextTimeBox: () => { storyId: string; timeBoxIndex: number } | null
   isCurrentTimeBox: (timeBox: TimeBox) => boolean
+  updateTimeRemaining: (newTime: number) => void
 }
 
 export const useSession = ({
@@ -105,6 +108,23 @@ export const useSession = ({
   }, [storageService, router, toast])
 
   // Find the next available work timebox
+  const findNextTimeBox = useCallback(() => {
+    if (!session) return null
+    
+    for (let i = 0; i < session.storyBlocks.length; i++) {
+      const story = session.storyBlocks[i]
+      for (let j = 0; j < story.timeBoxes.length; j++) {
+        const timeBox = story.timeBoxes[j]
+        if (timeBox.status === 'todo') {
+          return { storyId: story.id, timeBoxIndex: j }
+        }
+      }
+    }
+    
+    return null
+  }, [session])
+
+  // For backward compatibility - finds only work timeboxes
   const findNextWorkTimeBox = useCallback(() => {
     if (!session) return null
     
@@ -142,6 +162,58 @@ export const useSession = ({
     }
     return null
   }
+
+  // Undo the completion of a timebox
+  const undoCompleteTimeBox = useCallback((storyId: string, timeBoxIndex: number) => {
+    if (!session) return
+    
+    const updatedSession = { ...session }
+    const storyIndex = updatedSession.storyBlocks.findIndex(story => story.id === storyId)
+    
+    if (storyIndex === -1) {
+      console.error(`Story with ID ${storyId} not found`)
+      return
+    }
+    
+    // Get the timebox
+    const timeBox = updatedSession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex]
+    
+    // Only allow undoing completed timeboxes
+    if (timeBox.status !== 'completed') {
+      console.warn('Cannot undo a timebox that is not completed')
+      return
+    }
+    
+    // Revert timebox to todo status
+    timeBox.status = 'todo'
+    
+    // Reset tasks to todo status (optional - you might want to keep their completion status)
+    const tasks = timeBox.tasks
+    if (tasks && tasks.length > 0) {
+      tasks.forEach(task => {
+        task.status = 'todo'
+      })
+    }
+    
+    // Update story progress
+    updatedSession.storyBlocks[storyIndex].progress = calculateStoryProgress(updatedSession.storyBlocks[storyIndex])
+    
+    // Update session in storage
+    updateSession(updatedSession)
+    
+    // Call the API to update the timebox status
+    storageService.updateTimeBoxStatus(
+      session.date,
+      storyId,
+      timeBoxIndex,
+      'todo' as TimeBoxStatus
+    )
+    
+    toast({
+      title: "Timebox Reverted",
+      description: "The timebox has been reverted to 'todo' status.",
+    })
+  }, [session, updateSession, storageService, toast])
 
   // Complete a timebox
   const completeTimeBox = useCallback((storyId: string, timeBoxIndex: number) => {
@@ -194,27 +266,33 @@ export const useSession = ({
     )
     
     // Find next timebox to suggest
-    const nextTimeBox = findNextWorkTimeBox()
+    const nextTimeBox = findNextTimeBox()
     if (nextTimeBox) {
-      toast({
-        title: "Timebox Completed",
-        description: "Would you like to start the next timebox?",
-        actionLabel: "Start Next",
-        onAction: () => {
-          const nextStoryIndex = updatedSession.storyBlocks.findIndex(story => story.id === nextTimeBox.storyId)
-          if (nextStoryIndex !== -1) {
-            const duration = updatedSession.storyBlocks[nextStoryIndex].timeBoxes[nextTimeBox.timeBoxIndex].duration
-            startTimeBox(nextTimeBox.storyId, nextTimeBox.timeBoxIndex, duration)
+      // Get the type of the next timebox for better user guidance
+      const nextStoryIndex = updatedSession.storyBlocks.findIndex(story => story.id === nextTimeBox.storyId)
+      if (nextStoryIndex !== -1) {
+        const nextBoxType = updatedSession.storyBlocks[nextStoryIndex].timeBoxes[nextTimeBox.timeBoxIndex].type;
+        const boxTypeLabel = nextBoxType === 'work' ? 'focus session' : 
+                            (nextBoxType === 'short-break' || nextBoxType === 'long-break') ? 'break' : 
+                            nextBoxType === 'debrief' ? 'debrief session' : 'next activity';
+        
+        toast({
+          title: "Timebox Completed",
+          description: `Your next ${boxTypeLabel} is ready to start. Check the highlighted button.`,
+          actionLabel: "Go to Next",
+          onAction: () => {
+            // We don't auto-start the next task, just help the user find it
+            // Scroll to the element might be implemented here if needed
           }
-        }
-      })
+        })
+      }
     } else {
       toast({
         title: "Timebox Completed",
         description: "All timeboxes have been completed!",
       })
     }
-  }, [session, activeTimeBox, updateSession, findNextWorkTimeBox, storageService, toast])
+  }, [session, activeTimeBox, updateSession, findNextTimeBox, storageService, toast])
 
   // Start a timebox
   const startTimeBox = useCallback((storyId: string, timeBoxIndex: number, duration: number) => {
@@ -290,6 +368,14 @@ export const useSession = ({
       return
     }
 
+    // Add confirmation for unchecking a completed task
+    if (task.status === 'completed') {
+      const shouldRevert = window.confirm('Are you sure you want to mark this task as incomplete?')
+      if (!shouldRevert) {
+        return
+      }
+    }
+    
     // Toggle task status
     const newStatus = task.status === 'completed' ? 'todo' : 'completed'
     timeBox.tasks[taskIndex].status = newStatus
@@ -408,6 +494,34 @@ export const useSession = ({
       })
     }
   }, [session, activeTimeBox, toast, storageService])
+
+  // Update time remaining - new function for time adjustment
+  const updateTimeRemaining = useCallback((newTime: number) => {
+    if (!activeTimeBox || !session) return;
+    
+    // Update the time remaining
+    setTimeRemaining(newTime);
+    
+    // Persist the updated timer state
+    if (session.date) {
+      storageService.saveTimerState(
+        session.date,
+        activeTimeBox,
+        newTime,
+        isTimerRunning
+      );
+    }
+    
+    // Optionally notify the user
+    const minutes = Math.floor(newTime / 60);
+    const seconds = newTime % 60;
+    const formattedTime = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    toast({
+      title: "Timer Adjusted",
+      description: `Time updated to ${formattedTime}`,
+    });
+  }, [activeTimeBox, session, isTimerRunning, storageService, toast]);
 
   // Check if a timebox is the current active one
   const isCurrentTimeBox = useCallback((timeBox: TimeBox) => {
@@ -602,7 +716,10 @@ export const useSession = ({
     resumeTimer,
     resetTimer,
     completeTimeBox,
+    undoCompleteTimeBox,
     findNextWorkTimeBox,
-    isCurrentTimeBox
+    findNextTimeBox,
+    isCurrentTimeBox,
+    updateTimeRemaining
   }
 } 

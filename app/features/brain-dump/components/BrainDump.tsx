@@ -1,5 +1,5 @@
 // /features/brain-dump/components/BrainDump.tsx
-"use client"
+"use client" // Ensures the component runs on the client side in Next.js.
 
 import React from "react"
 import { 
@@ -26,10 +26,18 @@ import {
 } from "@/components/ui/accordion"
 
 interface BrainDumpProps {
-  onTasksProcessed?: (stories: ProcessedStory[]) => void
+  onTasksProcessed?: (stories: ProcessedStory[]) => void // Callback function triggered when tasks are processed.
 }
 
+/**
+ * BrainDump Component:
+ * - Provides an input area for users to enter tasks.
+ * - Uses AI to analyze and optimize tasks into work blocks.
+ * - Displays real-time feedback, errors, and suggestions.
+ * - Allows users to create structured work sessions.
+ */
 export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
+  // Extracting states and handlers from custom hook
   const {
     tasks,
     setTasks,
@@ -47,6 +55,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     handleRetry
   } = useBrainDump(onTasksProcessed)
   
+  // Placeholder text guiding users on how to format tasks effectively
   const placeholderText = `Update client dashboard design - high priority FROG
 Send weekly progress report to team - 20 mins
 Research API integration options - 1 hour technical
@@ -62,7 +71,9 @@ Finalize product feature specifications - due tomorrow`
           Enter your tasks below, one per line. Our AI analyzes patterns and context to create optimized focus sessions tailored to your workflow.
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-6">
+        {/* User input field for tasks */}
         <Textarea
           placeholder={placeholderText}
           value={tasks}
@@ -71,6 +82,7 @@ Finalize product feature specifications - due tomorrow`
           className="font-mono min-h-[200px] text-base leading-relaxed"
         />
 
+        {/* Accordion for input formatting tips */}
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="format-tips" className="border-none">
             <AccordionTrigger className="flex justify-end gap-2 py-2 hover:no-underline">
@@ -92,13 +104,14 @@ Finalize product feature specifications - due tomorrow`
           </AccordionItem>
         </Accordion>
 
+        {/* Error handling - Displays relevant error messages with retry options */}
         {error && (
           <Alert variant="destructive" className="animate-in fade-in-50">
             <div className="flex items-start gap-2">
               {error.code === 'PARSING_ERROR' ? (
-                <Bug className="h-4 w-4 mt-1" />
+                <Bug className="h-4 w-4 mt-1" /> // Parsing-related errors
               ) : (
-                <XCircle className="h-4 w-4 mt-1" />
+                <XCircle className="h-4 w-4 mt-1" /> // Generic errors
               )}
               <div className="space-y-2 flex-1">
                 <AlertTitle className="font-heading">
@@ -108,6 +121,8 @@ Finalize product feature specifications - due tomorrow`
                 </AlertTitle>
                 <AlertDescription className="font-body text-body">
                   <p className="whitespace-pre-line">{error.message}</p>
+
+                  {/* Provides task modification suggestions if the error relates to work block duration */}
                   {error.code === 'SESSION_ERROR' && error.message.includes('Work blocks are too long') && (
                     <div className="mt-2 p-2 bg-muted/50 rounded-md">
                       <p className="font-medium text-sm">Suggestions:</p>
@@ -118,6 +133,8 @@ Finalize product feature specifications - due tomorrow`
                       </ul>
                     </div>
                   )}
+
+                  {/* Displays additional error details if available */}
                   {error.details && (
                     <div className="mt-2">
                       <div className="text-sm font-medium mb-1">Technical Details:</div>
@@ -129,6 +146,7 @@ Finalize product feature specifications - due tomorrow`
                       </pre>
                     </div>
                   )}
+
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -143,6 +161,7 @@ Finalize product feature specifications - due tomorrow`
           </Alert>
         )}
 
+        {/* Control buttons */}
         <div className="flex justify-end gap-2">
           {processedStories.length > 0 && (
             <Button 
@@ -176,6 +195,7 @@ Finalize product feature specifications - due tomorrow`
           </Button>
         </div>
 
+        {/* Displays processed stories if available */}
         {processedStories.length > 0 && (
           <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
@@ -200,7 +220,6 @@ Finalize product feature specifications - due tomorrow`
                 </Button>
               </div>
             </div>
-            
             <ProcessedStories 
               stories={processedStories}
               editedDurations={editedDurations}
