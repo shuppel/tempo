@@ -180,7 +180,7 @@ const FloatingTimerContent = React.memo(({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="absolute -right-8 top-1/2 -translate-y-1/2 h-7 w-7 opacity-40 hover:opacity-100 transition-opacity"
+                    className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity pr-4"
                     onClick={() => setShowEdit(prev => !prev)}
                   >
                     <svg 
@@ -891,11 +891,11 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute -right-8 top-1/2 -translate-y-1/2 h-7 w-7 opacity-40 hover:opacity-100 transition-opacity"
-                        onClick={() => setShowTimeAdjust(prev => !prev)}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowTimeAdjust(!showTimeAdjust)}
+                        className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity pr-4"
                       >
                         <svg 
                           xmlns="http://www.w3.org/2000/svg" 
