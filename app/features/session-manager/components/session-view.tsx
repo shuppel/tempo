@@ -286,9 +286,6 @@ const FloatingTimerContent = React.memo(({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-              Go to
-            </span>
           </div>
         )}
         
@@ -331,9 +328,6 @@ const FloatingTimerContent = React.memo(({
               </Tooltip>
             </TooltipProvider>
           )}
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            {isTimerRunning ? "Pause" : "Resume"}
-          </span>
         </div>
         
         <div className="relative group">
@@ -354,9 +348,6 @@ const FloatingTimerContent = React.memo(({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            Complete
-          </span>
         </div>
       </div>
     </div>
@@ -931,6 +922,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
             <Progress 
               value={completedPercentage} 
               className="h-2.5" 
+              indicatorClassName="story-progress-gradient"
             />
           </CardContent>
         </Card>
@@ -1069,6 +1061,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
               <Progress 
                 value={100 - (activeTimeBoxDetails?.progress || 0)} 
                 className="h-2 mb-1 bg-gray-100 dark:bg-gray-800" 
+                indicatorClassName="timebox-progress-gradient"
               />
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-center">
@@ -1158,12 +1151,12 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
       <div className="mt-8" ref={timelineRef}>
         <Card className="border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Session Timeline</CardTitle>
+            <CardTitle className="text-xl">Session Progress</CardTitle>
             <CardDescription>
               Track your progress through the session with this interactive timeline
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <VerticalTimeline 
               storyBlocks={session.storyBlocks}
               activeTimeBoxId={activeTimeBox ? `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}` : undefined}
