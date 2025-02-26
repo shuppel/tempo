@@ -186,7 +186,7 @@ export default function SessionPage({ params }: SessionPageProps) {
           modal={true} // Force modal behavior
         >
           <DialogContent 
-            className="sm:max-w-md bg-[#f0f4fa] rounded-lg p-0 border-0"
+            className="sm:max-w-md bg-[#f0f4fa] dark:bg-gray-900 rounded-lg p-0 border-0 dark:border dark:border-gray-800"
             onEscapeKeyDown={(e) => e.preventDefault()} // Prevent closing with Escape key
             onPointerDownOutside={(e) => e.preventDefault()} // Prevent closing by clicking outside
             onInteractOutside={(e) => e.preventDefault()} // Prevent any interaction outside
@@ -195,7 +195,7 @@ export default function SessionPage({ params }: SessionPageProps) {
               {/* Close button */}
               <button 
                 onClick={handleCloseModal}
-                className="absolute right-6 top-6 p-1 text-gray-500 hover:text-gray-700"
+                className="absolute right-6 top-6 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 aria-label="Close and return to sessions"
               >
                 <X className="h-5 w-5" />
@@ -205,16 +205,16 @@ export default function SessionPage({ params }: SessionPageProps) {
               <DialogTitle className="sr-only">Start Session</DialogTitle>
 
               {/* Header */}
-              <h2 className="text-3xl font-medium text-center mb-2">Ready to Focus?</h2>
-              <p className="text-gray-600 text-center mb-8">
+              <h2 className="text-3xl font-medium text-center mb-2 dark:text-gray-100">Ready to Focus?</h2>
+              <p className="text-gray-600 dark:text-gray-300 text-center mb-8">
                 Your work session is prepared and waiting for you.
               </p>
               
               {/* Content */}
               <div className="flex gap-4 mb-8">
                 {/* Calendar card */}
-                <div className="flex-1 bg-[#e4e9f7] rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                  <svg className="h-10 w-10 text-blue-700 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="flex-1 bg-[#e4e9f7] dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center text-center dark:text-gray-200">
+                  <svg className="h-10 w-10 text-blue-700 dark:text-blue-400 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
                     <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -224,8 +224,8 @@ export default function SessionPage({ params }: SessionPageProps) {
                 </div>
                 
                 {/* Timer info card */}
-                <div className="flex-[2] bg-[#e4e9f7] rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                  <svg className="h-10 w-10 text-blue-700 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="flex-[2] bg-[#e4e9f7] dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center justify-center text-center dark:text-gray-200">
+                  <svg className="h-10 w-10 text-blue-700 dark:text-blue-400 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                   </svg>
@@ -268,13 +268,12 @@ export default function SessionPage({ params }: SessionPageProps) {
                 </Button>
               </motion.div>
               
-              {/* Return Button */}
+              {/* Return to Sessions button */}
               <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  variant="ghost" 
                   onClick={handleCloseModal}
-                  className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                  className="mt-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                 >
                   Return to Sessions
                 </Button>

@@ -3,6 +3,7 @@ import { textMeOne, happyMonkey, nunitoSans } from "@/app/styles/fonts"
 import "@/styles/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Header } from "@/components/header"
+import { Toaster } from "@/components/ui/use-toast"
 
 export const viewport: Viewport = {
   themeColor: [
@@ -58,6 +59,7 @@ export default function RootLayout({
             <Header />
             {children}
           </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

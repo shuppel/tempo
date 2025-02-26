@@ -237,20 +237,10 @@ export const VerticalTimeline = ({
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach(entry => {
-          const id = entry.target.getAttribute('data-id')
-          if (!id) return
-          
-          setVisibleBoxes(prev => {
-            const newSet = new Set(prev)
-            if (entry.isIntersecting) {
-              newSet.add(id)
-            } else {
-              newSet.delete(id)
-            }
-            return newSet
-          })
-        })
+        // Instead of animating items one by one as they come into view,
+        // just mark all items as visible immediately after component mounts
+        const visibleIds = entries.map(entry => entry.target.getAttribute('data-id')).filter(Boolean) as string[];
+        setVisibleBoxes(new Set(visibleIds));
       },
       { 
         threshold: 0.1,
@@ -261,6 +251,12 @@ export const VerticalTimeline = ({
     // Query all timeline items and observe them
     const items = document.querySelectorAll('.timeline-item')
     items.forEach(item => observer.observe(item))
+    
+    // Mark all items as visible immediately
+    setTimeout(() => {
+      const allIds = Array.from(items).map(item => item.getAttribute('data-id')).filter(Boolean) as string[];
+      setVisibleBoxes(new Set(allIds));
+    }, 100);
     
     return () => {
       observer.disconnect()
@@ -602,13 +598,14 @@ export const VerticalTimeline = ({
         {/* Enhanced timeline header with overall progress */}
         <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/30 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-              <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">Session Timeline</h3>
+            <div>
+              <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">Session Progress</h3>
             </div>
             <Badge variant="outline" className="px-3 py-1 border-indigo-200 dark:border-indigo-700/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-indigo-700 dark:text-indigo-300">
-              <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              {completedPercentage}% Complete
+              <div className="flex items-center">
+                <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+                <span>{completedPercentage}% Complete</span>
+              </div>
             </Badge>
           </div>
           
@@ -692,7 +689,11 @@ export const VerticalTimeline = ({
                     <div className="ml-4 flex-1">
                       <h3 className="font-bold text-lg">{story.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <Progress value={storyProgress} className="flex-1 h-2 bg-gray-100 dark:bg-gray-800" />
+                        <Progress 
+                          value={storyProgress} 
+                          className="flex-1 h-2 bg-gray-100 dark:bg-gray-800" 
+                          indicatorClassName="story-progress-gradient"
+                        />
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{storyProgress}%</span>
                       </div>
                     </div>
@@ -729,7 +730,7 @@ export const VerticalTimeline = ({
                             type: "spring", 
                             stiffness: 300,
                             damping: 30,
-                            delay: 0.05 * (storyIndex * 10 + timeBoxIndex) 
+                            delay: 0.1
                           }
                         },
                         active: {
@@ -743,14 +744,14 @@ export const VerticalTimeline = ({
                         }
                       }
                       
-                      // Connection line animation
+                      // Connection line animation - make it appear immediately
                       const lineAnimation = {
                         hidden: { height: 0 },
                         show: { 
                           height: "100%",
                           transition: { 
-                            duration: 0.5,
-                            delay: 0.05 * (storyIndex * 10 + timeBoxIndex) 
+                            duration: 0.3,
+                            delay: 0.1
                           }
                         }
                       }
@@ -768,7 +769,7 @@ export const VerticalTimeline = ({
                           className="timeline-item relative"
                           data-id={timeBoxId}
                           initial="hidden"
-                          animate={visibleBoxes.has(timeBoxId) ? "show" : "hidden"}
+                          animate="show"
                           variants={boxAnimation}
                         >
                           {/* Vertical connecting line to next item */}
@@ -992,6 +993,7 @@ export const VerticalTimeline = ({
                                 <Progress 
                                   value={boxProgress} 
                                   className="h-1.5 bg-gray-100 dark:bg-gray-800" 
+                                  indicatorClassName="timebox-progress-gradient"
                                 />
                               </div>
                             
@@ -1116,14 +1118,14 @@ export const VerticalTimeline = ({
             
             {/* Replace the basic End marker with a Debrief TimeBox */}
             <div className="ml-7 relative">
-              {/* Vertical connecting line to debrief */}
+              {/* Vertical connecting line to debrief - extend further up to connect better */}
               <motion.div 
-                className="absolute left-[-36px] top-[-16px] w-[0.125rem] z-0 opacity-60 bg-gradient-to-b from-gray-200 to-pink-200 dark:from-gray-700 dark:to-pink-700"
-                style={{ height: "24px" }}
+                className="absolute left-[-36px] top-[-50px] w-[0.125rem] z-0 opacity-75 bg-gradient-to-b from-purple-300 via-pink-300 to-rose-300 dark:from-purple-700 dark:via-pink-700 dark:to-rose-700"
+                style={{ height: "58px" }}
                 initial={{ height: 0 }}
-                animate={{ height: "24px" }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              />
+                animate={{ height: "58px" }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              ></motion.div>
               
               {/* Timeline node */}
               <div className="absolute left-[-40px] top-0 flex items-center justify-center z-10">
@@ -1537,6 +1539,48 @@ export const VerticalTimeline = ({
             100% {
               background-position: 0% 50%;
             }
+          }
+          
+          /* Story progress bar gradient styling - same colors but no animation */
+          .story-progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #f472b6, /* Pink */
+              #fb923c, /* Orange */
+              #a78bfa, /* Light purple */
+              #4ade80  /* Green */
+            );
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          }
+          
+          .dark .story-progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #db2777, /* Darker pink for dark mode */
+              #ea580c, /* Darker orange for dark mode */
+              #8b5cf6, /* Darker purple for dark mode */
+              #22c55e  /* Darker green for dark mode */
+            );
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+          }
+
+          /* Timebox progress bar styling - simpler gradient focused on completion color */
+          .timebox-progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #a78bfa, /* Light purple */
+              #34d399  /* Emerald green */
+            );
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+          }
+          
+          .dark .timebox-progress-gradient {
+            background: linear-gradient(
+              to right, 
+              #8b5cf6, /* Darker purple for dark mode */
+              #10b981  /* Darker emerald for dark mode */
+            );
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
           }
         `}</style>
       </div>

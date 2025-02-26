@@ -261,4 +261,53 @@
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 10;
+}
+
+/* Toast animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slide-in-from-bottom {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slide-out-to-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+.animate-in {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+
+.animate-out {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+
+.fade-in-0 {
+  animation-name: fade-in;
+}
+
+.fade-out-0 {
+  animation-name: fade-out;
+}
+
+.slide-in-from-bottom-5 {
+  animation-name: slide-in-from-bottom;
+}
+
+.slide-out-to-right-5 {
+  animation-name: slide-out-to-right;
 } 

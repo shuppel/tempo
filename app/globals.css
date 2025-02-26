@@ -39,6 +39,12 @@
     /* Timer-specific variables for light mode */
     --timer-border-color: rgba(165, 180, 252, 0.7);
     --timer-background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(238, 242, 255, 1) 100%);
+
+    /* Progress bar gradients */
+    --progress-gradient-colors: linear-gradient(to right, #f472b6, #fb923c, #a78bfa, #4ade80);
+    --progress-gradient-colors-dark: linear-gradient(to right, #db2777, #ea580c, #8b5cf6, #22c55e);
+    --timebox-gradient-colors: linear-gradient(to right, #a78bfa, #34d399);
+    --timebox-gradient-colors-dark: linear-gradient(to right, #8b5cf6, #10b981);
   }
   .dark {
     --background: 240 10% 3.9%;
@@ -398,6 +404,8 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   /* Add a subtle black outline in light mode */
   outline: 1px solid rgba(0, 0, 0, 0.15);
+  max-width: 100%;
+  overflow: visible; /* Ensure content is not clipped */
 }
 
 /* Enhanced dark mode floating timer with more visible white outline */
@@ -422,18 +430,17 @@
 
 /* Gradient border appearance for floating timer */
 .timer-card-container.floating::before {
-  content: '';
+  content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg, 
-    rgba(224, 231, 255, 0.6) 0%, 
-    rgba(199, 210, 254, 0.2) 50%,
-    rgba(224, 231, 255, 0.4) 100%
-  );
-  opacity: 0.4;
-  z-index: -5;
-  border-radius: inherit;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #a5b4fc, #818cf8, #4f46e5, #818cf8, #a5b4fc);
+  background-size: 200% auto;
+  animation: timer-gradient-shift 6s ease infinite;
+  z-index: 2;
+  border-radius: 1.25rem 1.25rem 0 0;
 }
 
 /* Add gradient border top for floating timer */
@@ -491,10 +498,13 @@
 /* Add float animation for the floating timer */
 @keyframes float {
   0% {
-    transform: translateY(0) translateZ(0);
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
   }
   100% {
-    transform: translateY(-5px) translateZ(0);
+    transform: translateY(0px);
   }
 }
 
@@ -549,4 +559,78 @@
     transparent 70%,
     transparent 100%
   );
+}
+
+/* Timeline highlight pulse animation for Go To feature */
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes dark-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+    transform: scale(1);
+  }
+}
+
+.timeline-highlight-pulse {
+  animation: highlight-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) 3;
+  position: relative;
+  z-index: 10;
+}
+
+.dark .timeline-highlight-pulse {
+  animation: dark-highlight-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) 3;
+}
+
+@keyframes progress-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Add progress bar gradient styles */
+.story-progress-gradient {
+  background: var(--progress-gradient-colors);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .story-progress-gradient {
+  background: var(--progress-gradient-colors-dark);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.timebox-progress-gradient {
+  background: var(--timebox-gradient-colors);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+}
+
+.dark .timebox-progress-gradient {
+  background: var(--timebox-gradient-colors-dark);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
 }
