@@ -1,6 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+/**
+ * TaskRollover Component
+ * 
+ * This component provides the UI for managing task rollover from previous sessions.
+ * It presents a dialog asking users if they've completed their previous tasks,
+ * and allows them to select which incomplete tasks to carry over to the new session.
+ * 
+ * FIXED ISSUES:
+ * - Hydration errors with invalid HTML: Fixed by ensuring proper HTML hierarchy
+ *   (removed div elements from inside paragraph elements)
+ * 
+ * - Maximum update depth exceeded: Fixed by:
+ *   1. Using refs to track component lifecycle and initialization
+ *   2. Implementing controlled state updates with explicit checks
+ *   3. Ensuring effects have proper dependencies and safeguards
+ *   4. Adding clear logging for debugging state flow
+ * 
+ * - State update loops: Fixed by:
+ *   1. Using refs to track one-time operations (hasAddedTasks)
+ *   2. Adding guards to prevent redundant updates
+ *   3. Carefully controlling dialog open/close behavior
+ * 
+ * COMPONENT LIFECYCLE:
+ * 1. Component mounts: Checks once for incomplete tasks
+ * 2. If tasks found: Shows confirmation dialog
+ * 3. User chooses to roll over tasks: Shows selection dialog
+ * 4. Task selection: Tasks are prepared for brain dump
+ * 5. Completion: Selected tasks are sent to brain dump component
+ */
+
+import { useState, useEffect, useRef } from "react";
 import { format, parseISO } from "date-fns";
 import {
   Dialog,
@@ -19,7 +49,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +72,13 @@ export interface TaskRolloverProps {
 }
 
 export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  // Reference to track if we've handled task addition to prevent infinite loops
+  const hasAddedTasks = useRef(false);
+  
+  // Reference to track initialization
+  const didInitialize = useRef(false);
+  
+  // Manually track if we should show the finish question to avoid state update loops
   const [showFinishQuestion, setShowFinishQuestion] = useState(false);
   
   const {
@@ -62,61 +97,118 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     deleteTask,
     finishRollover,
     closeAndDiscard,
-    debriefPreviousSession
+    debriefPreviousSession,
+    checkForIncompleteTasks
   } = useTaskRollover();
 
-  // Show the initial dialog if there are incomplete tasks
+  // One-time initialization effect (with no dependencies)
   useEffect(() => {
-    if (!isLoading && hasIncompleteTasks && !initialCheckDone) {
-      setShowFinishQuestion(true);
-      setInitialCheckDone(true);
-    }
-  }, [isLoading, hasIncompleteTasks, initialCheckDone]);
+    // Only run this once
+    if (didInitialize.current) return;
+    
+    didInitialize.current = true;
+    console.log("[TaskRollover] Component initialized");
+    
+    // Let the browser paint before checking
+    const timeoutId = setTimeout(() => {
+      checkForIncompleteTasks().then(() => {
+        console.log("[TaskRollover] Initial check complete", { hasIncompleteTasks });
+      });
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-  // When rollover is finished, add the tasks to Brain Dump
+  // Show the finish question dialog if we have incomplete tasks
   useEffect(() => {
-    if (!isOpen && brainDumpText && onCompletedTasksAdded) {
-      onCompletedTasksAdded(brainDumpText);
+    // Skip if already initialized or if loading
+    if (isLoading) return;
+    
+    // Only show question if there are actually incomplete tasks
+    if (hasIncompleteTasks && incompleteTasks.length > 0 && !showFinishQuestion && !isOpen) {
+      console.log("[TaskRollover] Showing finish question");
+      setShowFinishQuestion(true);
+    }
+  }, [hasIncompleteTasks, incompleteTasks.length, isLoading, isOpen, showFinishQuestion]);
+
+  // Handle adding tasks to Brain Dump when rollover is finished
+  // This runs only once when dialog closes with tasks
+  useEffect(() => {
+    // Only run this block when dialog has just closed (isOpen changed to false)
+    // AND we have tasks to add AND we haven't already added them
+    if (
+      !isOpen && 
+      brainDumpText && 
+      brainDumpText.trim() !== "" && 
+      onCompletedTasksAdded && 
+      !hasAddedTasks.current
+    ) {
+      console.log("[TaskRollover] Adding tasks to Brain Dump");
+      try {
+        // Prevent repeated calls
+        hasAddedTasks.current = true;
+        onCompletedTasksAdded(brainDumpText);
+      } catch (error) {
+        console.error("Error adding tasks to Brain Dump:", error);
+      }
+    }
+    
+    // If dialog opens, reset the flag
+    if (isOpen) {
+      hasAddedTasks.current = false;
     }
   }, [isOpen, brainDumpText, onCompletedTasksAdded]);
 
   // Handle "Did you finish everything?" dialog responses
   const handleFinishedYes = () => {
+    console.log("[TaskRollover] User finished tasks, going to debrief");
     setShowFinishQuestion(false);
     debriefPreviousSession();
   };
 
   const handleFinishedNo = () => {
+    console.log("[TaskRollover] User needs rollover, opening dialog");
     setShowFinishQuestion(false);
     setIsOpen(true);
   };
 
   const handleTaskRolloverComplete = () => {
-    finishRollover();
-    if (onCompletedTasksAdded) {
-      onCompletedTasksAdded(brainDumpText);
+    console.log("[TaskRollover] Completing task rollover");
+    try {
+      // If the dialog isn't open, don't do anything
+      if (!isOpen) return;
+      
+      finishRollover();
+    } catch (error) {
+      console.error("Error completing task rollover:", error);
     }
   };
 
   return (
     <>
       {/* "Did you finish everything?" question dialog */}
-      <AlertDialog open={showFinishQuestion} onOpenChange={setShowFinishQuestion}>
+      <AlertDialog 
+        open={showFinishQuestion} 
+        onOpenChange={(open) => {
+          if (!open) {
+            console.log("[TaskRollover] Finish question dialog closed");
+            setShowFinishQuestion(false);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Previous Tasks Found</AlertDialogTitle>
             <AlertDialogDescription>
               <div className="space-y-4">
-                <p>
-                  Did you finish everything you wanted to finish from the session on
-                  {recentSession && (
-                    <span className="font-medium ml-1">
-                      {format(parseISO(recentSession.date), "EEEE, MMMM d")}
-                    </span>
-                  )}?
-                </p>
+                Did you finish everything you wanted to finish from the session on
+                {recentSession && (
+                  <span className="font-medium ml-1">
+                    {format(parseISO(recentSession.date), "EEEE, MMMM d")}
+                  </span>
+                )}?
 
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-md flex items-start gap-2">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-md flex items-start gap-2 mt-4">
                   <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
@@ -132,7 +224,12 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowFinishQuestion(false)}>
+            <AlertDialogCancel 
+              onClick={() => {
+                console.log("[TaskRollover] Finish question canceled");
+                setShowFinishQuestion(false);
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -152,27 +249,50 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
       </AlertDialog>
 
       {/* Task Rollover Management Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          console.log("[TaskRollover] Dialog open change:", open);
+          // Set the internal state directly, don't rely on cascading effects
+          setIsOpen(open);
+          
+          // If dialog is closing with no selection action, treat as "cancel"
+          if (!open && !hasAddedTasks.current) {
+            console.log("[TaskRollover] Dialog closed without selecting tasks");
+            closeAndDiscard();
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Task Rollover</DialogTitle>
             <DialogDescription>
-              {recentSession && (
+              {recentSession ? (
                 <span>
                   Select tasks from {format(parseISO(recentSession.date), "EEEE, MMMM d")} to add to today's plan
                 </span>
+              ) : (
+                <span>Select tasks from your previous session</span>
               )}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col space-y-3 overflow-y-auto py-2 flex-1">
-            {incompleteTasks.length > 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                <span className="ml-3">Loading tasks...</span>
+              </div>
+            ) : incompleteTasks.length > 0 ? (
               <>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={selectAllTasks}
+                    onClick={() => {
+                      console.log("[TaskRollover] Selecting all tasks");
+                      selectAllTasks();
+                    }}
                     className="h-8"
                   >
                     Select All
@@ -180,7 +300,10 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={deselectAllTasks}
+                    onClick={() => {
+                      console.log("[TaskRollover] Deselecting all tasks");
+                      deselectAllTasks();
+                    }}
                     className="h-8"
                   >
                     Deselect All
@@ -220,10 +343,22 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                 : "No tasks selected"}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={closeAndDiscard}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  console.log("[TaskRollover] Cancel button clicked");
+                  closeAndDiscard();
+                }}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleTaskRolloverComplete} disabled={selectedCount === 0}>
+              <Button 
+                onClick={() => {
+                  console.log("[TaskRollover] Add to Brain Dump button clicked");
+                  handleTaskRolloverComplete();
+                }}
+                disabled={selectedCount === 0}
+              >
                 Add to Brain Dump
               </Button>
             </div>

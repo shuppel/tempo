@@ -1,5 +1,5 @@
 // /features/brain-dump/hooks/useBrainDump.ts
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import { SessionStorageService } from "@/app/features/session-manager"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
@@ -29,6 +29,9 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   const [sessionCreationStep, setSessionCreationStep] = useState<string>("")
   const [sessionCreationProgress, setSessionCreationProgress] = useState(0)
   const [sessionCreationError, setSessionCreationError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+
+  // Create the rollover service once
+  const rolloverService = useMemo(() => new TaskRolloverService(), []);
 
   // Combined processing info
   const currentProcessingStep = isProcessing ? taskProcessingStep : isCreatingSession ? sessionCreationStep : ""
@@ -263,7 +266,6 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
 
       // After successful session creation, archive any previous active sessions
       try {
-        const rolloverService = new TaskRolloverService();
         const recentSession = await rolloverService.getMostRecentActiveSession();
         
         if (recentSession) {

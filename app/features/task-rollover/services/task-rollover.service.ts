@@ -1,3 +1,17 @@
+/**
+ * TaskRolloverService
+ * 
+ * This service handles the business logic for rolling over incomplete tasks from
+ * previous sessions to new sessions. It interacts with the SessionStorageService
+ * to retrieve and update session data.
+ * 
+ * STABILITY IMPROVEMENTS:
+ * - Single responsibility service focused on task rollover operations
+ * - Clear separation between data access and UI logic
+ * - Proper error handling and logging
+ * - Consistent async/await pattern usage
+ * - Session archiving integration
+ */
 import { SessionStorageService } from "@/app/features/session-manager";
 import { TimeBoxTask, Session, StoryBlock, TimeBox } from "@/lib/types";
 import { formatDuration } from "@/lib/durationUtils";
@@ -11,6 +25,10 @@ export class TaskRolloverService {
 
   /**
    * Check if there are any incomplete tasks from recent sessions
+   * 
+   * This is the initial check to determine if we need to show the rollover UI
+   * 
+   * @returns Promise<boolean> - True if there are incomplete tasks
    */
   async hasIncompleteTasks(): Promise<boolean> {
     const recentSession = await this.getMostRecentActiveSession();
@@ -19,6 +37,11 @@ export class TaskRolloverService {
 
   /**
    * Get the most recent session that is still active (not completed or archived)
+   * 
+   * This finds the newest session that has a status of 'in-progress' or 'planned'
+   * We only want to roll over tasks from active sessions, not ones marked as completed or archived
+   * 
+   * @returns Promise<Session | null> - The most recent active session or null if none found
    */
   async getMostRecentActiveSession(): Promise<Session | null> {
     const allSessions = await this.sessionStorage.getAllSessions();
@@ -41,6 +64,11 @@ export class TaskRolloverService {
 
   /**
    * Get all incomplete tasks from the most recent active session
+   * 
+   * This provides the full list of tasks that can be rolled over with all metadata needed
+   * for display, selection, and operation
+   * 
+   * @returns Promise with session and task details, or null if no tasks found
    */
   async getIncompleteTasks(): Promise<{
     session: Session;
@@ -94,6 +122,14 @@ export class TaskRolloverService {
 
   /**
    * Mark a task as completed in its original session
+   * 
+   * Used when a user indicates they've actually completed the task and don't want to roll it over
+   * 
+   * @param sessionDate - Date of the session containing the task
+   * @param storyId - ID of the story containing the task
+   * @param timeBoxIndex - Index of the timebox containing the task
+   * @param taskIndex - Index of the task within the timebox
+   * @returns Promise<boolean> - Success status
    */
   async completeTask(
     sessionDate: string,
@@ -112,6 +148,10 @@ export class TaskRolloverService {
 
   /**
    * Archives the session for the given date.
+   * 
+   * This changes the session status to 'archived' so it won't be shown in active views
+   * Used after creating a new session to archive the previous one
+   * 
    * @param date The date of the session to archive
    * @returns A boolean indicating whether the archiving was successful
    */
@@ -127,6 +167,12 @@ export class TaskRolloverService {
 
   /**
    * Convert incomplete tasks to brain dump text format
+   * 
+   * This creates a formatted text representation of tasks that can be added to the brain dump input.
+   * Preserves important task metadata like durations, priorities, and context.
+   * 
+   * @param tasks Array of tasks with their story context
+   * @returns Formatted string for brain dump
    */
   convertTasksToBrainDumpFormat(tasks: Array<{
     task: TimeBoxTask;
