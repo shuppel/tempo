@@ -16,7 +16,7 @@ export type TaskCategory = TaskType
 export type BaseStatus = "todo" | "completed" | "in-progress"
 export type TaskStatus = BaseStatus | "pending" // TaskStatus extends base Status with additional states
 export type TimeBoxStatus = BaseStatus // TimeBox uses base Status
-export type SessionStatus = "planned" | "in-progress" | "completed" // Session has a special 'planned' state
+export type SessionStatus = "planned" | "in-progress" | "completed" | "archived" // Session has a special 'planned' state and 'archived' state
 
 export type StoryType = "timeboxed" | "flexible" | "milestone"
 export type TimeBoxType = "work" | "short-break" | "long-break" | "debrief"
