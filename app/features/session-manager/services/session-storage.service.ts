@@ -7,7 +7,7 @@ import type {
   TimeBoxStatus,
   SessionStatus
 } from "@/lib/types"
-import { sessionStorage } from "@/lib/sessionStorage"
+import { supabaseStorage } from "@/lib/utils/supabase/supabaseStorage"
 
 const SESSION_PREFIX = 'session-'
 
@@ -17,7 +17,7 @@ export class SessionStorageService {
    */
   async getSession(date: string): Promise<Session | null> {
     console.log(`[SessionStorageService] Getting session for date: ${date}`)
-    const storedSession = sessionStorage.getSession(date)
+    const storedSession = await supabaseStorage.getSession(date)
     
     if (!storedSession) {
       console.log(`[SessionStorageService] No session found for date: ${date}`)
@@ -117,52 +117,14 @@ export class SessionStorageService {
    */
   async getAllSessions(): Promise<Session[]> {
     console.log(`[SessionStorageService] Getting all sessions`)
-    const storedSessions = sessionStorage.getAllSessions()
+    const storedSessions = await supabaseStorage.getAllSessions()
     const sessionCount = Object.keys(storedSessions).length
     console.log(`[SessionStorageService] Found ${sessionCount} sessions`)
     
     if (sessionCount === 0) {
-      // Debug: check localStorage directly to see if there are any session keys
-      const allStorageKeys: Array<string | null> = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        allStorageKeys.push(localStorage.key(i));
-      }
-      console.log(`[SessionStorageService] Debug - All localStorage keys:`, allStorageKeys);
-      
-      // Check for any session keys specifically
-      const sessionKeys = allStorageKeys.filter((key): key is string => 
-        key !== null && key.startsWith('session-')
-      );
-      if (sessionKeys.length > 0) {
-        console.log(`[SessionStorageService] Found ${sessionKeys.length} raw session keys, but they were not loaded by sessionStorage:`, sessionKeys);
-        
-        // Try to manually retrieve and fix this
-        const manuallyLoadedSessions = [];
-        for (const key of sessionKeys) {
-          try {
-            const rawData = localStorage.getItem(key);
-            if (rawData) {
-              const sessionData = JSON.parse(rawData);
-              const date = key.replace('session-', '');
-              manuallyLoadedSessions.push({
-                date: this.formatDate(date),
-                storyBlocks: sessionData.storyBlocks || [],
-                status: (sessionData.status as SessionStatus) || 'planned',
-                totalDuration: sessionData.totalDuration || 0,
-                lastUpdated: sessionData.lastUpdated || new Date().toISOString()
-              });
-              console.log(`[SessionStorageService] Manually recovered session for date: ${date}`);
-            }
-          } catch (error) {
-            console.error(`[SessionStorageService] Failed to manually parse session from key ${key}:`, error);
-          }
-        }
-        
-        if (manuallyLoadedSessions.length > 0) {
-          console.log(`[SessionStorageService] Returning ${manuallyLoadedSessions.length} manually loaded sessions`);
-          return manuallyLoadedSessions;
-        }
-      }
+      // If using Supabase, we no longer need to check localStorage directly
+      console.log(`[SessionStorageService] No sessions found in Supabase`);
+      return [];
     }
     
     return Object.entries(storedSessions).map(([date, session]) => ({
@@ -182,16 +144,17 @@ export class SessionStorageService {
     console.log(`[SessionStorageService] Saving session for date: ${formattedDate} with ${session.storyBlocks?.length || 0} story blocks and total duration: ${session.totalDuration}`)
     
     try {
-      sessionStorage.saveSession(formattedDate, {
+      // Ensure lastUpdated is set
+      const sessionToSave: Session = {
         ...session,
-        totalSessions: 1, // Required by StoredSession
-        startTime: session.lastUpdated || new Date().toISOString(),
-        endTime: new Date().toISOString(),
-        frogMetrics: { total: 0, scheduled: 0, scheduledWithinTarget: 0 } // Required by SessionPlan
-      })
+        lastUpdated: session.lastUpdated || new Date().toISOString()
+      };
+      
+      // Use supabaseStorage.saveSession which returns a Promise
+      await supabaseStorage.saveSession(formattedDate, sessionToSave);
       
       // Verify the session was saved
-      const verifySession = sessionStorage.getSession(formattedDate)
+      const verifySession = await supabaseStorage.getSession(formattedDate)
       if (!verifySession) {
         console.error(`[SessionStorageService] Failed to verify session save for date: ${formattedDate}`)
       } else {
@@ -207,7 +170,7 @@ export class SessionStorageService {
    * Delete a session
    */
   async deleteSession(date: string): Promise<void> {
-    sessionStorage.deleteSession(this.formatDate(date))
+    await supabaseStorage.deleteSession(this.formatDate(date))
   }
 
   /**
@@ -228,7 +191,7 @@ export class SessionStorageService {
     
     console.log(`[SessionStorageService] Updating task status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex} to ${status}`);
     
-    const result = sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
+    const result = await supabaseStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
     console.log(`[SessionStorageService] Task status update result: ${result}`);
     
     return result;
@@ -243,12 +206,17 @@ export class SessionStorageService {
     timeBoxIndex: number,
     status: TimeBoxStatus
   ): Promise<boolean> {
-    // Cast the status to the expected type for sessionStorage
+    // Cast the status to the expected type for supabaseStorage
     // This is necessary because our BaseStatus now includes 'mitigated', but
-    // the sessionStorage.updateTimeBoxStatus only accepts 'todo', 'completed', or 'in-progress'
+    // some implementations might only accept 'todo', 'completed', or 'in-progress'
     const allowedStatus = status === 'mitigated' ? 'todo' : status;
     
-    return sessionStorage.updateTimeBoxStatus(date, storyId, timeBoxIndex, allowedStatus);
+    console.log(`[SessionStorageService] Updating timeBox status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex} to ${allowedStatus}`);
+    
+    const result = await supabaseStorage.updateTimeBoxStatus(date, storyId, timeBoxIndex, allowedStatus);
+    console.log(`[SessionStorageService] TimeBox status update result: ${result}`);
+    
+    return result;
   }
 
   /**
@@ -365,7 +333,7 @@ export class SessionStorageService {
   }
 
   /**
-   * Save timer state for a session
+   * Save timer state to keep track of active timers
    */
   async saveTimerState(
     date: string, 
@@ -373,37 +341,40 @@ export class SessionStorageService {
     timeRemaining: number | null,
     isTimerRunning: boolean
   ): Promise<boolean> {
+    console.log(`[SessionStorageService] Saving timer state for session ${date}`);
+    
     try {
-      const formattedDate = this.formatDate(date);
-      console.log(`[SessionStorageService] Saving timer state for date: ${formattedDate}`);
-      
-      return sessionStorage.saveTimerState(
-        formattedDate,
+      const result = await supabaseStorage.saveTimerState(
+        date,
         activeTimeBox,
         timeRemaining,
         isTimerRunning
       );
+      
+      console.log(`[SessionStorageService] Timer state saved: ${result}`);
+      return result;
     } catch (error) {
-      console.error(`[SessionStorageService] Error saving timer state for date: ${date}:`, error);
+      console.error(`[SessionStorageService] Error saving timer state:`, error);
       return false;
     }
   }
 
   /**
-   * Get timer state for a session
+   * Get timer state
    */
-  getTimerState(date: string): { 
+  async getTimerState(date: string): Promise<{ 
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
-  } | null {
+  } | null> {
+    console.log(`[SessionStorageService] Getting timer state for session ${date}`);
+    
     try {
-      const formattedDate = this.formatDate(date);
-      console.log(`[SessionStorageService] Getting timer state for date: ${formattedDate}`);
-      
-      return sessionStorage.getTimerState(formattedDate);
+      const timerState = await supabaseStorage.getTimerState(date);
+      console.log(`[SessionStorageService] Timer state retrieved:`, timerState);
+      return timerState;
     } catch (error) {
-      console.error(`[SessionStorageService] Error getting timer state for date: ${date}:`, error);
+      console.error(`[SessionStorageService] Error getting timer state:`, error);
       return null;
     }
   }

@@ -9,17 +9,42 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { format, parseISO } from "date-fns"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import UserMenu from "@/app/components/UserMenu"
+import AuthModal from "@/app/components/AuthModal"
+import { supabase } from "@/lib/supabase"
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 
 export function Header() {
   const { theme, setTheme } = useTheme()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   // Check if we're on a session page and extract the date
   const sessionMatch = pathname.match(/^\/session\/(\d{4}-\d{2}-\d{2})$/)
   const sessionDate = sessionMatch ? parseISO(sessionMatch[1]) : null
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession()
+      setIsAuthenticated(!!data.session)
+    }
+    
+    checkAuth()
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        setIsAuthenticated(!!session)
+      }
+    )
+    
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
 
   return (
     <header className="relative border-b bg-gradient-to-r from-background to-card pt-4">
@@ -84,6 +109,10 @@ export function Header() {
             </TabsList>
           </Tabs>
 
+          {/* User Menu */}
+          <UserMenu />
+
+          {/* Theme Toggle Button */}
           <Button 
             variant="ghost" 
             size="icon"
@@ -130,6 +159,30 @@ export function Header() {
                 >
                   <span className="font-accent tracking-wide text-base">Sessions</span>
                 </Link>
+                
+                {/* Show sign in/up button for non-authenticated users */}
+                {!isAuthenticated && (
+                  <div className="mt-4 px-4">
+                    <AuthModal
+                      defaultOpen={showAuthModal}
+                      onOpenChange={(open) => {
+                        setShowAuthModal(open);
+                        if (!open) setIsOpen(false);
+                      }}
+                      trigger={
+                        <button 
+                          className="relative font-accent text-foreground tracking-wider text-lg hover:text-primary transition-colors group flex items-center"
+                          onClick={() => {
+                            setShowAuthModal(true);
+                          }}
+                        >
+                          Sign In / Create Account
+                          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                        </button>
+                      }
+                    />
+                  </div>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
