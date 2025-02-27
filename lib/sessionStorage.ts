@@ -184,7 +184,7 @@ export const sessionStorage = {
   /**
    * Update task status within a time box
    */
-  updateTaskStatus(date: string, storyId: string, timeBoxIndex: number, taskIndex: number, status: "todo" | "completed"): boolean {
+  updateTaskStatus(date: string, storyId: string, timeBoxIndex: number, taskIndex: number, status: "todo" | "completed" | "mitigated"): boolean {
     const session = this.getSession(date)
     if (!session) return false
 
@@ -201,9 +201,11 @@ export const sessionStorage = {
           }
           
           // Update timebox status based on tasks
-          const allTasksCompleted = updatedTasks.every(task => task.status === 'completed')
-          const anyTaskCompleted = updatedTasks.some(task => task.status === 'completed')
-          const timeBoxStatus = allTasksCompleted ? 'completed' : anyTaskCompleted ? 'in-progress' : 'todo'
+          // Ignore mitigated tasks when calculating timebox status
+          const activeTasks = updatedTasks.filter(task => task.status !== 'mitigated');
+          const allTasksCompleted = activeTasks.length > 0 && activeTasks.every(task => task.status === 'completed');
+          const anyTaskCompleted = activeTasks.some(task => task.status === 'completed');
+          const timeBoxStatus = allTasksCompleted ? 'completed' : anyTaskCompleted ? 'in-progress' : 'todo';
           
           const updatedTimeBoxes = [...story.timeBoxes]
           updatedTimeBoxes[timeBoxIndex] = {

@@ -218,7 +218,7 @@ export class SessionStorageService {
     storyId: string | undefined,
     timeBoxIndex: number,
     taskIndex: number,
-    status: "todo" | "completed"
+    status: "todo" | "completed" | "mitigated"
   ): Promise<boolean> {
     // If storyId is undefined, we can't update the task status
     if (!storyId) {
@@ -243,7 +243,12 @@ export class SessionStorageService {
     timeBoxIndex: number,
     status: TimeBoxStatus
   ): Promise<boolean> {
-    return sessionStorage.updateTimeBoxStatus(date, storyId, timeBoxIndex, status)
+    // Cast the status to the expected type for sessionStorage
+    // This is necessary because our BaseStatus now includes 'mitigated', but
+    // the sessionStorage.updateTimeBoxStatus only accepts 'todo', 'completed', or 'in-progress'
+    const allowedStatus = status === 'mitigated' ? 'todo' : status;
+    
+    return sessionStorage.updateTimeBoxStatus(date, storyId, timeBoxIndex, allowedStatus);
   }
 
   /**

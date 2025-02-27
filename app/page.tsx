@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { BrainDump } from "@/app/features/brain-dump"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -37,7 +38,16 @@ export default function Home() {
     <main className="flex-1 container mx-auto p-4 md:p-8 max-w-6xl">
       <div className="grid gap-12">
         <div className="space-y-4">
-          <h1 className="text-5xl">Brain Dump</h1>
+          <div className="flex items-center gap-4">
+            <Image 
+              src="/assets/features/brain_dump.png" 
+              alt="Brain Dump Logo" 
+              width={80} 
+              height={80} 
+              className="rounded-lg shadow-md"
+            />
+            <h1 className="text-5xl flex items-center">Brain Dump</h1>
+          </div>
           <p className="text-body-large text-muted-foreground">
             Transform scattered thoughts into structured productivity. Simply list your tasks—we'll analyze, organize, and create focused work sessions optimized for your workflow. No more overwhelm, just clarity and progress.
           </p>

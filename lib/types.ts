@@ -13,7 +13,7 @@ export type TaskType = "focus" | "learning" | "review" | "break" | "research"
 export type TaskCategory = TaskType
 
 // Consolidated status types
-export type BaseStatus = "todo" | "completed" | "in-progress"
+export type BaseStatus = "todo" | "completed" | "in-progress" | "mitigated"
 export type TaskStatus = BaseStatus | "pending" // TaskStatus extends base Status with additional states
 export type TimeBoxStatus = BaseStatus // TimeBox uses base Status
 export type SessionStatus = "planned" | "in-progress" | "completed" | "archived" // Session has a special 'planned' state and 'archived' state

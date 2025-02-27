@@ -480,10 +480,21 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     setSessionCreationError(null)
   }
 
+  // Updated setTasks function with better logging to track when tasks are updated
+  const setTasksWithLogging = (newTasks: string | ((prev: string) => string)) => {
+    console.log("[useBrainDump] Setting tasks:", {
+      type: typeof newTasks === 'function' ? 'function' : 'string',
+      length: typeof newTasks === 'string' ? newTasks.length : 'unknown',
+      fromTaskRollover: typeof newTasks === 'string' && newTasks.includes('(From:')
+    });
+    
+    setTasks(newTasks);
+  };
+
   return {
     // State
     tasks,
-    setTasks,
+    setTasks: setTasksWithLogging,
     processedStories,
     editedDurations,
     isInputLocked,
