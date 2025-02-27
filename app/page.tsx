@@ -12,6 +12,19 @@ import AuthModal from "./components/AuthModal"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+// Define types for the story and task objects
+interface Task {
+  title: string;
+  isFrog: boolean;
+  duration?: number;
+}
+
+interface Story {
+  title: string;
+  tasks: Task[];
+  estimatedDuration: number;
+}
+
 interface Stats {
   totalTasks: number
   totalDuration: number
@@ -53,11 +66,11 @@ export default function Home() {
     }
   }, [])
 
-  const handleTasksProcessed = (stories: any[]) => {
+  const handleTasksProcessed = (stories: Story[]) => {
     const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
     const totalDuration = stories.reduce((acc, story) => acc + story.estimatedDuration, 0)
     const totalFrogs = stories.reduce((acc, story) => 
-      acc + story.tasks.filter((task: any) => task.isFrog).length, 0)
+      acc + story.tasks.filter((task) => task.isFrog).length, 0)
     
     setStats({
       totalTasks,
@@ -104,7 +117,7 @@ export default function Home() {
               <h1 className="text-5xl font-bold tracking-tight flex items-center">Brain Dump</h1>
             </div>
             <p className="text-xl text-muted-foreground leading-relaxed max-w-4xl">
-              Unload your thoughts and turn them into actionable tasks. Simply list everything on your mind—we'll help you organize it into focused work sessions so you can stop planning and start doing.
+              Unload your thoughts and turn them into actionable tasks. Simply list everything on your mind—we&apos;ll help you organize it into focused work sessions so you can stop planning and start doing.
             </p>
           </div>
 
@@ -264,7 +277,7 @@ export default function Home() {
                 <AuthModal 
                   trigger={
                     <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-medium px-8 py-6 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl">
-                      Get Started - It's Free
+                      Get Started - It&apos;s Free
                     </Button>
                   }
                   defaultOpen={showAuthModal}
@@ -324,7 +337,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground leading-relaxed">
-                  We'll organize your tasks into meaningful groups that minimize context switching and maximize your natural workflow.
+                  We&apos;ll organize your tasks into meaningful groups that minimize context switching and maximize your natural workflow.
                 </p>
               </CardContent>
             </Card>
@@ -350,7 +363,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground leading-relaxed">
-                  We highlight your hardest tasks—your "frogs"—so you can tackle them first when your energy and willpower are strongest.
+                  We highlight your hardest tasks—your &quot;frogs&quot;—so you can tackle them first when your energy and willpower are strongest.
                 </p>
               </CardContent>
             </Card>

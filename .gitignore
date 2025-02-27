@@ -41,4 +41,5 @@ next-env.d.ts
 .cursorrules.md
 .mdc
 .txt
-
+.md
+.sql

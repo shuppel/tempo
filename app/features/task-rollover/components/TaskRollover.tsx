@@ -56,11 +56,8 @@ import {
   Clock,
   CheckCircle,
   Trash2,
-  ArrowRight,
   CheckCheck, 
-  X,
   AlertCircle,
-  Square,
   CheckSquare,
   HelpCircle
 } from "lucide-react";
@@ -111,7 +108,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     updateBrainDumpText
   } = useTaskRollover();
 
-  // One-time initialization effect (with no dependencies)
+  // One-time initialization effect
   useEffect(() => {
     // Only run this once
     if (didInitialize.current) return;
@@ -154,7 +151,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
       clearTimeout(timeoutId);
       didInitialize.current = false;
     };
-  }, []);
+  }, [checkForIncompleteTasks, hasIncompleteTasks, recentSession]);
 
   // Add a cleanup effect for when the user navigates away
   useEffect(() => {
@@ -709,7 +706,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                     <div className="flex items-center gap-1.5 mb-1">
                       <HelpCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                       <span className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                        These tasks will be marked as "mitigated" and not transferred
+                        These tasks will be marked as &quot;mitigated&quot; and not transferred
                       </span>
                     </div>
                   </div>
@@ -766,7 +763,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             <DialogDescription className="text-sm text-indigo-700/80 dark:text-indigo-300/90 pt-1.5">
               {recentSession ? (
                 <span>
-                  Select tasks from your <span className="font-medium text-indigo-900 dark:text-indigo-100">{format(parseISO(recentSession.date), "MMMM d")}</span> session to transfer to today's plan
+                  Select tasks from your <span className="font-medium text-indigo-900 dark:text-indigo-100">{format(parseISO(recentSession.date), "MMMM d")}</span> session to transfer to today&apos;s plan
                 </span>
               ) : (
                 <span>Select tasks from your previous session</span>

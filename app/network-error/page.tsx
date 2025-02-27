@@ -8,9 +8,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { WifiOff, RefreshCw, ArrowLeft, Bug } from 'lucide-react';
 import { performNetworkDiagnostics, getTroubleshootingSuggestions } from '@/lib/utils/supabase/networkUtils';
 
+// Define a type for the diagnostics results
+interface DiagnosticsResults {
+  timestamp: string;
+  hasInternet: boolean;
+  hasSupabaseConfig: boolean;
+  hasSupabaseConnectivity: boolean;
+  supabaseUrlConfigured: boolean;
+  supabaseKeyConfigured: boolean;
+  userAgent: string;
+  diagnosticId: string;
+  [key: string]: unknown;
+}
+
 export default function NetworkErrorPage() {
   const router = useRouter();
-  const [diagnosticsResults, setDiagnosticsResults] = useState<any>(null);
+  const [diagnosticsResults, setDiagnosticsResults] = useState<DiagnosticsResults | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
@@ -62,7 +75,7 @@ export default function NetworkErrorPage() {
             Network Connectivity Issue
           </CardTitle>
           <CardDescription>
-            We're having trouble connecting to our authentication service
+            We&apos;re having trouble connecting to our authentication service
           </CardDescription>
         </CardHeader>
         
@@ -70,7 +83,7 @@ export default function NetworkErrorPage() {
           <Alert variant="destructive">
             <AlertTitle>Connection Failed</AlertTitle>
             <AlertDescription>
-              Your device can't connect to our authentication service. This might be due to network issues or service disruptions.
+              Your device can&apos;t connect to our authentication service. This might be due to network issues or service disruptions.
             </AlertDescription>
           </Alert>
           

@@ -476,7 +476,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     if (recentSession && incompleteTasks.length > 0) {
       try {
         // Mark all unselected tasks as "mitigated" so they're not counted for rollover again
-        const taskInfos = incompleteTasks.map((task, index) => ({
+        const taskInfos = incompleteTasks.map((task) => ({
           selected: task.selected,
           storyId: task.storyId,
           timeBoxIndex: task.timeBoxIndex,
@@ -568,13 +568,13 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   }, [recentSession, router]);
 
   // Toggle the service enabled state
-  const toggleServiceEnabled = useCallback(() => {
-    setServiceEnabled(prev => {
-      const newValue = !prev;
-      safeLocalStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
-      return newValue;
-    });
-  }, []);
+  // const toggleServiceEnabled = useCallback(() => {
+  //   setServiceEnabled(prev => {
+  //     const newValue = !prev;
+  //     safeLocalStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
+  //     return newValue;
+  //   });
+  // }, []);
 
   // Update the resetTaskRolloverState function to provide more logs
   // Reset all state - useful for debugging or manual reset
@@ -623,6 +623,15 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     
     return true;
   }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers, recentSession]);
+
+  // Listen for the service enabled state changes once on mount
+  useEffect(() => {
+    // Add a cleanup function that resets the check flag when the component unmounts
+    return () => {
+      console.log("[useTaskRollover] Component unmounting, resetting hasCheckedToday flag");
+      hasCheckedToday.current = false;
+    };
+  }, [shouldCheckToday, checkForIncompleteTasks, serviceEnabled]);
 
   return {
     isOpen,
