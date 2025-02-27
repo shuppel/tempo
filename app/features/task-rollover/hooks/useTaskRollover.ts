@@ -160,22 +160,32 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     return [];
   }, []);
 
-  // Mark a session as having its transfers completed
-  const markTransferCompleted = useCallback((sessionDate: string) => {
-    try {
-      if (!sessionDate) return;
-      
-      const completedTransfers = getCompletedTransfers();
-      // Add the session date if it's not already in the list
-      if (!completedTransfers.includes(sessionDate)) {
-        completedTransfers.push(sessionDate);
-        safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(completedTransfers));
-        console.log(`[useTaskRollover] Marked session ${sessionDate} as having completed transfers`);
-      }
-    } catch (error) {
-      console.error('[useTaskRollover] Error marking transfer as completed:', error);
+  // Mark a specific session as having completed its transfers
+  // If no date is provided, use the current recentSession
+  const markTransferCompleted = useCallback(async (sessionDate?: string) => {
+    const date = sessionDate || recentSession?.date;
+    
+    if (!date) {
+      console.warn('[useTaskRollover] Cannot mark transfers completed without a session date');
+      return;
     }
-  }, [getCompletedTransfers]);
+    
+    console.log(`[useTaskRollover] Marking session ${date} as having completed transfers`);
+    
+    try {
+      // Add to the list of completed transfers in localStorage
+      const completedTransfers = getCompletedTransfers();
+      if (!completedTransfers.includes(date)) {
+        completedTransfers.push(date);
+        safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(completedTransfers));
+      }
+      
+      // Also set today's date as the last check date
+      safeLocalStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
+    } catch (error) {
+      console.error('[useTaskRollover] Error marking transfers completed:', error);
+    }
+  }, [recentSession, getCompletedTransfers]);
 
   // Check if a session's transfers have been completed
   const hasCompletedTransfers = useCallback((sessionDate: string): boolean => {
@@ -238,55 +248,85 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     setIsLoading(true);
     try {
       console.log("[useTaskRollover] Checking if any session has incomplete tasks");
+      
+      // Start by checking if there are incomplete tasks in any session
       const hasIncomplete = await rolloverService.hasIncompleteTasks();
-      console.log(`[useTaskRollover] Found incomplete tasks: ${hasIncomplete}`);
       
-      if (preventAutoPopulate) {
-        // Just update the state to indicate there are tasks, but don't show dialog
-        setHasIncompleteTasks(hasIncomplete);
-        console.log(`[useTaskRollover] Set hasIncompleteTasks to ${hasIncomplete} but suppressing auto-display`);
-      } else {
-        // Normal flow - set state and potentially show dialog
-        setHasIncompleteTasks(hasIncomplete);
-      
-        if (hasIncomplete) {
-          console.log("[useTaskRollover] Getting details of incomplete tasks");
-          const data = await rolloverService.getIncompleteTasks();
-          if (data) {
-            // Check if we've already handled transfers for this session - unless forceCheck is true
-            if (!forceCheck && hasCompletedTransfers(data.session.date)) {
-              console.log(`[useTaskRollover] Skipping session ${data.session.date} as transfers were already completed`);
-              setHasIncompleteTasks(false);
-              return;
-            }
-            
-            console.log(`[useTaskRollover] Setting recent session with date ${data.session.date} and ${data.tasks.length} tasks`);
-            setRecentSession(data.session);
-            setIncompleteTasks(
-              data.tasks.map(task => ({
-                ...task,
-                selected: true // Select all by default
-              }))
-            );
-          } else {
-            console.log("[useTaskRollover] No task data returned despite hasIncomplete being true");
-          }
-        } else {
-          console.log("[useTaskRollover] No incomplete tasks found in any session");
-        }
+      // If no incomplete tasks are found, we can stop here
+      if (!hasIncomplete) {
+        console.log("[useTaskRollover] No incomplete tasks found in any session");
+        setHasIncompleteTasks(false);
+        setIsLoading(false);
+        return;
       }
       
-      // Update the last check timestamp
-      safeLocalStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
-      hasCheckedToday.current = true;
-      console.log("[useTaskRollover] Marked as checked today", new Date().toISOString());
+      // Get the specific tasks that are incomplete
+      const incompleteData = await rolloverService.getIncompleteTasks();
+      
+      // If no specific incomplete task data, something went wrong
+      if (!incompleteData) {
+        console.log("[useTaskRollover] No incomplete task data found");
+        setHasIncompleteTasks(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Debug log all tasks for troubleshooting
+      console.log("[useTaskRollover] Incomplete tasks detail:", 
+        incompleteData.tasks.map(t => ({
+          title: t.task.title,
+          status: t.task.status
+        }))
+      );
+      
+      // Check if all tasks are already mitigated - if so, no need to show rollover
+      const allTasksMitigated = incompleteData.tasks.every(
+        task => task.task.status === 'mitigated'
+      );
+      
+      if (allTasksMitigated) {
+        console.log("[useTaskRollover] All incomplete tasks are already mitigated, no need for rollover");
+        setHasIncompleteTasks(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log(`[useTaskRollover] Found ${incompleteData.tasks.length} incomplete tasks in session ${incompleteData.session.date}`);
+      
+      // Set session data
+      setHasIncompleteTasks(true);
+      setRecentSession(incompleteData.session);
+      
+      // Map tasks with selected property for UI
+      const mappedTasks = incompleteData.tasks.map(task => ({
+        ...task,
+        selected: true // Select all tasks by default
+      }));
+      
+      setIncompleteTasks(mappedTasks);
+      
+      // Create brain dump text from all tasks
+      if (!preventAutoPopulate) {
+        const text = rolloverService.convertTasksToBrainDumpFormat(
+          mappedTasks.map(task => ({
+            task: task.task,
+            storyTitle: task.storyTitle
+          }))
+        );
+        setBrainDumpText(text);
+      } else {
+        console.log("[useTaskRollover] Preventing auto-population of brain dump");
+      }
+      
+      console.log("[useTaskRollover] Check complete, found incomplete tasks");
     } catch (error) {
-      console.error('[useTaskRollover] Error checking for incomplete tasks:', error);
+      console.error("[useTaskRollover] Error checking for incomplete tasks:", error);
+      setHasIncompleteTasks(false);
     } finally {
       setIsLoading(false);
-      console.log("[useTaskRollover] Completed check for incomplete tasks");
+      hasCheckedToday.current = true;
     }
-  }, [serviceEnabled, isLoading, rolloverService, hasCompletedTransfers]);
+  }, [serviceEnabled, isLoading, rolloverService]);
 
   // Improve the initial effect to provide better logging
   // Run the check only once when the component mounts
@@ -424,30 +464,69 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     );
   }, []);
 
-  // Finish rollover and return the selected tasks for brain dump
-  const finishRollover = useCallback(() => {
-    if (recentSession) {
-      // Mark this session as having completed transfers
-      markTransferCompleted(recentSession.date);
-      
-      // Mitigate unselected tasks if there are any
-      const unselectedTasks = incompleteTasks
-        .filter(task => !task.selected)
-        .map(task => ({
-          selected: false,
+  // Finish the rollover, close the dialog, and transfer tasks to brain dump
+  const finishRollover = useCallback(async () => {
+    console.log('[useTaskRollover] Finishing rollover');
+    
+    // Mark transfer as completed for today to prevent rechecking
+    await markTransferCompleted();
+    
+    // If there's a previous session and there are selected tasks to be rolled over,
+    // we need to update the status of tasks in the previous session
+    if (recentSession && incompleteTasks.length > 0) {
+      try {
+        // Mark all unselected tasks as "mitigated" so they're not counted for rollover again
+        const taskInfos = incompleteTasks.map((task, index) => ({
+          selected: task.selected,
           storyId: task.storyId,
           timeBoxIndex: task.timeBoxIndex,
-          taskIndex: task.taskIndex
+          taskIndex: task.taskIndex,
         }));
-      
-      if (unselectedTasks.length > 0) {
-        rolloverService.mitigateUnselectedTasks(recentSession.date, unselectedTasks)
-          .then(success => {
-            console.log(`[useTaskRollover] Mitigated ${unselectedTasks.length} unselected tasks: ${success ? 'success' : 'failed'}`);
-          })
-          .catch(error => {
-            console.error('[useTaskRollover] Error mitigating unselected tasks:', error);
-          });
+        
+        console.log('[useTaskRollover] Mitigating unselected tasks in previous session');
+        await rolloverService.mitigateUnselectedTasks(recentSession.date, taskInfos);
+        
+        // For selected tasks, update them to indicate they were rolled over
+        // We'll do this by getting the session again after mitigation and updating it
+        try {
+          const updatedSession = await rolloverService.getMostRecentSessionWithIncompleteTasks();
+          if (updatedSession && updatedSession.date === recentSession.date) {
+            // Find selected tasks in our incompleteTasks list
+            const selectedTasks = incompleteTasks
+              .filter(task => task.selected)
+              .map(task => ({
+                title: task.task.title,
+                storyId: task.storyId,
+                timeBoxIndex: task.timeBoxIndex,
+                taskIndex: task.taskIndex,
+              }));
+              
+            console.log(`[useTaskRollover] Marking ${selectedTasks.length} tasks as rolledOver in previous session`);
+            
+            // Update these tasks in the original session to mark as rolled over
+            await Promise.all(selectedTasks.map(async taskInfo => {
+              await rolloverService.markTaskRolledOver(
+                updatedSession.date,
+                taskInfo.storyId,
+                taskInfo.timeBoxIndex,
+                taskInfo.taskIndex
+              );
+            }));
+          }
+        } catch (error) {
+          console.error('[useTaskRollover] Error updating tasks as rolled over:', error);
+        }
+        
+        // Archive the previous session now that we're done with it
+        console.log('[useTaskRollover] Archiving previous session:', recentSession.date);
+        const archived = await rolloverService.archiveSession(recentSession.date);
+        if (archived) {
+          console.log('[useTaskRollover] Previous session archived successfully');
+        } else {
+          console.error('[useTaskRollover] Failed to archive previous session');
+        }
+      } catch (error) {
+        console.error('[useTaskRollover] Error during task rollover completion:', error);
       }
     }
     
@@ -507,14 +586,23 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       hasCheckedToday: hasCheckedToday.current,
       hasIncompleteTasks,
       serviceEnabled,
-      completedTransfers: getCompletedTransfers()
+      completedTransfers: getCompletedTransfers(),
+      recentSessionDate: recentSession?.date
     });
     
     // Clear localStorage entries
     safeLocalStorage.removeItem(LAST_CHECK_KEY);
     // Also clear the today flag to prevent showing the dialog again
     safeLocalStorage.removeItem(`${COMPLETED_TRANSFERS_KEY}-today`);
-    // Don't clear the service enabled setting or completed transfers list
+    // Don't clear the service enabled setting
+    
+    // Clear session-specific completed transfers to force reevaluation
+    if (recentSession?.date) {
+      const transfers = getCompletedTransfers();
+      const updatedTransfers = transfers.filter(date => date !== recentSession.date);
+      safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(updatedTransfers));
+      console.log(`[useTaskRollover] Removed session ${recentSession.date} from completed transfers list`);
+    }
     
     // Reset all in-memory state
     hasCheckedToday.current = false;
@@ -534,7 +622,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     });
     
     return true;
-  }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers]);
+  }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers, recentSession]);
 
   return {
     isOpen,

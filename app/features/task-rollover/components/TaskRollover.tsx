@@ -378,7 +378,82 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             }
           }}
         >
-          {/* Dialog content... */}
+          <AlertDialogContent 
+            className="rounded-lg border border-indigo-200 dark:border-indigo-800 shadow-xl 
+              bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900 
+              p-0 overflow-hidden max-w-md"
+          >
+            <div className="px-6 py-5">
+              <AlertDialogHeader className="space-y-1 text-left">
+                <AlertDialogTitle className="text-xl font-semibold tracking-tight text-indigo-900 dark:text-indigo-200">
+                  Previous Tasks Pending
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-base text-indigo-700/80 dark:text-indigo-300/90">
+                  <div className="space-y-4">
+                    <p className="leading-relaxed">
+                      You have incomplete tasks from your session on
+                      {recentSession && (
+                        <span className="font-medium text-indigo-900 dark:text-indigo-100 ml-1">
+                          {format(parseISO(recentSession.date), "EEEE, MMMM d")}
+                        </span>
+                      )}.
+                    </p>
+
+                    <div className="bg-white/70 dark:bg-gray-800/70 border border-indigo-100 dark:border-indigo-800/50 
+                      p-4 rounded-md shadow-sm">
+                      <h4 className="text-sm font-medium text-indigo-800 dark:text-indigo-300 mb-2 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-2 text-indigo-500 dark:text-indigo-400" />
+                        Session Review Required
+                      </h4>
+                      <p className="text-sm text-indigo-700/80 dark:text-indigo-400/90">
+                        Would you like to complete these tasks in your previous session, or transfer them to your current plan?
+                      </p>
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+            
+            <AlertDialogFooter className="bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 p-4 flex flex-wrap gap-2">
+              <div className="w-full flex justify-between items-center mb-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs"
+                  onClick={() => {
+                    console.log("[TaskRollover] Reset task rollover state requested");
+                    resetTaskRolloverState();
+                    setShowFinishQuestion(false);
+                  }}
+                >
+                  Reset Rollover State
+                </Button>
+              </div>
+              
+              <AlertDialogCancel 
+                className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 
+                  hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => {
+                  console.log("[TaskRollover] Finish question canceled");
+                  setShowFinishQuestion(false);
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleFinishedYes}
+                className="bg-gray-800 hover:bg-gray-700 text-white dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white"
+              >
+                Complete in Previous Session
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={handleFinishedNo}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow"
+              >
+                Transfer to Current Plan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
         </AlertDialog>
         
         {/* Task Rollover Management Dialog */}
@@ -475,10 +550,12 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
           }
         }}
       >
-        <AlertDialogContent className="rounded-lg border border-gray-200 dark:border-gray-800 shadow-xl 
-          bg-white dark:bg-gray-900 p-0 overflow-hidden max-w-xl">
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 
-            border-b border-indigo-100 dark:border-indigo-900/50 px-6 py-5">
+        <AlertDialogContent 
+          className="rounded-lg border border-indigo-200 dark:border-indigo-800 shadow-xl 
+            bg-gradient-to-br from-indigo-50 to-white dark:from-gray-950 dark:to-gray-900 
+            p-0 overflow-hidden max-w-md"
+        >
+          <div className="px-6 py-5">
             <AlertDialogHeader className="space-y-1 text-left">
               <AlertDialogTitle className="text-xl font-semibold tracking-tight text-indigo-900 dark:text-indigo-200">
                 Previous Tasks Pending
@@ -509,7 +586,22 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             </AlertDialogHeader>
           </div>
           
-          <AlertDialogFooter className="flex gap-3 p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800/50">
+          <AlertDialogFooter className="bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 p-4 flex flex-wrap gap-2">
+            <div className="w-full flex justify-between items-center mb-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs"
+                onClick={() => {
+                  console.log("[TaskRollover] Reset task rollover state requested");
+                  resetTaskRolloverState();
+                  setShowFinishQuestion(false);
+                }}
+              >
+                Reset Rollover State
+              </Button>
+            </div>
+            
             <AlertDialogCancel 
               className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 
                 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"

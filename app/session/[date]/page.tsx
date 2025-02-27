@@ -50,6 +50,53 @@ interface SessionPageProps {
   params: { date: string } | Promise<{ date: string }>
 }
 
+// Add MitigatedTasksView component
+interface MitigatedTasksViewProps {
+  session: Session
+}
+
+function MitigatedTasksView({ session }: MitigatedTasksViewProps) {
+  // Only show for archived sessions with incompleteTasks data
+  if (session.status !== 'archived' || !session.incompleteTasks) {
+    return null;
+  }
+
+  const mitigatedTasks = session.incompleteTasks.tasks.filter(task => task.mitigated && !task.rolledOver);
+  
+  if (mitigatedTasks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-8 space-y-4 border border-muted p-4 rounded-lg">
+      <h2 className="text-xl font-semibold">Mitigated Tasks</h2>
+      <p className="text-muted-foreground text-sm">
+        These tasks were intentionally set aside and won't appear in future rollover screens.
+      </p>
+      <ul className="space-y-2 mt-4">
+        {mitigatedTasks.map((task, index) => (
+          <li key={index} className="p-3 bg-muted/50 rounded-md">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="font-medium">{task.title}</span>
+                <div className="text-sm text-muted-foreground">
+                  <span>From: {task.storyTitle}</span>
+                  {task.duration > 0 && (
+                    <span className="ml-2">Duration: {task.duration} min</span>
+                  )}
+                  {task.taskCategory && (
+                    <span className="ml-2">Type: {task.taskCategory}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function SessionPage({ params }: SessionPageProps) {
   // Unwrap params using React.use() as recommended by Next.js
   const unwrappedParams = params instanceof Promise ? use(params) : params
@@ -281,6 +328,9 @@ export default function SessionPage({ params }: SessionPageProps) {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Add MitigatedTasksView component */}
+        {sessionData && <MitigatedTasksView session={sessionData} />}
       </div>
     </main>
   )

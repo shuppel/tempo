@@ -19,6 +19,19 @@ import { formatDuration } from "@/lib/durationUtils";
 // Define the status for mitigated tasks (tasks that are neither completed nor rolled over)
 export type TaskStatus = "todo" | "completed" | "mitigated";
 
+// Define tracked metrics for incomplete tasks in archived sessions
+export interface IncompleteTasks {
+  count: number;
+  tasks: Array<{
+    title: string;
+    storyTitle: string;
+    duration: number;
+    taskCategory?: string;
+    mitigated: boolean;
+    rolledOver: boolean;
+  }>;
+}
+
 export class TaskRolloverService {
   private sessionStorage: SessionStorageService;
 
@@ -104,9 +117,13 @@ export class TaskRolloverService {
               completedTasks++;
             } else if (task.status === 'mitigated') {
               mitigatedTasks++;
+              // Log mitigated tasks for debugging
+              console.log(`[TaskRolloverService] Found mitigated task: "${task.title}" in session ${session.date}`);
             } else {
               // Any other status (todo, in-progress, etc.) is considered incomplete
               incompleteTasks++;
+              // Log incomplete tasks for debugging
+              console.log(`[TaskRolloverService] Found incomplete task: "${task.title}" in session ${session.date}`);
             }
           }
         }
@@ -115,6 +132,8 @@ export class TaskRolloverService {
     
     console.log(`[TaskRolloverService] Session ${session.date} task breakdown - incomplete: ${incompleteTasks}, completed: ${completedTasks}, mitigated: ${mitigatedTasks}`);
     
+    // Only return true if there are actually incomplete tasks (not mitigated)
+    // This ensures that if all tasks are either completed or mitigated, we won't trigger the paywall
     return incompleteTasks > 0;
   }
 
@@ -331,6 +350,7 @@ export class TaskRolloverService {
    * 
    * This changes the session status to 'archived' so it won't be shown in active views
    * Used after creating a new session to archive the previous one
+   * Also adds information about incomplete tasks to the archived session
    * 
    * @param date The date of the session to archive
    * @returns A boolean indicating whether the archiving was successful
@@ -338,7 +358,50 @@ export class TaskRolloverService {
   async archiveSession(date: string): Promise<boolean> {
     try {
       console.log(`[TaskRolloverService] Archiving session ${date}`);
-      const success = await this.sessionStorage.archiveSession(date);
+      
+      // First, get the session to update it with incomplete tasks data
+      const session = await this.sessionStorage.getSession(date);
+      if (!session) {
+        console.error(`[TaskRolloverService] Failed to archive: session ${date} not found`);
+        return false;
+      }
+      
+      // Collect information about incomplete tasks
+      const incompleteTasks: IncompleteTasks = {
+        count: 0,
+        tasks: []
+      };
+      
+      // Go through all story blocks, timeboxes, and tasks to find any incomplete ones
+      for (const story of session.storyBlocks) {
+        for (const timeBox of story.timeBoxes) {
+          // Only consider work timeboxes with tasks
+          if (timeBox.type === 'work' && timeBox.tasks) {
+            for (const task of timeBox.tasks) {
+              if (task.status !== 'completed') {
+                incompleteTasks.count++;
+                incompleteTasks.tasks.push({
+                  title: task.title,
+                  storyTitle: story.title,
+                  duration: task.duration || 0,
+                  taskCategory: task.taskCategory,
+                  mitigated: task.status === 'mitigated',
+                  rolledOver: false // Default to false, updated after rollover if needed
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Add the incomplete tasks data to the session
+      const updatedSession = {
+        ...session,
+        incompleteTasks
+      };
+      
+      // Now archive the session with the updated data
+      const success = await this.sessionStorage.archiveSession(date, updatedSession);
       console.log(`[TaskRolloverService] Session archive result: ${success}`);
       return success;
     } catch (error) {
@@ -382,5 +445,105 @@ export class TaskRolloverService {
     });
     
     return formattedTasks;
+  }
+
+  /**
+   * Mark a task as rolled over to a new session
+   * 
+   * This method updates a task in a session to record that it was rolled over to a new session
+   * 
+   * @param sessionDate The date of the session containing the task
+   * @param storyId The ID of the story that contains the task
+   * @param timeBoxIndex The index of the timeBox in the story
+   * @param taskIndex The index of the task in the timeBox
+   * @returns A boolean indicating whether the update was successful
+   */
+  async markTaskRolledOver(
+    sessionDate: string,
+    storyId: string,
+    timeBoxIndex: number,
+    taskIndex: number
+  ): Promise<boolean> {
+    try {
+      console.log(`[TaskRolloverService] Marking task as rolled over: session=${sessionDate}, story=${storyId}, timeBox=${timeBoxIndex}, task=${taskIndex}`);
+      
+      // First, update the task status to mitigated
+      const statusUpdated = await this.sessionStorage.updateTaskStatus(
+        sessionDate, 
+        storyId, 
+        timeBoxIndex, 
+        taskIndex, 
+        "mitigated"
+      );
+      
+      if (!statusUpdated) {
+        console.error('[TaskRolloverService] Failed to update task status for rolled over task');
+        return false;
+      }
+      
+      // Now get the session to add this task to the incompleteTasks field
+      const session = await this.sessionStorage.getSession(sessionDate);
+      if (!session) {
+        console.error(`[TaskRolloverService] Session ${sessionDate} not found when marking task as rolled over`);
+        return false;
+      }
+      
+      // Find the task to mark as rolled over
+      let taskTitle = '';
+      let storyTitle = '';
+      let taskDuration = 0;
+      let taskCategory = undefined;
+      
+      // Find the story, timeBox, and task
+      const story = session.storyBlocks.find(s => s.id === storyId);
+      if (story && story.timeBoxes[timeBoxIndex]) {
+        storyTitle = story.title;
+        const timeBox = story.timeBoxes[timeBoxIndex];
+        
+        if (timeBox.tasks && timeBox.tasks[taskIndex]) {
+          const task = timeBox.tasks[taskIndex];
+          taskTitle = task.title;
+          taskDuration = task.duration || 0;
+          taskCategory = task.taskCategory;
+        }
+      }
+      
+      // Initialize the incompleteTasks field if it doesn't exist
+      if (!session.incompleteTasks) {
+        session.incompleteTasks = {
+          count: 0,
+          tasks: []
+        };
+      }
+      
+      // Check if this task is already in the incompleteTasks list
+      const existingTaskIndex = session.incompleteTasks.tasks.findIndex(t => 
+        t.title === taskTitle && t.storyTitle === storyTitle
+      );
+      
+      if (existingTaskIndex >= 0) {
+        // Update the existing entry
+        session.incompleteTasks.tasks[existingTaskIndex].rolledOver = true;
+      } else if (taskTitle && storyTitle) {
+        // Add a new entry
+        session.incompleteTasks.tasks.push({
+          title: taskTitle,
+          storyTitle: storyTitle,
+          duration: taskDuration,
+          taskCategory: taskCategory,
+          mitigated: true,
+          rolledOver: true
+        });
+        session.incompleteTasks.count++;
+      }
+      
+      // Save the updated session
+      await this.sessionStorage.saveSession(sessionDate, session);
+      
+      return true;
+    } catch (error) {
+      console.error('[TaskRolloverService] Error marking task as rolled over:', error);
+      return false;
+    }
   }
 } 

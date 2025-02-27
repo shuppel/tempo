@@ -1,0 +1,3 @@
+[33m7200980[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m fix: improve API token usage and error handling for rate limits - Reduce max_tokens to 4096 for Claude-3-haiku model compliance - Optimize JSON formatting to reduce token usage - Add specific error handling for max_tokens errors - Implement better rate limit error detection and handling (429/529 errors) - Add exponential backoff strategy for rate-limited requests - Improve error message clarity for end users
+[33mcf1c5b6[m Fix task rollover formatting: remove headers, context tags, and prevent duplication
+[33m6a4b23f[m Add border to TaskRollover alert dialog in dark mode for better visibility

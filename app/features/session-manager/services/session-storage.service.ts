@@ -456,26 +456,30 @@ export class SessionStorageService {
   }
 
   /**
-   * Archive a session by setting its status to 'archived'
+   * Archives a session by updating its status to 'archived'
+   * 
+   * @param date The date of the session to archive
+   * @param updatedSession Optional updated session data to save before archiving
+   * @returns A boolean indicating success
    */
-  async archiveSession(date: string): Promise<boolean> {
+  async archiveSession(date: string, updatedSession?: Session): Promise<boolean> {
     console.log(`[SessionStorageService] Archiving session for date: ${date}`)
     
     try {
-      const session = await this.getSession(date)
+      const session = updatedSession || await this.getSession(date)
       if (!session) {
         console.log(`[SessionStorageService] No session found for date: ${date} to archive`)
         return false
       }
       
       // Update the session status to archived
-      const updatedSession: Session = {
+      const archivedSession: Session = {
         ...session,
         status: 'archived' as const
       }
       
       // Save the updated session
-      await this.saveSession(date, updatedSession)
+      await this.saveSession(date, archivedSession)
       console.log(`[SessionStorageService] Successfully archived session for date: ${date}`)
       return true
     } catch (error) {

@@ -157,12 +157,26 @@ export interface SessionSummary {
   totalDuration: number
 }
 
+// Add tracked metrics for incomplete tasks in archived sessions
+export interface IncompleteTasks {
+  count: number;
+  tasks: Array<{
+    title: string;
+    storyTitle: string;
+    duration: number;
+    taskCategory?: string;
+    mitigated: boolean;
+    rolledOver: boolean;
+  }>;
+}
+
 export interface Session {
   date: string
   storyBlocks: StoryBlock[]
   status: SessionStatus
   totalDuration: number
   lastUpdated?: string
+  incompleteTasks?: IncompleteTasks // Only present in archived sessions
 }
 
 /**

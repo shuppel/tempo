@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, ArrowRight, Trash2, Archive, MoreHorizontal } from "lucide-react"
+import { Clock, ArrowRight, Trash2, Archive, MoreHorizontal, AlertCircle, CheckSquare, CalendarX } from "lucide-react"
 import type { Session } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { SessionStorageService } from "@/app/features/session-manager"
@@ -291,6 +291,76 @@ export default function SessionsPage() {
                             <Badge variant="outline" className="text-muted-foreground">
                               Archived
                             </Badge>
+                            
+                            {/* Display badge for incomplete tasks */}
+                            {session.incompleteTasks && session.incompleteTasks.count > 0 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge 
+                                    variant="outline" 
+                                    className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 border-amber-200 dark:border-amber-800/60 flex items-center gap-1"
+                                  >
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>{session.incompleteTasks.count} incomplete</span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-md">
+                                  <div className="space-y-1">
+                                    <p className="font-medium">Incomplete tasks from this session:</p>
+                                    <ul className="text-xs space-y-1 list-disc list-inside">
+                                      {session.incompleteTasks.tasks.slice(0, 5).map((task, i) => (
+                                        <li key={i} className="flex items-center gap-1">
+                                          <span className="truncate">{task.title}</span>
+                                          {task.rolledOver && (
+                                            <span className="text-xs text-blue-500 dark:text-blue-400 whitespace-nowrap italic">(rolled over)</span>
+                                          )}
+                                          {task.mitigated && !task.rolledOver && (
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap italic">(mitigated)</span>
+                                          )}
+                                        </li>
+                                      ))}
+                                      {session.incompleteTasks.tasks.length > 5 && (
+                                        <li className="text-muted-foreground">
+                                          And {session.incompleteTasks.tasks.length - 5} more...
+                                        </li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            {/* Display badge for completion rate */}
+                            {session.incompleteTasks && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1">
+                                    {session.incompleteTasks.count === 0 ? (
+                                      <Badge 
+                                        variant="outline" 
+                                        className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200 border-green-200 dark:border-green-800/60 flex items-center gap-1"
+                                      >
+                                        <CheckSquare className="h-3 w-3" />
+                                        <span>All tasks completed</span>
+                                      </Badge>
+                                    ) : (
+                                      <Badge 
+                                        variant="outline" 
+                                        className="flex items-center gap-1"
+                                      >
+                                        {/* Calculate completed percentage */}
+                                        <span>
+                                          {calculateCompletionPercentage(session)}% completed
+                                        </span>
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                  <p>Task completion rate for this session</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             {/* Actions Dropdown Menu for Archived Sessions */}
@@ -333,6 +403,50 @@ export default function SessionsPage() {
                             </Link>
                           </div>
                         </div>
+                        
+                        {/* Show incomplete task summary if available */}
+                        {session.incompleteTasks && session.incompleteTasks.count > 0 && (
+                          <CardDescription className="mt-2">
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">Incomplete:</span>
+                                <span>{session.incompleteTasks.count} tasks</span>
+                              </div>
+                              
+                              {/* Count tasks by status */}
+                              {(() => {
+                                const rolledOver = session.incompleteTasks.tasks.filter(t => t.rolledOver).length;
+                                const mitigated = session.incompleteTasks.tasks.filter(t => t.mitigated && !t.rolledOver).length;
+                                const abandoned = session.incompleteTasks.tasks.filter(t => !t.mitigated && !t.rolledOver).length;
+                                
+                                return (
+                                  <>
+                                    {rolledOver > 0 && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-blue-500 dark:text-blue-400">Rolled over:</span>
+                                        <span>{rolledOver}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {mitigated > 0 && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-gray-500 dark:text-gray-400">Mitigated:</span>
+                                        <span>{mitigated}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {abandoned > 0 && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-amber-500 dark:text-amber-400">Abandoned:</span>
+                                        <span>{abandoned}</span>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </CardDescription>
+                        )}
                       </CardHeader>
                     </Card>
                   ))}
@@ -381,4 +495,48 @@ export default function SessionsPage() {
       </AlertDialog>
     </TooltipProvider>
   )
+}
+
+// Helper function to calculate completion percentage for a session
+function calculateCompletionPercentage(session: Session): number {
+  // Count all tasks in the session
+  let totalTasks = 0;
+  let completedTasks = 0;
+  
+  // Count tasks from story blocks
+  session.storyBlocks.forEach(story => {
+    story.timeBoxes.forEach(timeBox => {
+      if (timeBox.type === 'work' && timeBox.tasks) {
+        totalTasks += timeBox.tasks.length;
+        completedTasks += timeBox.tasks.filter(task => task.status === 'completed').length;
+      }
+    });
+  });
+  
+  // If we have incomplete tasks data, add those to our calculation
+  if (session.incompleteTasks) {
+    // If we have no tasks counted from story blocks but we have incomplete tasks data,
+    // we can calculate from that
+    if (totalTasks === 0 && session.incompleteTasks.count > 0) {
+      // We know incomplete count, need to infer total
+      // This is an approximation since we don't store the total task count explicitly
+      const incompleteCount = session.incompleteTasks.count;
+      // Calculate completed tasks (excluding rolled over and mitigated)
+      const completedEstimate = session.storyBlocks.reduce((count, story) => {
+        return count + story.timeBoxes.reduce((boxCount, box) => {
+          if (box.type === 'work' && box.tasks) {
+            return boxCount + box.tasks.filter(t => t.status === 'completed').length;
+          }
+          return boxCount;
+        }, 0);
+      }, 0);
+      
+      totalTasks = incompleteCount + completedEstimate;
+      completedTasks = completedEstimate;
+    }
+  }
+  
+  if (totalTasks === 0) return 0;
+  
+  return Math.round((completedTasks / totalTasks) * 100);
 } 

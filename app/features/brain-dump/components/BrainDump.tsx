@@ -158,8 +158,8 @@ Finalize product feature specifications - due tomorrow`
             <div className="bg-white/90 dark:bg-gray-800/90 p-6 rounded-lg shadow-lg max-w-md text-center space-y-4 border border-gray-200 dark:border-gray-700">
               <AlertCircle className="h-10 w-10 text-amber-500 dark:text-amber-400 mx-auto" />
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Complete Previous Tasks First</h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Please resolve your pending tasks from the previous session before creating new ones.
+
+                Please resolve your pending tasks from the previous session before creating new ones.              <p className="text-gray-600 dark:text-gray-300">
               </p>
             </div>
           </div>
