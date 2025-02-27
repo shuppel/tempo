@@ -515,30 +515,29 @@ export async function POST(req: Request) {
 
       const message = await anthropic.messages.create({
         model: "claude-3-haiku-20240307",
-        max_tokens: 4000,
+        max_tokens: 4096,
         temperature: 0.7,
+        system: "You are an expert at creating optimized session plans with time boxes. You strictly follow provided rules and formatting requirements, producing valid, complete JSON output.",
         messages: [{
           role: "user",
-          content: `Based on these stories, create a detailed session plan with time boxes.
+          content: `Create a detailed session plan with time boxes for these stories:
 
 Rules:
-1. Each story becomes a "story block" containing all its tasks and breaks
-2. FROG tasks should be scheduled as early as possible
-3. Follow all duration, break and constraints exactly as specified
-4. Round all times to 5-minute increments
-5. Add a short break (5 mins) between tasks within a story
-6. Add a longer break (15 mins) between story blocks
-7. Add appropriate breaks to prevent working more than ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes continuously
-8. IMPORTANT: Keep your response as concise as possible while maintaining accuracy
+1. Stories become story blocks with tasks and breaks
+2. Schedule FROG tasks early
+3. Round all times to 5-minute blocks
+4. Add 5-min breaks between tasks
+5. Add 15-min breaks between stories
+6. Don't exceed ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes of continuous work
 
-Session Parameter Details:
-- Start Time: ${startTime}
-- Total Stories: ${stories.length}
+Session Params:
+- Start: ${startTime}
+- Stories: ${stories.length}
 
 Stories Data:
-${JSON.stringify(enhancedStories, null, 2)}
+${JSON.stringify(enhancedStories)}
 
-Respond with a JSON session plan that follows this exact structure:
+Return JSON with this structure:
 {
   "summary": {
     "totalSessions": number,
@@ -548,20 +547,20 @@ Respond with a JSON session plan that follows this exact structure:
   },
   "storyBlocks": [
     {
-      "title": "Story title",
-      "summary": "Story summary",
+      "title": "string",
+      "summary": "string",
       "icon": "emoji",
       "timeBoxes": [
         {
-          "type": "work" | "short-break" | "long-break" | "debrief",
+          "type": "work|short-break|long-break|debrief",
           "duration": number,
           "tasks": [
             {
               "id": "string",
               "title": "string",
               "duration": number,
-              "taskCategory": "focus" | "learning" | "review" | "research",
-              "projectType": "string" (optional),
+              "taskCategory": "focus|learning|review|research",
+              "projectType": "string (optional)",
               "isFrog": boolean
             }
           ],
@@ -572,20 +571,7 @@ Respond with a JSON session plan that follows this exact structure:
       "totalDuration": number
     }
   ]
-}
-
-CRITICAL RULES:
-- Keep summaries extremely brief - just a few words is sufficient
-- Use short emoji icons
-- ENSURE your complete response fits within the available tokens
-- NEVER omit or truncate any part of the JSON structure
-- Produce valid, complete JSON with no trailing commas
-- NEVER change the story or task order provided
-- Preserve all task properties exactly as provided
-- Use ISO date strings for all times
-- Include empty tasks array for break time boxes
-- Ensure all durations are in minutes
-- Calculate accurate start and end times for each time box`
+}`
         }]
       })
 
@@ -920,16 +906,58 @@ CRITICAL RULES:
 
         return NextResponse.json(parsedData)
       } catch (error) {
-        if (error instanceof SessionCreationError) throw error
+        console.error('Session creation error:', error);
+        
+        // Handle max_tokens errors
+        if (error instanceof Error && 
+            error.message.includes('invalid_request_error') && 
+            error.message.includes('max_tokens')) {
+          throw new SessionCreationError(
+            'Invalid token limit configuration',
+            'TOKEN_LIMIT_ERROR',
+            error.message
+          );
+        }
+        
+        // Handle rate limiting errors
+        if (error instanceof Error && 
+            (error.message.includes('429') || 
+            error.message.includes('529') || 
+            error.message.includes('rate limit') ||
+            error.message.includes('overloaded'))) {
+          console.warn('Rate limit error from Anthropic API detected');
+          throw new SessionCreationError(
+            'Service temporarily overloaded. Please try again in a few moments.',
+            'RATE_LIMITED',
+            error.message
+          );
+        }
+                
+        // For other errors, wrap in SessionCreationError
+        if (error instanceof SessionCreationError) throw error;
         
         throw new SessionCreationError(
           'Failed to process session plan',
           'PROCESSING_ERROR',
           error
-        )
+        );
       }
     } catch (error) {
       console.error('Session creation error:', error)
+      
+      // Check for rate limiting errors from Anthropic
+      if (error instanceof Error && 
+          (error.message.includes('429') || 
+          error.message.includes('529') || 
+          error.message.includes('rate limit') ||
+          error.message.includes('overloaded'))) {
+        console.warn('Rate limit error from Anthropic API detected');
+        return NextResponse.json({
+          error: 'Service temporarily overloaded. Please try again in a few moments.',
+          code: 'RATE_LIMITED',
+          details: error.message
+        }, { status: 429 });
+      }
       
       if (error instanceof SessionCreationError) {
         return NextResponse.json({
@@ -940,26 +968,53 @@ CRITICAL RULES:
       }
 
       return NextResponse.json({
-        error: 'Failed to create session plan',
+        error: 'Internal server error',
         code: 'INTERNAL_ERROR',
         details: error instanceof Error ? error.message : 'Unknown error'
       }, { status: 500 })
     }
   } catch (error) {
-    console.error('Session creation error:', error)
+    console.error('Session creation error:', error);
     
+    // Handle max_tokens errors
+    if (error instanceof Error && 
+        error.message.includes('invalid_request_error') && 
+        error.message.includes('max_tokens')) {
+      return NextResponse.json({
+        error: 'Invalid token limit configuration in API request',
+        code: 'TOKEN_LIMIT_ERROR',
+        details: error.message
+      }, { status: 400 });
+    }
+    
+    // Handle rate limiting errors
+    if (error instanceof Error && 
+        (error.message.includes('429') || 
+         error.message.includes('529') || 
+         error.message.includes('rate limit') ||
+         error.message.includes('overloaded'))) {
+      console.warn('Rate limit error from Anthropic API detected');
+      return NextResponse.json({
+        error: 'Service temporarily overloaded. Please try again in a few moments.',
+        code: 'RATE_LIMITED',
+        details: error.message
+      }, { status: 429 });
+    }
+    
+    // Handle session creation errors
     if (error instanceof SessionCreationError) {
       return NextResponse.json({
         error: error.message,
         code: error.code,
         details: error.details
-      }, { status: 400 })
+      }, { status: 400 });
     }
-
+    
+    // Handle all other errors
     return NextResponse.json({
       error: 'Internal server error',
       code: 'INTERNAL_ERROR',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    }, { status: 500 });
   }
 } 

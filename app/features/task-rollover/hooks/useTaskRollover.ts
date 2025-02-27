@@ -89,6 +89,41 @@ const SERVICE_ENABLED_KEY = 'task-rollover-enabled';
 // Track sessions we've already processed to prevent showing the dialog again
 const COMPLETED_TRANSFERS_KEY = 'task-rollover-completed-transfers';
 
+// Helper function for safely accessing localStorage
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('Error writing to localStorage:', error);
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing from localStorage:', error);
+    }
+  }
+};
+
 export function useTaskRollover(): UseTaskRolloverReturn {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -101,7 +136,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   // Track if the service is enabled
   const [serviceEnabled, setServiceEnabled] = useState(() => {
     // Read from localStorage with a default of true
-    const savedSetting = localStorage.getItem(SERVICE_ENABLED_KEY);
+    const savedSetting = safeLocalStorage.getItem(SERVICE_ENABLED_KEY);
     // Default to enabled if not set
     return savedSetting !== null ? savedSetting === 'true' : true;
   });
@@ -115,7 +150,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   // Get an array of completed transfer session IDs
   const getCompletedTransfers = useCallback((): string[] => {
     try {
-      const savedTransfers = localStorage.getItem(COMPLETED_TRANSFERS_KEY);
+      const savedTransfers = safeLocalStorage.getItem(COMPLETED_TRANSFERS_KEY);
       if (savedTransfers) {
         return JSON.parse(savedTransfers);
       }
@@ -134,7 +169,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       // Add the session date if it's not already in the list
       if (!completedTransfers.includes(sessionDate)) {
         completedTransfers.push(sessionDate);
-        localStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(completedTransfers));
+        safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(completedTransfers));
         console.log(`[useTaskRollover] Marked session ${sessionDate} as having completed transfers`);
       }
     } catch (error) {
@@ -154,7 +189,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     if (!serviceEnabled) return false;
     if (hasCheckedToday.current) return false;
     
-    const lastCheck = localStorage.getItem(LAST_CHECK_KEY);
+    const lastCheck = safeLocalStorage.getItem(LAST_CHECK_KEY);
     if (!lastCheck) return true;
     
     // Parse the last check date
@@ -193,7 +228,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     
     // Check if we've already completed a transfer today - unless forceCheck is true
     if (!forceCheck) {
-      const todayFlag = localStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`);
+      const todayFlag = safeLocalStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`);
       if (todayFlag) {
         console.log('[useTaskRollover] Already completed a transfer today, skipping check');
         return;
@@ -241,8 +276,8 @@ export function useTaskRollover(): UseTaskRolloverReturn {
         }
       }
       
-      // Record that we've checked today
-      localStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
+      // Update the last check timestamp
+      safeLocalStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
       hasCheckedToday.current = true;
       console.log("[useTaskRollover] Marked as checked today", new Date().toISOString());
     } catch (error) {
@@ -263,7 +298,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     console.log(`[useTaskRollover] Initial effect - Should check today: ${shouldCheck}`, {
       shouldCheckResult: shouldCheckToday(),
       hasCheckedTodayRef: hasCheckedToday.current,
-      lastCheck: localStorage.getItem(LAST_CHECK_KEY),
+      lastCheck: safeLocalStorage.getItem(LAST_CHECK_KEY),
       preventAutoPopulate
     });
     
@@ -282,7 +317,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       console.log("[useTaskRollover] Skipping initial check because:", { 
         serviceEnabled,
         hasCheckedToday: hasCheckedToday.current,
-        lastCheck: localStorage.getItem(LAST_CHECK_KEY)
+        lastCheck: safeLocalStorage.getItem(LAST_CHECK_KEY)
       });
     }
     
@@ -431,7 +466,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     if (recentSession) {
       try {
         // Add an extra entry with today's date to prevent checks on page refresh
-        localStorage.setItem(`${COMPLETED_TRANSFERS_KEY}-today`, new Date().toISOString());
+        safeLocalStorage.setItem(`${COMPLETED_TRANSFERS_KEY}-today`, new Date().toISOString());
       } catch (error) {
         console.error('[useTaskRollover] Error storing transfer completion:', error);
       }
@@ -448,7 +483,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     if (recentSession) {
       // Mark as checked for today to prevent rechecking
       hasCheckedToday.current = true;
-      localStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
+      safeLocalStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
       router.push(`/session/${recentSession.date}`);
     }
   }, [recentSession, router]);
@@ -457,7 +492,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const toggleServiceEnabled = useCallback(() => {
     setServiceEnabled(prev => {
       const newValue = !prev;
-      localStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
+      safeLocalStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
       return newValue;
     });
   }, []);
@@ -467,8 +502,8 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const resetTaskRolloverState = useCallback(() => {
     console.log("[useTaskRollover] Starting reset of task rollover state");
     console.log("[useTaskRollover] Current state:", {
-      lastCheck: localStorage.getItem(LAST_CHECK_KEY),
-      todayFlag: localStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`),
+      lastCheck: safeLocalStorage.getItem(LAST_CHECK_KEY),
+      todayFlag: safeLocalStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`),
       hasCheckedToday: hasCheckedToday.current,
       hasIncompleteTasks,
       serviceEnabled,
@@ -476,9 +511,9 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     });
     
     // Clear localStorage entries
-    localStorage.removeItem(LAST_CHECK_KEY);
+    safeLocalStorage.removeItem(LAST_CHECK_KEY);
     // Also clear the today flag to prevent showing the dialog again
-    localStorage.removeItem(`${COMPLETED_TRANSFERS_KEY}-today`);
+    safeLocalStorage.removeItem(`${COMPLETED_TRANSFERS_KEY}-today`);
     // Don't clear the service enabled setting or completed transfers list
     
     // Reset all in-memory state
@@ -490,8 +525,8 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     
     console.log('[useTaskRollover] Task rollover state has been fully reset');
     console.log("[useTaskRollover] New state:", {
-      lastCheck: localStorage.getItem(LAST_CHECK_KEY),
-      todayFlag: localStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`),
+      lastCheck: safeLocalStorage.getItem(LAST_CHECK_KEY),
+      todayFlag: safeLocalStorage.getItem(`${COMPLETED_TRANSFERS_KEY}-today`),
       hasCheckedToday: hasCheckedToday.current,
       hasIncompleteTasks: false,
       serviceEnabled,

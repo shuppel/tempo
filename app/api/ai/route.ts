@@ -84,6 +84,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('API Error:', error);
+    
+    // Check for rate limiting errors from Anthropic
+    if (error instanceof Error && 
+        (error.message.includes('429') || 
+         error.message.includes('529') || 
+         error.message.includes('rate limit') ||
+         error.message.includes('overloaded'))) {
+      console.warn('Rate limit error from Anthropic API detected');
+      return NextResponse.json({
+        error: 'Service temporarily overloaded. Please try again in a few moments.',
+        code: 'RATE_LIMITED',
+        details: error.message
+      }, { status: 429 });
+    }
+    
     if (error instanceof Error && error.message.includes('authentication')) {
       return NextResponse.json({ error: 'API authentication failed. Please check API key configuration.' }, { status: 401 });
     }

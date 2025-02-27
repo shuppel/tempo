@@ -247,7 +247,7 @@ export const AI_RULES = {
 export const ERROR_HANDLING_RULES = {
   // Retry Strategies
   RETRIES: {
-    MAX_ATTEMPTS: 5,                // Maximum retry attempts
+    MAX_ATTEMPTS: 1,                // Maximum retry attempts
     BACKOFF_MS: 1000,              // Base backoff time
     PARSING_BACKOFF_MS: 2000       // Parsing error backoff
   },

@@ -470,8 +470,22 @@ Provide the result as a JSON object with this EXACT structure:
       )
     }
   } catch (error) {
-    console.error('Task processing error:', error)
-
+    console.error('Task processing API error:', error)
+    
+    // Check for rate limiting errors from Anthropic
+    if (error instanceof Error && 
+        (error.message.includes('429') || 
+         error.message.includes('529') || 
+         error.message.includes('rate limit') ||
+         error.message.includes('overloaded'))) {
+      console.warn('Rate limit error from Anthropic API detected');
+      return NextResponse.json({
+        error: 'Service temporarily overloaded. Please try again in a few moments.',
+        code: 'RATE_LIMITED',
+        details: error.message
+      }, { status: 429 });
+    }
+    
     if (error instanceof TaskProcessingError) {
       return NextResponse.json({
         error: error.message,
@@ -479,11 +493,11 @@ Provide the result as a JSON object with this EXACT structure:
         details: error.details
       }, { status: 400 })
     }
-
+    
     return NextResponse.json({
       error: 'Failed to process tasks',
       code: 'INTERNAL_ERROR',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 } 

@@ -249,7 +249,7 @@ function recalculateStoryDuration(story: ProcessedStory): void {
   console.log(`Recalculated duration for "${story.title}": ${story.estimatedDuration} minutes (work: ${totalWorkTime}, breaks: ${totalBreakTime})`)
 }
 
-const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 10) => {
+const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 1) => {
   let currentStories = [...stories]
   let retryCount = 0
   let lastError = null
@@ -482,11 +482,32 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
       console.error(`Session creation attempt ${retryCount + 1} failed:`, error)
       lastError = error
       
-      // Check if this is a parsing error that might benefit from retry
-      const shouldRetry = error instanceof Error && 
-        (error.message.includes('parse') || error.message.includes('JSON'))
+      // Detect rate limit errors specifically
+      const isRateLimitError = 
+        (error instanceof Error && (
+          error.message.includes('429') || 
+          error.message.includes('529') || 
+          error.message.includes('rate limit') ||
+          error.message.includes('overloaded')
+        ));
       
-      // Don't retry on the last attempt or if it's not a parsing error
+      // Check for 529 overloaded errors specifically - these need a longer backoff
+      const isOverloadedError = isRateLimitError && 
+        (error instanceof Error && (
+          error.message.includes('529') || 
+          error.message.includes('overloaded')
+        ));
+      
+      // Check if this is a parsing error or rate limit error that might benefit from retry
+      const shouldRetry = (error instanceof Error && 
+        (error.message.includes('parse') || error.message.includes('JSON'))) || isRateLimitError;
+      
+      // Log specifically for rate limit errors
+      if (isRateLimitError) {
+        console.warn('Rate limit error detected. Adding longer backoff before retry.');
+      }
+      
+      // Don't retry on the last attempt or if it's not a retryable error
       if (retryCount >= maxRetries - 1 || !shouldRetry) {
         console.error(`Maximum retry limit (${maxRetries}) reached or non-retryable error. Giving up.`)
         break
@@ -502,7 +523,25 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
       retryCount++
       
       // Wait a moment before retrying, longer for parsing errors
-      await new Promise(resolve => setTimeout(resolve, shouldRetry ? 2000 : 1000))
+      const baseDelay = shouldRetry ? 2000 : 1000;
+      // Add exponential backoff based on retry count
+      let backoffDelay = baseDelay * Math.pow(2, retryCount);
+      
+      // Add extra delay for rate limit errors
+      if (isRateLimitError) {
+        backoffDelay = Math.max(backoffDelay, 5000) * 2; // At least 10 seconds for rate limit errors
+        
+        // Add even longer delay for 529 overloaded errors
+        if (isOverloadedError) {
+          backoffDelay = Math.max(backoffDelay, 15000); // At least 15 seconds for 529 errors
+          console.log(`529 Overloaded error detected. Using extended backoff: ${backoffDelay}ms`);
+        } else {
+          console.log(`Rate limit error detected. Using extended backoff: ${backoffDelay}ms`);
+        }
+      }
+      
+      console.log(`Waiting ${backoffDelay}ms before retry ${retryCount + 1}`);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
     }
   }
   
