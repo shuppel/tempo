@@ -196,35 +196,35 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
           }
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Previous Tasks Found</AlertDialogTitle>
-            <AlertDialogDescription>
+        <AlertDialogContent className="border-0 rounded-md max-w-xl dark:border dark:border-gray-700">
+          <AlertDialogHeader className="space-y-2">
+            <AlertDialogTitle className="text-xl font-semibold tracking-tight">Previous Tasks Pending</AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-gray-600 dark:text-gray-300">
               <div className="space-y-4">
-                Did you finish everything you wanted to finish from the session on
-                {recentSession && (
-                  <span className="font-medium ml-1">
-                    {format(parseISO(recentSession.date), "EEEE, MMMM d")}
-                  </span>
-                )}?
+                <p className="leading-relaxed">
+                  You have incomplete tasks from your session on
+                  {recentSession && (
+                    <span className="font-medium ml-1 text-gray-900 dark:text-white">
+                      {format(parseISO(recentSession.date), "EEEE, MMMM d")}
+                    </span>
+                  )}.
+                </p>
 
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-md flex items-start gap-2 mt-4">
-                  <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
-                      You have {incompleteTasks.length} incomplete tasks from your previous session.
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      If you've completed them, please mark the session as done and debrief.
-                      If not, you can carry them over to today.
-                    </p>
-                  </div>
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    Session Review Required
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Would you like to complete these tasks in your previous session, or transfer them to your current plan?
+                  </p>
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex gap-3 pt-2">
             <AlertDialogCancel 
+              className="border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
               onClick={() => {
                 console.log("[TaskRollover] Finish question canceled");
                 setShowFinishQuestion(false);
@@ -233,16 +233,16 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleFinishedNo}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleFinishedYes}
+              className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white"
             >
-              No, I need to roll them over
+              Complete in Previous Session
             </AlertDialogAction>
             <AlertDialogAction
-              onClick={handleFinishedYes}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleFinishedNo}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Yes, go to debrief
+              Transfer to Current Plan
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -263,13 +263,13 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
           }
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Task Rollover</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col rounded-md border-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+            <DialogTitle className="text-xl font-semibold tracking-tight">Task Transfer</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 pt-1.5">
               {recentSession ? (
                 <span>
-                  Select tasks from {format(parseISO(recentSession.date), "EEEE, MMMM d")} to add to today's plan
+                  Select tasks from your <span className="font-medium text-gray-800 dark:text-gray-200">{format(parseISO(recentSession.date), "MMMM d")}</span> session to transfer to today's plan
                 </span>
               ) : (
                 <span>Select tasks from your previous session</span>
@@ -277,40 +277,42 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col space-y-3 overflow-y-auto py-2 flex-1">
+          <div className="flex flex-col px-6 py-4 overflow-y-auto flex-1">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
-                <span className="ml-3">Loading tasks...</span>
+              <div className="flex items-center justify-center py-10">
+                <div className="animate-spin h-6 w-6 border-3 border-gray-300 border-t-gray-800 dark:border-gray-600 dark:border-t-gray-300 rounded-full"></div>
+                <span className="ml-3 text-gray-600 dark:text-gray-300">Loading tasks...</span>
               </div>
             ) : incompleteTasks.length > 0 ? (
               <>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      console.log("[TaskRollover] Selecting all tasks");
-                      selectAllTasks();
-                    }}
-                    className="h-8"
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      console.log("[TaskRollover] Deselecting all tasks");
-                      deselectAllTasks();
-                    }}
-                    className="h-8"
-                  >
-                    Deselect All
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {selectedCount} of {incompleteTasks.length} selected
+                <div className="flex items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {selectedCount} of {incompleteTasks.length} task{incompleteTasks.length !== 1 ? 's' : ''} selected
                   </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        console.log("[TaskRollover] Selecting all tasks");
+                        selectAllTasks();
+                      }}
+                      className="h-8 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        console.log("[TaskRollover] Deselecting all tasks");
+                        deselectAllTasks();
+                      }}
+                      className="h-8 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      Deselect All
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -327,24 +329,25 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8">
-                <CheckCheck className="h-12 w-12 text-green-500 mb-2" />
-                <p className="text-center text-muted-foreground">
-                  No incomplete tasks found
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <CheckCheck className="h-10 w-10 mb-3" />
+                <p className="text-center">
+                  No incomplete tasks found in your previous session
                 </p>
               </div>
             )}
           </div>
 
-          <DialogFooter className="flex justify-between items-center pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
+          <DialogFooter className="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {selectedCount > 0
-                ? `${selectedCount} tasks will be added to your Brain Dump`
+                ? `${selectedCount} task${selectedCount !== 1 ? 's' : ''} will be transferred to your current plan`
                 : "No tasks selected"}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button 
-                variant="outline" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={() => {
                   console.log("[TaskRollover] Cancel button clicked");
                   closeAndDiscard();
@@ -353,13 +356,14 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                 Cancel
               </Button>
               <Button 
+                className={`${selectedCount > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'} text-white`}
                 onClick={() => {
                   console.log("[TaskRollover] Add to Brain Dump button clicked");
                   handleTaskRolloverComplete();
                 }}
                 disabled={selectedCount === 0}
               >
-                Add to Brain Dump
+                Transfer Tasks
               </Button>
             </div>
           </DialogFooter>
@@ -378,59 +382,82 @@ interface TaskItemProps {
 }
 
 function TaskItem({ task, index, onToggle, onComplete, onDelete }: TaskItemProps) {
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
+
+  const handleComplete = async () => {
+    setIsCompletingTask(true);
+    try {
+      await onComplete(index);
+    } finally {
+      setIsCompletingTask(false);
+    }
+  };
+
   return (
-    <div className="flex items-start gap-3 border rounded-lg p-3 hover:bg-muted/30 transition-colors">
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="h-6 w-6 p-0 mt-1" 
-        onClick={() => onToggle(index)}
-      >
-        {task.selected ? (
-          <CheckSquare className="h-5 w-5 text-primary" />
-        ) : (
-          <Square className="h-5 w-5 text-muted-foreground" />
-        )}
-      </Button>
+    <div className="flex items-start gap-3 border border-gray-200 dark:border-gray-700 rounded p-3 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+      <div className="mt-0.5">
+        <button 
+          type="button"
+          className={cn(
+            "h-5 w-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors",
+            task.selected 
+              ? "bg-blue-50 border-blue-300 text-blue-600 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400" 
+              : "border-gray-300 dark:border-gray-600"
+          )}
+          onClick={() => onToggle(index)}
+          aria-label={task.selected ? "Deselect task" : "Select task"}
+        >
+          {task.selected && (
+            <CheckSquare className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+      
       <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h4 className="font-medium">
+        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+          <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm leading-tight">
             {task.task.title}
           </h4>
           {task.task.isFrog && (
-            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-              FROG
+            <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 font-normal text-xs">
+              Priority
             </Badge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground mt-1">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
+            <Clock className="h-3 w-3" />
             {task.task.duration ? formatDuration(task.task.duration) : "No duration"}
           </span>
-          <span className="text-muted-foreground">•</span>
-          <span>From: {task.storyTitle}</span>
+          <span className="text-gray-400 dark:text-gray-500">•</span>
+          <span>Category: {task.storyTitle}</span>
         </div>
       </div>
-      <div className="flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
-          onClick={() => onComplete(index)}
+      
+      <div className="flex gap-1 ml-2">
+        <button
+          type="button"
+          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 bg-transparent hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800 transition-colors"
+          onClick={handleComplete}
+          disabled={isCompletingTask}
+          aria-label="Mark as completed"
           title="Mark as completed"
         >
-          <CheckCircle className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+          {isCompletingTask ? (
+            <div className="h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <CheckCircle className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <button
+          type="button"
+          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-red-600 bg-transparent hover:bg-gray-100 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-gray-800 transition-colors"
           onClick={() => onDelete(index)}
+          aria-label="Remove from list"
           title="Remove from list"
         >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );
