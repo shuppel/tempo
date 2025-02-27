@@ -449,4 +449,33 @@ export class SessionStorageService {
   private getKey(date: string): string {
     return `${SESSION_PREFIX}${date}`
   }
-} 
+
+  /**
+   * Archive a session by setting its status to 'archived'
+   */
+  async archiveSession(date: string): Promise<boolean> {
+    console.log(`[SessionStorageService] Archiving session for date: ${date}`)
+    
+    try {
+      const session = await this.getSession(date)
+      if (!session) {
+        console.log(`[SessionStorageService] No session found for date: ${date} to archive`)
+        return false
+      }
+      
+      // Update the session status to archived
+      const updatedSession: Session = {
+        ...session,
+        status: 'archived' as const
+      }
+      
+      // Save the updated session
+      await this.saveSession(date, updatedSession)
+      console.log(`[SessionStorageService] Successfully archived session for date: ${date}`)
+      return true
+    } catch (error) {
+      console.error(`[SessionStorageService] Error archiving session for date: ${date}:`, error)
+      return false
+    }
+  }
+}

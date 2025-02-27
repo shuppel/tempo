@@ -4,6 +4,7 @@ import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-
 import { SessionStorageService } from "@/app/features/session-manager"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 import { useRouter } from "next/navigation"
+import { TaskRolloverService } from "@/app/features/task-rollover"
 
 // Create a singleton instance of SessionStorageService
 const sessionStorage = new SessionStorageService()
@@ -259,6 +260,20 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       setProcessedStories([])
       setEditedDurations({})
       setIsInputLocked(false)
+
+      // After successful session creation, archive any previous active sessions
+      try {
+        const rolloverService = new TaskRolloverService();
+        const recentSession = await rolloverService.getMostRecentActiveSession();
+        
+        if (recentSession) {
+          console.log(`[useBrainDump] Archiving previous session: ${recentSession.date}`);
+          await rolloverService.archiveSession(recentSession.date);
+        }
+      } catch (archiveError) {
+        // Log but don't fail if archiving fails
+        console.error('[useBrainDump] Error archiving previous session:', archiveError);
+      }
 
       // Navigate to the newly created session page
       const formattedDate = today
