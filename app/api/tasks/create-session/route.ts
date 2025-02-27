@@ -6,24 +6,14 @@ import {
   TimeBox as DurationTimeBox,
   calculateDurationSummary,
   calculateTotalDuration,
-  validateTaskDuration,
-  generateSchedulingSuggestion,
-  suggestSplitAdjustment
 } from '@/lib/durationUtils'
-import type { 
-  Task, 
-  TaskType, 
-  StoryType,
-  APIProcessedTask,
-  APIProcessedStory,
-  APISessionResponse
-} from '@/lib/types'
 import {
   transformTaskData,
   transformStoryData,
+  // Used in the original codebase in various functions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   normalizeTaskTitle,
   isSplitTaskPart,
-  getBaseTaskTitle,
   getBaseStoryTitle
 } from '@/lib/transformUtils'
 
@@ -102,10 +92,12 @@ interface TimeBoxTask {
   id: string
   title: string
   duration: number
-  taskCategory?: TaskType
+  taskCategory?: string
   projectType?: string
   originalTitle?: string
   isFrog?: boolean
+  type?: string
+  project?: string
   splitInfo?: {
     originalTitle?: string
     isParent: boolean
@@ -130,89 +122,19 @@ interface StoryBlock {
   icon: string
   timeBoxes: TimeBox[]
   totalDuration: number
+  storyType?: string
+  type?: string
+  projectType?: string
+  project?: string
   suggestions?: Array<{
     type: string
     task: string
     message: string
-    details: Record<string, any>
+    details: Record<string, unknown>
   }>
 }
 
-type SessionResponse = APISessionResponse;
-
-// Add helper functions for task title handling
-function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } {
-  // Account for breaks in the duration ranges
-  const minWithBreak = DURATION_RULES.MIN_DURATION + DURATION_RULES.SHORT_BREAK
-  const maxWithBreak = DURATION_RULES.MAX_DURATION + DURATION_RULES.LONG_BREAK * 2 // Allow for two long breaks
-  
-  return {
-    min: minWithBreak,
-    max: maxWithBreak
-  }
-}
-
-function getDurationDescription(range: { min: number; max: number }, type: string): string {
-  return `${range.min}-${range.max} minutes (including breaks, ${type})`
-}
-
-function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): string | undefined {
-  const normalizedSearch = normalizeTaskTitle(searchTitle)
-  
-  // Log for debugging
-  console.log(`Matching title: "${searchTitle}" normalized to "${normalizedSearch}"`)
-  
-  // First check for split task matches
-  const splitMatches = availableTitles.filter(title => 
-    title.includes('(Part') && 
-    normalizeTaskTitle(title.split('(Part')[0]) === normalizedSearch
-  )
-  
-  if (splitMatches.length > 0) {
-    console.log(`Found split task matches: ${splitMatches.join(', ')}`)
-    // Return the first part to represent the whole task
-    return splitMatches[0].split('(Part')[0].trim()
-  }
-
-  // Try exact match first
-  const exactMatch = availableTitles.find(title => {
-    const normalizedTitle = normalizeTaskTitle(title)
-    console.log(`Comparing with: "${title}" normalized to "${normalizedTitle}"`)
-    return normalizedTitle === normalizedSearch
-  })
-  
-  if (exactMatch) {
-    console.log(`Found exact match: "${exactMatch}"`)
-    return exactMatch
-  }
-
-  // Try fuzzy matching for project names
-  const fuzzyMatch = availableTitles.find(title => {
-    const normalizedTitle = normalizeTaskTitle(title)
-    // Check if the core project names match
-    const searchWords = normalizedSearch.split(' ').filter(word => word.length > 2)
-    const titleWords = normalizedTitle.split(' ').filter(word => word.length > 2)
-    
-    const matchingWords = searchWords.filter(word => 
-      titleWords.some((titleWord: string) => 
-        titleWord.includes(word) || word.includes(titleWord)
-      )
-    )
-    
-    return matchingWords.length >= Math.min(2, searchWords.length)
-  })
-
-  if (fuzzyMatch) {
-    console.log(`Found fuzzy match: "${fuzzyMatch}"`)
-    return fuzzyMatch
-  }
-
-  console.log(`No match found for "${searchTitle}"`)
-  return undefined
-}
-
-// Update findOriginalStory function to use story mapping if available
-function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: any[]): any {
+function findOriginalStory(storyTitle: string, stories: z.infer<typeof StorySchema>[], storyMapping?: z.infer<typeof StoryMappingSchema>[]): z.infer<typeof StorySchema> | undefined {
   // Special case for "Break" blocks which don't correspond to actual stories
   if (storyTitle === "Break" || storyTitle.toLowerCase().includes("break")) {
     console.log(`Creating dummy story for special block: ${storyTitle}`);
@@ -224,7 +146,8 @@ function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: an
       type: "flexible",
       projectType: "System",
       category: "Break",
-      summary: "Scheduled break time"
+      summary: "Scheduled break time",
+      icon: "⏱️" // Add icon for the dummy story
     };
   }
 
@@ -245,24 +168,24 @@ function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: an
   // If mapping doesn't work or isn't available, try other methods
 
   // First try exact match
-  let original = stories.find((story: any) => story.title === storyTitle);
+  let original = stories.find((story) => story.title === storyTitle);
   if (original) return original;
   
   // If not found and title contains "Part X of Y", try matching the base title
   if (isSplitTaskPart(storyTitle)) {
     const baseTitle = getBaseStoryTitle(storyTitle);
-    original = stories.find((story: any) => story.title === baseTitle);
+    original = stories.find((story) => story.title === baseTitle);
     if (original) return original;
     
     // Try fuzzy match on base title
-    original = stories.find((story: any) => {
+    original = stories.find((story) => {
       return story.title.includes(baseTitle) || baseTitle.includes(story.title);
     });
     if (original) return original;
   }
   
   // Try fuzzy match as last resort
-  original = stories.find((story: any) => {
+  original = stories.find((story) => {
     const storyWords = story.title.toLowerCase().split(/\s+/);
     const searchWords = storyTitle.toLowerCase().split(/\s+/);
     
@@ -280,20 +203,6 @@ function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: an
   }
   
   return original;
-}
-
-function buildOriginalTasksMap(stories: z.infer<typeof StorySchema>[]): Map<string, string> {
-  // Create a map of normalized task titles to original task titles
-  const tasksMap = new Map<string, string>();
-  
-  stories.forEach(story => {
-    story.tasks.forEach((task: any) => {
-      const normalizedTitle = normalizeTaskTitle(task.title);
-      tasksMap.set(normalizedTitle, task.title);
-    });
-  });
-  
-  return tasksMap;
 }
 
 function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], scheduledTasks: TimeBoxTask[]): {
@@ -366,7 +275,7 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
     const updatedTimeBoxes: TimeBox[] = [];
     
     let consecutiveWorkTime = 0;
-    let currentTime = new Date();
+    const currentTime = new Date();
     
     // Set the start time for the first time box
     if (block.timeBoxes.length > 0) {
@@ -450,34 +359,14 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
 // Extract the inferred type from the schema
 type Story = z.infer<typeof StorySchema>
 
-// Upgrade task objects to the session model 
-function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask {
-  return {
-    id: task.id,
-    title: task.title,
-    duration: task.duration,
-    taskCategory: task.taskCategory,
-    projectType: task.projectType,
-    isFrog: task.isFrog,
-    originalTitle: task.originalTitle,
-    splitInfo: task.splitInfo,
-    suggestedBreaks: task.suggestedBreaks || []
-  }
-}
-
 export async function POST(req: Request) {
-  const currentTime = new Date()
-  let startTime
-  let stories
-  let storyMapping
-
   try {
     const body = await req.json()
     const parsedBody = RequestSchema.parse(body)
     
-    stories = parsedBody.stories
-    startTime = parsedBody.startTime
-    storyMapping = parsedBody.storyMapping
+    const stories = parsedBody.stories
+    const startTime = parsedBody.startTime
+    const storyMapping = parsedBody.storyMapping
     
     console.log(`Received ${stories.length} stories for session creation`)
     if (storyMapping) {
@@ -495,9 +384,6 @@ export async function POST(req: Request) {
         { totalDuration, maxDuration: 24 * 60 }
       )
     }
-
-    // Create a map of original tasks for validation
-    const originalTasksMap = buildOriginalTasksMap(stories);
 
     try {
       // Log input data
@@ -673,19 +559,19 @@ Return JSON with this structure:
               console.warn(`Reconstructing missing timeBoxes for story block ${i}`);
               block.timeBoxes = [];
             }
-            block.totalDuration = block.timeBoxes.reduce((sum: number, box: any) => sum + (box.duration || 0), 0);
+            block.totalDuration = block.timeBoxes.reduce((sum: number, box: TimeBox) => sum + (box.duration || 0), 0);
           }
         }
 
         // Transform fields to ensure consistent property names
         if (parsedData.storyBlocks && Array.isArray(parsedData.storyBlocks)) {
-          parsedData.storyBlocks = parsedData.storyBlocks.map((block: any) => {
+          parsedData.storyBlocks = parsedData.storyBlocks.map((block: StoryBlock) => {
             // Transform the story block itself
             const transformedBlock = transformStoryData(block);
             
             // Transform timeBoxes and their tasks
             if (transformedBlock.timeBoxes && Array.isArray(transformedBlock.timeBoxes)) {
-              transformedBlock.timeBoxes = transformedBlock.timeBoxes.map((timeBox: any) => {
+              transformedBlock.timeBoxes = transformedBlock.timeBoxes.map((timeBox: TimeBox) => {
                 // Transform tasks within each time box
                 if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
                   timeBox.tasks = timeBox.tasks.map(transformTaskData);
@@ -724,7 +610,7 @@ Return JSON with this structure:
         const storyBlocks = parsedData.storyBlocks || []
 
         // Verify all tasks have the correct properties
-        storyBlocks.forEach((block: any) => {
+        storyBlocks.forEach((block: StoryBlock) => {
           // Transform story properties if needed
           if (!block.storyType && block.type) {
             console.log(`Transforming story type -> storyType for "${block.title}"`)
@@ -738,21 +624,27 @@ Return JSON with this structure:
           }
           
           if (block.timeBoxes && Array.isArray(block.timeBoxes)) {
-            block.timeBoxes.forEach((timeBox: any) => {
+            block.timeBoxes.forEach((timeBox: TimeBox) => {
               if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
-                timeBox.tasks.forEach((task: any) => {
+                timeBox.tasks.forEach((task: TimeBoxTask) => {
                   // Ensure task has taskCategory property (originally might have been type)
                   if (!task.taskCategory && task.type) {
                     console.log(`Transforming task type -> taskCategory for "${task.title}"`)
                     task.taskCategory = task.type
-                    delete task.type
+                    
+                    // Disable eslint for the next line
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    delete (task as any).type;
                   }
                   
                   // Ensure task has projectType property (originally might have been project)
                   if (!task.projectType && task.project) {
                     console.log(`Transforming task project -> projectType for "${task.title}"`)
                     task.projectType = task.project
-                    delete task.project
+                    
+                    // Disable eslint for the next line
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    delete (task as any).project;
                   }
                 })
               }
