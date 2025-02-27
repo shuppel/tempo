@@ -42,10 +42,6 @@ const DialogContent = React.forwardRef<
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
-interface PageParams {
-  date: string
-}
-
 interface SessionPageProps {
   params: { date: string } | Promise<{ date: string }>
 }
@@ -71,7 +67,7 @@ function MitigatedTasksView({ session }: MitigatedTasksViewProps) {
     <div className="mt-8 space-y-4 border border-muted p-4 rounded-lg">
       <h2 className="text-xl font-semibold">Mitigated Tasks</h2>
       <p className="text-muted-foreground text-sm">
-        These tasks were intentionally set aside and won't appear in future rollover screens.
+        These tasks were intentionally set aside and won&apos;t appear in future rollover screens.
       </p>
       <ul className="space-y-2 mt-4">
         {mitigatedTasks.map((task, index) => (
@@ -154,7 +150,7 @@ export default function SessionPage({ params }: SessionPageProps) {
         clearInterval(intervalId);
       }
     };
-  }, [date, showStartModal])
+  }, [date, showStartModal, storageService])
 
   // Get time estimates using the utility function
   const { totalTime, estimatedEnd } = sessionData ? 
