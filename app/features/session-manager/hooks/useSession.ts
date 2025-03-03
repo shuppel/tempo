@@ -36,6 +36,7 @@ export interface UseSessionReturn {
   isTimerRunning: boolean
   isSessionComplete: boolean
   completedPercentage: number
+  hasIncompleteTasks: boolean
   handleTaskClick: (storyId: string | undefined, timeBoxIndex: number, taskIndex: number, task: TimeBoxTask) => void
   startTimeBox: (storyId: string, timeBoxIndex: number, duration: number) => void
   pauseTimer: () => void
@@ -85,6 +86,27 @@ export const useSession = ({
   const isSessionComplete = useMemo(() => {
     return completedPercentage === 100
   }, [completedPercentage])
+
+  // Check for incomplete tasks
+  const hasIncompleteTasks = useMemo(() => {
+    if (!session) return false
+
+    // Check each story block
+    for (const story of session.storyBlocks) {
+      // Check each timebox in the story
+      for (const timeBox of story.timeBoxes) {
+        // Skip completed timeboxes
+        if (timeBox.status === 'completed') continue
+
+        // Check if there are any incomplete tasks
+        if (timeBox.tasks?.some(task => task.status !== 'completed')) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }, [session])
 
   // Update session in storage
   const updateSession = useCallback(async (updatedSession: Session): Promise<void> => {
@@ -608,7 +630,7 @@ export const useSession = ({
     }
   }, [session?.date, activeTimeBox, timeRemaining, isTimerRunning, storageService])
 
-  // Load session
+  // Load session data
   useEffect(() => {
     const loadSession = async () => {
       if (!id) {
@@ -617,41 +639,41 @@ export const useSession = ({
       }
 
       try {
+        setLoading(true)
         const loadedSession = await storageService.getSession(id)
+        
         if (loadedSession) {
           setSession(loadedSession)
           
-          // Load timer state from storage first
-          const timerState = storageService.getTimerState(id)
+          // Load timer state
+          const timerState = await storageService.getTimerState(id)
+          if (timerState) {
+            const { activeTimeBox: savedTimeBox, timeRemaining: savedTime, isTimerRunning: savedRunning } = timerState
+            setActiveTimeBox(savedTimeBox)
+            setTimeRemaining(savedTime)
+            setIsTimerRunning(savedRunning)
+          }
           
-          if (timerState && timerState.activeTimeBox) {
-            // Use persisted timer state if available
-            setActiveTimeBox(timerState.activeTimeBox)
-            setTimeRemaining(timerState.timeRemaining)
-            setIsTimerRunning(timerState.isTimerRunning)
-          } else {
-            // Fall back to finding in-progress timebox
-            const inProgressTimeBox = findInProgressTimeBox(loadedSession)
-            if (inProgressTimeBox) {
-              setActiveTimeBox(inProgressTimeBox)
-              // Set time remaining based on the stored remaining time or default to full duration
-              const storyIndex = loadedSession.storyBlocks.findIndex(s => s.id === inProgressTimeBox.storyId)
-              if (storyIndex !== -1) {
-                const timeBox = loadedSession.storyBlocks[storyIndex].timeBoxes[inProgressTimeBox.timeBoxIndex]
-                setTimeRemaining((timeBox as any).remainingTime || timeBox.duration * 60)
-              }
-            }
+          // Check for in-progress timebox
+          const inProgressTimeBox = findInProgressTimeBox(loadedSession)
+          if (inProgressTimeBox) {
+            setActiveTimeBox(inProgressTimeBox)
           }
         }
-        setLoading(false)
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to load session'))
+        toast({
+          title: "Error",
+          description: "Failed to load session",
+          variant: "destructive",
+        })
+      } finally {
         setLoading(false)
       }
     }
 
     loadSession()
-  }, [id, storageService])
+  }, [id, storageService, toast])
 
   // Persist timer state when user leaves the page
   useEffect(() => {
@@ -718,6 +740,7 @@ export const useSession = ({
     isTimerRunning,
     isSessionComplete,
     completedPercentage,
+    hasIncompleteTasks,
     handleTaskClick,
     startTimeBox,
     pauseTimer,

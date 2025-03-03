@@ -1,4 +1,12 @@
 // /features/brain-dump/services/brain-dump-services.ts
+// This service module provides two main functions:
+// 1. processTasks: Sends a list of raw tasks to the AI processing endpoint,
+//    validates and enriches the response with duration and difficulty.
+// 2. createSession: Creates a session from processed stories, including
+//    task splitting for workload management, error-based modifications,
+//    retries with exponential backoff, and finally saving the session using
+//    the SessionStorageService.
+
 import type { DifficultyLevel } from "@/lib/types"
 import type { ProcessedStory, ProcessedTask } from "../types"
 import { SessionStorageService } from "@/app/features/session-manager"
@@ -11,38 +19,42 @@ import {
   type TimeBox
 } from "@/lib/durationUtils"
 
-// Create a singleton instance of SessionStorageService
+// Create a singleton instance of SessionStorageService for saving sessions.
 const sessionStorage = new SessionStorageService()
 
-// Helper to determine task difficulty based on duration
+// Helper function to determine task difficulty based on its duration.
 const determineDifficulty = (duration: number): DifficultyLevel => {
   if (duration <= 30) return 'low';
   if (duration <= 60) return 'medium';
   return 'high';
 };
 
+// processTasks sends a list of task strings to the API for processing.
+// It validates the API response and ensures each task has a valid duration
+// and an appropriate difficulty level.
 const processTasks = async (taskList: string[]) => {
+  // Send a POST request to the processing endpoint with the task list.
   const response = await fetch("/api/tasks/process", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tasks: taskList })
   })
 
+  // Parse the JSON response.
   const data = await response.json()
   
+  // If the response is not OK, extract error details and throw an error.
   if (!response.ok) {
-    // If the response contains error details, throw them
     if (isApiError(data)) {
       const errorDetails = data.details 
         ? `\n\nDetails: ${JSON.stringify(data.details, null, 2)}`
         : ''
       throw new Error(`${data.error}${errorDetails}`)
     }
-    // If it's a raw error message
     throw new Error(data.error || 'Failed to process tasks')
   }
 
-  // Ensure all tasks have a valid duration and difficulty
+  // Enrich the response: ensure each task has a valid duration and set a difficulty.
   if (data.stories) {
     data.stories = data.stories.map((story: ProcessedStory) => ({
       ...story,
@@ -51,7 +63,7 @@ const processTasks = async (taskList: string[]) => {
         return {
           ...task,
           duration: validDuration,
-          // Add difficulty based on duration if not already present
+          // Use determineDifficulty helper if difficulty is not provided.
           difficulty: task.difficulty || determineDifficulty(validDuration)
         };
       })
@@ -59,67 +71,71 @@ const processTasks = async (taskList: string[]) => {
   }
 
   return data
-}
+};
 
-// Helper function to modify stories based on error types
+// modifyStoriesForRetry adjusts stories when errors occur.
+// It performs aggressive task splitting to ensure no block exceeds MAX_WORK_WITHOUT_BREAK.
+// It also adds explicit breaks between split task parts and recalculates story duration.
 const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): ProcessedStory[] => {
-  // Create a deep copy to avoid mutating the original data
+  // Deep copy stories to avoid mutating the original array.
   const modifiedStories = JSON.parse(JSON.stringify(stories)) as ProcessedStory[]
   
   console.log('Modifying stories for retry. Error details:', error?.details)
   
-  // Check if we have a specific error for a block
+  // Identify if a specific block is problematic.
   const problematicBlock = error?.details?.block
   
-  // More aggressive task splitting - use duration rules from durationUtils
+  // Process each story individually.
   modifiedStories.forEach(story => {
     console.log(`Processing story "${story.title}" with ${story.tasks.length} tasks`)
     const updatedTasks: ProcessedTask[] = []
     let cumulativeWorkTime = 0
     
-    // Store original title for reference before any splitting
+    // Save the original title for reference.
     const originalTitle = story.title
     
-    // Set an even more aggressive max task duration for large blocks
-    // This is to ensure we don't exceed MAX_WORK_WITHOUT_BREAK
+    // Determine a maximum task duration based on whether this block is problematic.
     const isProblematicBlock = problematicBlock && story.title === problematicBlock
     const maxTaskDuration = isProblematicBlock 
-      ? Math.floor(DURATION_RULES.MAX_WORK_WITHOUT_BREAK / 3) // Even more aggressive for problem blocks (30 mins)
-      : Math.floor(DURATION_RULES.MAX_WORK_WITHOUT_BREAK / 2)  // Standard aggressive (45 mins)
+      ? Math.floor(DURATION_RULES.MAX_WORK_WITHOUT_BREAK / 3) // More aggressive splitting for problem blocks (e.g. 30 mins)
+      : Math.floor(DURATION_RULES.MAX_WORK_WITHOUT_BREAK / 2)  // Standard limit (e.g. 45 mins)
     
-    // First pass: Split all tasks that exceed the max duration or contribute to excessive work time
+    // First pass: Process each task, splitting tasks that are too long or would push cumulative work time over the limit.
     story.tasks.forEach((task, taskIndex) => {
-      // If this task would push cumulative work time over the limit, split it even if duration is small
+      // Check if adding the task would exceed the allowed continuous work time.
       const wouldExceedLimit = (cumulativeWorkTime + task.duration) > DURATION_RULES.MAX_WORK_WITHOUT_BREAK
       
-      // Always split large tasks or tasks that would push us over the limit
+      // If the task is too long or would push the limit, split it into smaller parts.
       if (task.duration > maxTaskDuration || wouldExceedLimit) {
         console.log(`Splitting task "${task.title}" (${task.duration} minutes) into smaller parts`)
         
-        // For extremely large tasks, be even more aggressive with splitting
-        const effectiveMaxTaskDuration = Math.min(maxTaskDuration, wouldExceedLimit ? DURATION_RULES.MAX_WORK_WITHOUT_BREAK - cumulativeWorkTime : maxTaskDuration)
+        // Calculate effective max duration for splitting, considering remaining work time.
+        const effectiveMaxTaskDuration = Math.min(
+          maxTaskDuration, 
+          wouldExceedLimit ? DURATION_RULES.MAX_WORK_WITHOUT_BREAK - cumulativeWorkTime : maxTaskDuration
+        )
         
         const numParts = Math.max(2, Math.ceil(task.duration / effectiveMaxTaskDuration))
         let remainingDuration = task.duration
         
+        // Split the task into parts.
         for (let i = 0; i < numParts; i++) {
-          // Reset cumulative work time after each part (assuming breaks will be added)
+          // Reset cumulative work time after each part assuming a break is inserted.
           if (i > 0) {
             cumulativeWorkTime = 0
           }
           
-          // Calculate part duration and round to nearest block
+          // Determine the duration of the current part, rounding to the nearest block.
           const rawPartDuration = (i === numParts - 1) 
             ? remainingDuration 
             : Math.min(effectiveMaxTaskDuration, remainingDuration)
-          
           const partDuration = roundToNearestBlock(rawPartDuration)
           remainingDuration -= partDuration
           
-          // Update cumulative work time
+          // Update cumulative work time with this part.
           cumulativeWorkTime += partDuration
           
-          // Create new task part with explicit break requirements
+          // Create a new task object representing this part.
           const newTask: ProcessedTask = {
             ...task,
             title: `${task.title} (Part ${i + 1} of ${numParts})`,
@@ -131,29 +147,30 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
             taskCategory: task.taskCategory,
             projectType: task.projectType,
             isFrog: task.isFrog,
-            originalTitle: task.title // Track original title
+            originalTitle: task.title // Preserve original title for reference.
           }
           
-          // Always add a break after each part (except the last one)
+          // Insert a break after each part except the final one.
           if (i < numParts - 1) {
             newTask.suggestedBreaks.push({
               after: partDuration,
               duration: DURATION_RULES.LONG_BREAK,
               reason: "Required break between task segments"
             })
-            cumulativeWorkTime = 0 // Reset after break
+            cumulativeWorkTime = 0 // Reset cumulative work time after a break.
           }
           
           updatedTasks.push(newTask)
         }
       } else {
-        // For shorter tasks, still track cumulative work time
+        // For tasks that are short enough, round duration and track cumulative work time.
         const roundedDuration = roundToNearestBlock(task.duration)
         cumulativeWorkTime += roundedDuration
         
         const newTask: ProcessedTask = {
           ...task,
           duration: roundedDuration,
+          // Preserve any existing break suggestions.
           suggestedBreaks: [...(task.suggestedBreaks || [])],
           isFlexible: task.isFlexible,
           taskCategory: task.taskCategory,
@@ -161,16 +178,16 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
           isFrog: task.isFrog
         }
         
-        // Add break if we're approaching the limit
-        if (cumulativeWorkTime >= (DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.7)) { // Use 70% as threshold for preemptive breaks
+        // If nearing the work limit (70% threshold), add a preemptive long break.
+        if (cumulativeWorkTime >= (DURATION_RULES.MAX_WORK_WITHOUT_BREAK * 0.7)) {
           newTask.suggestedBreaks.push({
             after: roundedDuration,
             duration: DURATION_RULES.LONG_BREAK,
             reason: "Preemptive break to prevent excessive work time"
           })
-          cumulativeWorkTime = 0 // Reset after break
+          cumulativeWorkTime = 0 // Reset after adding a break.
         } else if (taskIndex < story.tasks.length - 1) {
-          // Add short break between tasks if not the last task
+          // Otherwise, add a short break between tasks if not the last one.
           newTask.suggestedBreaks.push({
             after: roundedDuration,
             duration: DURATION_RULES.SHORT_BREAK,
@@ -182,34 +199,27 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
       }
     })
     
-    // If this is specifically the story mentioned in the error, do additional processing
+    // For a problematic story, perform a second pass to ensure no continuous work exceeds limits.
     if (isProblematicBlock) {
       console.log(`Found story that caused the error: ${story.title}`)
+      story.originalTitle = originalTitle  // Preserve the original title.
       
-      // Add a reference to the original title if this is an affected story
-      story.originalTitle = originalTitle
-      
-      // Second pass: ensure no sequence of tasks exceeds MAX_WORK_WITHOUT_BREAK
       let runningWorkTime = 0
       const finalTasks: ProcessedTask[] = []
       
       for (let i = 0; i < updatedTasks.length; i++) {
         const task = updatedTasks[i]
         
-        // If adding this task would exceed the limit, add a break task first
+        // Insert an additional break if adding the task would exceed the limit.
         if (runningWorkTime + task.duration > DURATION_RULES.MAX_WORK_WITHOUT_BREAK) {
-          // Add a break task
           console.log(`Inserting additional break before task "${task.title}" (running work time: ${runningWorkTime})`)
-          
-          // Ensure the original task includes a required break
           if (!task.suggestedBreaks || task.suggestedBreaks.length === 0) {
             task.suggestedBreaks = [{
-              after: 0, // At the beginning
+              after: 0,
               duration: DURATION_RULES.LONG_BREAK,
               reason: "Required break to prevent excessive consecutive work time"
             }]
           }
-          
           runningWorkTime = task.duration
         } else {
           runningWorkTime += task.duration
@@ -217,72 +227,61 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): Processed
         
         finalTasks.push(task)
         
-        // Reset running time if this task has a break at the end
+        // Reset running time if the task ends with a break.
         if (task.suggestedBreaks && task.suggestedBreaks.some(b => b.after === task.duration)) {
           runningWorkTime = 0
         }
       }
       
-      // Use the final tasks list with added breaks
+      // Replace the story's tasks with the final adjusted list.
       story.tasks = finalTasks
     } else {
-      // Use the updated tasks list for non-problematic stories
+      // For non-problematic stories, use the tasks from the first pass.
       story.tasks = updatedTasks
     }
     
-    // Recalculate story duration with new tasks and breaks
+    // Recalculate the overall estimated duration of the story, including both work and breaks.
     recalculateStoryDuration(story)
   })
   
   return modifiedStories
-}
+};
 
-// Helper function to recalculate story duration based on tasks and breaks
+// recalculateStoryDuration computes a story's total duration by summing work and break times,
+// then rounding to the nearest allowed block.
 function recalculateStoryDuration(story: ProcessedStory): void {
-  // Calculate total duration including breaks
   const totalWorkTime = story.tasks.reduce((sum, task) => sum + task.duration, 0)
-  const totalBreakTime = story.tasks.reduce((sum, task) => 
-    sum + (task.suggestedBreaks?.reduce((bSum, b) => bSum + b.duration, 0) || 0), 
-  0)
+  const totalBreakTime = story.tasks.reduce(
+    (sum, task) => sum + (task.suggestedBreaks?.reduce((bSum, b) => bSum + b.duration, 0) || 0),
+    0
+  )
   
   story.estimatedDuration = roundToNearestBlock(totalWorkTime + totalBreakTime)
   console.log(`Recalculated duration for "${story.title}": ${story.estimatedDuration} minutes (work: ${totalWorkTime}, breaks: ${totalBreakTime})`)
 }
 
+// createSession builds a session from processed stories, handles retries with exponential backoff,
+// validates the total duration, saves the session, and returns the session data.
 const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 1) => {
   let currentStories = [...stories]
   let retryCount = 0
   let lastError = null
   
-  // Create a map of story titles (including modified ones) to original stories
-  // This will help with story matching on the server side
+  // Build a mapping of story titles (current, original, and synthetic from task parts)
+  // to help the server match stories during session creation.
   const titleToStoryMap = new Map<string, ProcessedStory>()
-  
-  // Pre-process the stories before first attempt - be proactive
   currentStories = modifyStoriesForRetry(currentStories, {
-    details: { 
-      preventiveModification: true
-    }
+    details: { preventiveModification: true }
   })
-  
-  // Build mapping of all story titles (original and split) to their original stories
   currentStories.forEach(story => {
-    // Store by current title
     titleToStoryMap.set(story.title, story)
-    
-    // If there's an original title stored, map that too
     if (story.originalTitle && story.originalTitle !== story.title) {
       titleToStoryMap.set(story.originalTitle, story)
     }
-    
-    // Also add mappings for task titles with parts
     story.tasks.forEach(task => {
       if (task.title.includes('Part') && task.originalTitle) {
-        // Create a synthetic story title that might be generated by task splitting
         const syntheticStoryTitle = `${story.title}: ${task.title}`
         titleToStoryMap.set(syntheticStoryTitle, story)
-        
-        // Also try with just the original task title
         const baseStoryTitle = `${story.title}: ${task.originalTitle}`
         titleToStoryMap.set(baseStoryTitle, story)
       }
@@ -291,19 +290,19 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
   
   console.log(`Created mapping for ${titleToStoryMap.size} potential story titles`)
   
-  
-  // Only validate that the totalDuration is a valid multiple of BLOCK_SIZE and above MIN_DURATION
+  // Validate overall session duration: must be at least the minimum and a multiple of the block size.
   const totalDuration = currentStories.reduce((sum, story) => sum + story.estimatedDuration, 0)
   if (totalDuration < DURATION_RULES.MIN_DURATION || totalDuration % DURATION_RULES.BLOCK_SIZE !== 0) {
     throw new Error(`Invalid total duration: ${totalDuration} minutes. Must be at least ${DURATION_RULES.MIN_DURATION} minutes and a multiple of ${DURATION_RULES.BLOCK_SIZE} minutes.`)
   }
   
+  // Retry loop for session creation.
   while (retryCount < maxRetries) {
     try {
       console.log(`Attempting to create session (attempt ${retryCount + 1}/${maxRetries})`)
       console.log('Total duration:', totalDuration, 'minutes')
       
-      // Ensure all tasks have IDs before sending
+      // Ensure every task has a unique ID; generate one if missing.
       currentStories.forEach(story => {
         story.tasks.forEach(task => {
           if (!task.id) {
@@ -313,15 +312,14 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
         });
       });
       
-      // Add story mapping to the request
+      // Prepare the request payload, including the stories, start time, and a mapping for story titles.
       const request = {
         stories: currentStories,
         startTime,
-        storyMapping: Array.from(titleToStoryMap.keys())
-          .map(title => ({
-            possibleTitle: title,
-            originalTitle: titleToStoryMap.get(title)?.originalTitle || titleToStoryMap.get(title)?.title
-          }))
+        storyMapping: Array.from(titleToStoryMap.keys()).map(title => ({
+          possibleTitle: title,
+          originalTitle: titleToStoryMap.get(title)?.originalTitle || titleToStoryMap.get(title)?.title
+        }))
       }
       
       const response = await fetch("/api/tasks/create-session", {
@@ -330,10 +328,10 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
         body: JSON.stringify(request)
       })
 
-      // Get the raw text first to handle potential parsing issues
+      // Retrieve the raw response text to preempt JSON parsing issues.
       const rawText = await response.text()
       
-      // Validate response size
+      // Enforce a response size limit to prevent processing overly large payloads.
       if (rawText.length > 10_000_000) { // 10MB limit
         throw new Error('Response too large', {
           cause: { code: 'RESPONSE_TOO_LARGE', size: rawText.length }
@@ -346,14 +344,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
       } catch (parseError) {
         console.error('Failed to parse response as JSON:', parseError)
         console.log('Raw response:', rawText.substring(0, 1000) + '...')
-        
-        // Try to recover from common JSON issues
-        const cleanedText = rawText
-          .replace(/\n/g, '')
-          .replace(/\r/g, '')
-          .replace(/\t/g, '')
-          .trim()
-        
+        const cleanedText = rawText.replace(/\n/g, '').replace(/\r/g, '').replace(/\t/g, '').trim()
         try {
           data = JSON.parse(cleanedText)
         } catch (secondaryParseError) {
@@ -362,25 +353,24 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
               code: 'PARSE_ERROR',
               originalError: parseError,
               secondaryError: secondaryParseError,
-              rawResponse: rawText.substring(0, 1000) + '...' // First 1000 chars for debugging
+              rawResponse: rawText.substring(0, 1000) + '...'
             }
           })
         }
       }
       
+      // If the API returns an error, throw it with detailed info.
       if (!response.ok) {
-        // If the response contains error details, throw them
         if (isApiError(data)) {
           const errorDetails = data.details 
             ? `\n\nDetails: ${JSON.stringify(data.details, null, 2)}`
             : ''
           throw new Error(`${data.error}${errorDetails}`, { cause: data })
         }
-        // If it's a raw error message
         throw new Error(data.error || 'Failed to create session', { cause: data })
       }
 
-      // Validate the response structure
+      // Validate that the response has the expected structure.
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid session response: not an object', {
           cause: { code: 'INVALID_RESPONSE', response: data }
@@ -393,7 +383,6 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
         })
       }
       
-      // Validate each story block
       for (const block of data.storyBlocks) {
         if (!block.title || !block.timeBoxes || !Array.isArray(block.timeBoxes)) {
           throw new Error('Invalid story block structure', {
@@ -402,27 +391,23 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
         }
       }
       
+      // Validate total duration; if missing, calculate it from the story blocks.
       if (typeof data.totalDuration !== 'number' || data.totalDuration <= 0) {
-        // If totalDuration is missing or invalid, calculate it from story blocks
         console.warn('Session response missing valid totalDuration, calculating from story blocks')
-        
         const calculatedTotalDuration = data.storyBlocks.reduce(
           (sum: number, block: any) => sum + (block.totalDuration || 0), 
           0
         )
-        
         if (calculatedTotalDuration <= 0) {
           throw new Error('Cannot calculate valid session duration from story blocks', {
             cause: { code: 'INVALID_DURATION', response: data }
           })
         }
-        
-        // Set the calculated duration
         data.totalDuration = calculatedTotalDuration
         console.log(`Set totalDuration to calculated value: ${calculatedTotalDuration} minutes`)
       }
 
-      // Update session saving logic to use the new service
+      // --- Session Saving Logic ---
       try {
         const today = new Date(startTime).toISOString().split('T')[0]
         console.log(`Saving session for date: ${today} with data:`, {
@@ -433,17 +418,15 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           }
         })
         
-        // Ensure all required fields are present for a valid session
+        // Build a session object with required fields for storage.
         const sessionToSave = {
           ...data,
           status: "planned",
           totalDuration: data.totalDuration,
           lastUpdated: new Date().toISOString(),
-          // These are required fields for StoredSession
           totalSessions: 1,
           startTime: startTime,
           endTime: new Date(new Date(startTime).getTime() + (data.totalDuration * 60 * 1000)).toISOString(),
-          // Add required StoryBlock fields if missing
           storyBlocks: data.storyBlocks.map((block: any, index: number) => ({
             ...block,
             id: block.id || `story-${index}-${Date.now()}`,
@@ -451,7 +434,6 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
             timeBoxes: (block.timeBoxes || []).map((timeBox: any, boxIndex: number) => ({
               ...timeBox,
               status: timeBox.status || 'todo',
-              // Ensure task fields are correctly structured
               tasks: (timeBox.tasks || []).map((task: any) => ({
                 ...task,
                 status: task.status || 'todo'
@@ -460,11 +442,11 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           }))
         }
         
-        // Save the session using the service
+        // Save the session using the SessionStorageService.
         await sessionStorage.saveSession(today, sessionToSave);
-        console.log(`Session saved using SessionStorageService for date: ${today}`);
+        console.log(`Session saved using SessionStorageService for date: ${today}`)
         
-        // Verify the session was saved correctly
+        // Verify that the session was saved.
         const savedSession = await sessionStorage.getSession(today);
         if (!savedSession) {
           console.error('Failed to verify saved session - not found in session storage');
@@ -482,7 +464,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
       console.error(`Session creation attempt ${retryCount + 1} failed:`, error)
       lastError = error
       
-      // Detect rate limit errors specifically
+      // Determine if the error is due to rate limiting by checking keywords.
       const isRateLimitError = 
         (error instanceof Error && (
           error.message.includes('429') || 
@@ -491,49 +473,43 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           error.message.includes('overloaded')
         ));
       
-      // Check for 529 overloaded errors specifically - these need a longer backoff
+      // Check if it’s an overloaded error (specific 529 error).
       const isOverloadedError = isRateLimitError && 
         (error instanceof Error && (
           error.message.includes('529') || 
           error.message.includes('overloaded')
         ));
       
-      // Check if this is a parsing error or rate limit error that might benefit from retry
+      // Decide if we should retry the request: parsing or rate limit errors are retryable.
       const shouldRetry = (error instanceof Error && 
         (error.message.includes('parse') || error.message.includes('JSON'))) || isRateLimitError;
       
-      // Log specifically for rate limit errors
       if (isRateLimitError) {
         console.warn('Rate limit error detected. Adding longer backoff before retry.');
       }
       
-      // Don't retry on the last attempt or if it's not a retryable error
+      // If maximum retries reached or error is not retryable, break the loop.
       if (retryCount >= maxRetries - 1 || !shouldRetry) {
         console.error(`Maximum retry limit (${maxRetries}) reached or non-retryable error. Giving up.`)
         break
       }
       
-      // For parsing errors, we don't modify the stories, just retry
+      // If needed, modify the stories based on error details before retrying.
       if (!shouldRetry) {
-        // Modify stories based on the error
         currentStories = modifyStoriesForRetry(currentStories, 
           error instanceof Error ? error.cause || error : error)
       }
       
       retryCount++
       
-      // Wait a moment before retrying, longer for parsing errors
+      // Calculate backoff delay using exponential backoff and extra delay for rate limit errors.
       const baseDelay = shouldRetry ? 2000 : 1000;
-      // Add exponential backoff based on retry count
       let backoffDelay = baseDelay * Math.pow(2, retryCount);
       
-      // Add extra delay for rate limit errors
       if (isRateLimitError) {
-        backoffDelay = Math.max(backoffDelay, 5000) * 2; // At least 10 seconds for rate limit errors
-        
-        // Add even longer delay for 529 overloaded errors
+        backoffDelay = Math.max(backoffDelay, 5000) * 2; // Minimum 10 seconds.
         if (isOverloadedError) {
-          backoffDelay = Math.max(backoffDelay, 15000); // At least 15 seconds for 529 errors
+          backoffDelay = Math.max(backoffDelay, 15000); // Minimum 15 seconds.
           console.log(`529 Overloaded error detected. Using extended backoff: ${backoffDelay}ms`);
         } else {
           console.log(`Rate limit error detected. Using extended backoff: ${backoffDelay}ms`);
@@ -545,7 +521,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
     }
   }
   
-  // If we've exhausted all retries, throw the last error
+  // If all retries fail, throw the last encountered error.
   if (lastError) {
     if (lastError instanceof Error) {
       throw lastError
@@ -557,6 +533,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
   throw new Error('Failed to create session due to unknown error')
 }
 
+// Export the brainDumpService as a constant object.
 export const brainDumpService = {
   processTasks,
   createSession

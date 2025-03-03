@@ -1,4 +1,8 @@
 // /features/brain-dump/components/BrainDumpForm.tsx
+// This component allows users to quickly dump their tasks as free-form text,
+// then processes these tasks for further scheduling. It provides real-time
+// feedback on the processing state, error messages, and options to adjust or retry.
+
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,10 +14,14 @@ import { useBrainDump } from "../hooks/useBrainDump"
 import type { ProcessedStory } from "@/lib/types"
 
 interface BrainDumpFormProps {
+  // Optional callback that will be called when tasks are processed
   onTasksProcessed?: (stories: ProcessedStory[]) => void
 }
 
 export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
+  // Retrieve state and event handlers from our custom brain dump hook.
+  // This hook handles task input, processing state, errors, and actions like retrying
+  // or creating a session based on processed stories.
   const {
     tasks,
     setTasks,
@@ -33,6 +41,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
 
   return (
     <>
+      {/* Header Section: Title, description, and processing indicator */}
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-semibold">Brain Dump</h2>
@@ -42,6 +51,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
         </div>
         <div className="w-[48px] shrink-0">
           {isProcessing ? (
+            // When processing tasks, show a circular progress indicator and the current step.
             <div className="relative">
               <CircularProgress 
                 progress={processingProgress} 
@@ -53,6 +63,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
               </div>
             </div>
           ) : (
+            // When not processing, display a lock icon if the input is locked.
             <div className="w-[48px] h-[48px] flex items-center justify-center">
               {isInputLocked && <Lock className="h-5 w-5 text-muted-foreground" />}
             </div>
@@ -61,9 +72,11 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
       </div>
 
       <div className="space-y-4">
+        {/* Error Alert: Shown when processing encounters an error */}
         {error && (
           <Alert variant="destructive" className="animate-in fade-in-50">
             <div className="flex items-start gap-2">
+              {/* Use different icons based on the error type */}
               {error.code === 'PARSING_ERROR' ? (
                 <Bug className="h-4 w-4 mt-1" />
               ) : (
@@ -76,6 +89,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
                 <AlertDescription>
                   <p>{error.message}</p>
                   {error.details && (
+                    // Show technical details to help with debugging, if available.
                     <div className="mt-2">
                       <div className="text-sm font-medium mb-1">Technical Details:</div>
                       <pre className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32">
@@ -86,6 +100,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
                       </pre>
                     </div>
                   )}
+                  {/* Button to retry processing tasks */}
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -100,6 +115,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
           </Alert>
         )}
 
+        {/* Alert: Display input format tips to help users enter well-structured tasks */}
         <Alert>
           <div className="flex w-full justify-end items-start gap-2">
             <Info className="h-4 w-4" />
@@ -127,6 +143,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
           </div>
         </Alert>
 
+        {/* Task Input Area */}
         <div className="relative">
           <Textarea
             className={`min-h-[200px] font-mono ${isInputLocked ? 'opacity-50' : ''}`}
@@ -135,9 +152,11 @@ Task 2 FROG
 Task 3 - flexible
 Task 4 - due by 5pm`}
             value={tasks}
+            // Only update tasks if input is not locked.
             onChange={(e) => !isInputLocked && setTasks(e.target.value)}
             disabled={isInputLocked}
           />
+          {/* If input is locked, display an overlay indicating the locked state */}
           {isInputLocked && (
             <div className="absolute inset-0 bg-background/5 backdrop-blur-[1px] rounded-md flex items-center justify-center">
               <div className="bg-background/90 px-4 py-2 rounded-md shadow-sm flex items-center gap-2">
@@ -148,8 +167,10 @@ Task 4 - due by 5pm`}
           )}
         </div>
         
+        {/* Action Buttons: Clear/Unlock or Process Tasks */}
         <div className="flex justify-end gap-2">
           {processedStories.length > 0 && (
+            // When there are processed stories, allow users to clear them and unlock the input.
             <Button 
               onClick={handleRetry}
               variant="outline"
@@ -165,6 +186,7 @@ Task 4 - due by 5pm`}
             disabled={!tasks.trim() || isProcessing || isInputLocked}
             className="w-32"
           >
+            {/* Show different button content based on processing state */}
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -181,6 +203,10 @@ Task 4 - due by 5pm`}
           </Button>
         </div>
 
+        {/* Render the ProcessedStories component which:
+              - Displays the processed tasks/stories.
+              - Allows users to adjust task durations.
+              - Provides actions to retry or create a session. */}
         <ProcessedStories 
           stories={processedStories}
           editedDurations={editedDurations}

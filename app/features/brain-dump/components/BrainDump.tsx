@@ -17,6 +17,7 @@ import { CircularProgress } from "@/components/ui/circular-progress"
 import { Info, Loader2, Lock, Unlock, XCircle, Bug, AlertCircle } from "lucide-react"
 import { StoryCard } from "./StoryCard"
 import { useBrainDump } from "../hooks/useBrainDump"
+import { useSession } from "@/app/features/session-manager/hooks/useSession"
 import { ProcessedStories } from "./ProcessedStories"
 import type { ProcessedStory } from "@/lib/types"
 import {
@@ -31,6 +32,14 @@ interface BrainDumpProps {
   onTasksProcessed?: (stories: ProcessedStory[]) => void // Callback function triggered when tasks are processed.
 }
 
+// Placeholder text guiding users on how to format tasks effectively
+const placeholderText = `Update client dashboard design - high priority FROG
+Send weekly progress report to team - 20 mins
+Research API integration options - 1 hour technical
+Schedule quarterly planning meeting - by Thursday
+Update project documentation - flexible timing
+Finalize product feature specifications - due tomorrow`
+
 /**
  * BrainDump Component:
  * - Provides an input area for users to enter tasks.
@@ -39,6 +48,12 @@ interface BrainDumpProps {
  * - Allows users to create structured work sessions.
  */
 export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Get session state for today
+  const { hasIncompleteTasks } = useSession({ id: today })
+  
   // Extracting states and handlers from custom hook
   const {
     tasks,
@@ -58,69 +73,53 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
   } = useBrainDump(onTasksProcessed)
   
   // Add state to track if there are pending tasks from previous session
-  const [hasPendingTasks, setHasPendingTasks] = useState(false);
+  const [hasPendingTasks, setHasPendingTasks] = useState(false)
 
   // Check if there are pending tasks when component mounts
   useEffect(() => {
     // Check if the task rollover banner is visible (using localStorage as a proxy)
-    const todayFlag = localStorage.getItem('task-rollover-completed-transfers-today');
-    const hasCheckedToday = !!todayFlag;
+    const todayFlag = localStorage.getItem('task-rollover-completed-transfers-today')
+    const hasCheckedToday = !!todayFlag
     
     // If we've already checked and completed transfers today, we don't have pending tasks
-    setHasPendingTasks(!hasCheckedToday);
+    setHasPendingTasks(!hasCheckedToday)
     
     // Listen for changes in localStorage to update our state
     const handleStorageChange = () => {
-      const updatedFlag = localStorage.getItem('task-rollover-completed-transfers-today');
-      setHasPendingTasks(!updatedFlag);
-    };
+      const updatedFlag = localStorage.getItem('task-rollover-completed-transfers-today')
+      setHasPendingTasks(!updatedFlag)
+    }
     
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', handleStorageChange)
     
     // Custom event that our TaskRollover component could dispatch when tasks are handled
     const handleTasksResolved = () => {
-      console.log("[BrainDump] Received event that tasks were resolved");
-      setHasPendingTasks(false);
-    };
+      console.log("[BrainDump] Received event that tasks were resolved")
+      setHasPendingTasks(false)
+    }
     
-    window.addEventListener('tasksResolved', handleTasksResolved);
+    window.addEventListener('tasksResolved', handleTasksResolved)
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('tasksResolved', handleTasksResolved);
-    };
-  }, []);
-  
-  // Placeholder text guiding users on how to format tasks effectively
-  const placeholderText = `Update client dashboard design - high priority FROG
-Send weekly progress report to team - 20 mins
-Research API integration options - 1 hour technical
-Schedule quarterly planning meeting - by Thursday
-Update project documentation - flexible timing
-Finalize product feature specifications - due tomorrow`
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('tasksResolved', handleTasksResolved)
+    }
+  }, [])
+
+  // Determine if input should be blocked
+  const isInputBlocked = hasPendingTasks || hasIncompleteTasks
 
   /**
    * Handler for tasks rolled over from previous sessions
-   * 
-   * FIXES:
-   * - Added safeguards to prevent processing empty tasks which could cause render loops
-   * - Added error handling to prevent crashes
-   * - Added logging for better debugging
-   * - Ensures safe state updates by using the functional form of setState
-   * - Added additional debugging and more reliable state update mechanism
-   * - Prevents automatic population of tasks when the component loads 
-   * - Prevents duplication of tasks when rolled over
-   * 
-   * @param tasksText - Text representation of the tasks to roll over
    */
   const handleRolledOverTasks = (tasksText: string) => {
     // When tasks are rolled over, we no longer have pending tasks
-    setHasPendingTasks(false);
+    setHasPendingTasks(false)
     
     // Prevent empty text or duplicate processing
     if (!tasksText || !tasksText.trim()) {
-      console.log("[BrainDump] Ignoring empty rolled over tasks");
-      return;
+      console.log("[BrainDump] Ignoring empty rolled over tasks")
+      return
     }
     
     console.log("[BrainDump] Handling rolled over tasks:", {
@@ -128,22 +127,21 @@ Finalize product feature specifications - due tomorrow`
       taskCount: tasksText.split('\n').length,
       currentTasksEmpty: !tasks || !tasks.trim(),
       userInitiated: true // Flag indicating this was user-initiated via the dialog
-    });
+    })
     
     // Safely update the tasks state
     try {
       // Clear the tasks area completely before adding new tasks to avoid merged state issues
       setTimeout(() => {
         // Replace existing tasks with rolled over tasks
-        // No need to add headers or append - just use the clean task list directly
-        console.log("[BrainDump] Setting rolled over tasks");
-        setTasks(tasksText);
-        console.log(`[BrainDump] Set tasks with length: ${tasksText.length}`);
-      }, 50); // Small delay to ensure state is ready
+        console.log("[BrainDump] Setting rolled over tasks")
+        setTasks(tasksText)
+        console.log(`[BrainDump] Set tasks with length: ${tasksText.length}`)
+      }, 50) // Small delay to ensure state is ready
     } catch (error) {
-      console.error("[BrainDump] Error handling rolled over tasks:", error);
+      console.error("[BrainDump] Error handling rolled over tasks:", error)
     }
-  };
+  }
 
   return (
     <>
@@ -153,13 +151,17 @@ Finalize product feature specifications - due tomorrow`
       {/* Apply a visual dim effect to the Card when there are pending tasks */}
       <div className="relative">
         {/* Semi-transparent overlay when there are pending tasks */}
-        {hasPendingTasks && (
+        {isInputBlocked && (
           <div className="absolute inset-0 bg-gray-900/10 dark:bg-gray-900/40 backdrop-blur-[2px] z-10 rounded-lg flex flex-col items-center justify-center">
             <div className="bg-white/90 dark:bg-gray-800/90 p-6 rounded-lg shadow-lg max-w-md text-center space-y-4 border border-gray-200 dark:border-gray-700">
               <AlertCircle className="h-10 w-10 text-amber-500 dark:text-amber-400 mx-auto" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Complete Previous Tasks First</h3>
-
-                Please resolve your pending tasks from the previous session before creating new ones.              <p className="text-gray-600 dark:text-gray-300">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                {hasPendingTasks ? "Complete Previous Tasks First" : "Complete Current Tasks"}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                {hasPendingTasks 
+                  ? "Please resolve your pending tasks from the previous session before creating new ones."
+                  : "Please complete your current tasks before adding new ones. This helps maintain focus and prevents task overload."}
               </p>
             </div>
           </div>
@@ -179,8 +181,8 @@ Finalize product feature specifications - due tomorrow`
               placeholder={placeholderText}
               value={tasks}
               onChange={(e) => !isInputLocked && setTasks(e.target.value)}
-              disabled={isInputLocked || hasPendingTasks}
-              className={`font-mono min-h-[200px] text-base leading-relaxed ${hasPendingTasks ? 'opacity-60' : ''}`}
+              disabled={isInputLocked || isInputBlocked}
+              className={`font-mono min-h-[200px] text-base leading-relaxed ${isInputBlocked ? 'opacity-60' : ''}`}
             />
 
             {/* Accordion for input formatting tips */}

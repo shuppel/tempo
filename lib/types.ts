@@ -177,6 +177,10 @@ export interface Session {
   totalDuration: number
   lastUpdated?: string
   incompleteTasks?: IncompleteTasks // Only present in archived sessions
+  // Timer state properties
+  activeTimeBox?: { storyId: string; timeBoxIndex: number } | null
+  timeRemaining?: number | null
+  isTimerRunning?: boolean
 }
 
 /**

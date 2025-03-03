@@ -1,3 +1,35 @@
+/**
+ * Session Storage Utility Library
+ *
+ * This module provides helper functions and interfaces for managing session data
+ * in localStorage. It is part of the utility/lib layer and is responsible for:
+ *
+ * - Persisting session data (including session plans, timer state, and progress updates)
+ *   using a consistent key prefix.
+ * - Providing CRUD operations for sessions:
+ *   - saveSession: Save or update a session with a lastUpdated timestamp.
+ *   - getSession: Retrieve and validate a session.
+ *   - getAllSessions: Retrieve all sessions stored in localStorage.
+ *   - deleteSession: Delete a specific session.
+ *   - clearAllSessions: Remove all sessions from localStorage.
+ *
+ * - Updating session progress and statuses by modifying time boxes and tasks:
+ *   - updateTimeBoxStatus: Update the status of a time box and recalculate story progress.
+ *   - updateTaskStatus: Update the status of an individual task within a time box.
+ *   - updateSessionProgress: Recalculate overall progress for a session.
+ *
+ * - Handling timer state persistence:
+ *   - getTimerState: Retrieve the timer state either from the session or separately.
+ *   - saveTimerState: Save the current timer state.
+ *
+ * - Validating and normalizing session data:
+ *   - isValidSession: Validate that an object conforms to the StoredSession interface.
+ *   - normalizeSession: Ensure that session data is complete and follows a consistent format.
+ *
+ * The StoredSession interface extends a basic SessionPlan with additional fields for
+ * status, timer persistence, and metadata tracking.
+ */
+
 import type { SessionPlan, TimeBox, TimeBoxTask, StoryBlock, SessionStatus, TimeBoxType, BaseStatus } from "./types"
 
 export interface StoredSession extends SessionPlan {
@@ -543,4 +575,4 @@ export const sessionStorage = {
       isTimerRunning: session.isTimerRunning || false
     };
   }
-} 
+}
