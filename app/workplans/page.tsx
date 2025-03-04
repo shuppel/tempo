@@ -61,6 +61,7 @@ export default function WorkPlansPage() {
     try {
       setLoading(true)
       const loadedWorkPlans = await storageService.getAllWorkPlans()
+      console.log('Loaded workplans:', loadedWorkPlans)
       setWorkPlans(loadedWorkPlans)
     } catch (error) {
       console.error('Failed to load workplans:', error)
@@ -144,17 +145,33 @@ export default function WorkPlansPage() {
   }
 
   // Filter workplans by status - show archived last
-  const activeWorkPlans = workplans.filter(w => w.status !== 'archived')
+  const activeWorkPlans = workplans.filter(w => {
+    console.log(`Checking workplan ${w.id} with status: ${w.status}`)
+    // A workplan is active if it's not archived and has a valid status
+    return w.status && w.status !== 'archived'
+  })
   const archivedWorkPlans = workplans.filter(w => w.status === 'archived')
   
-  // Sort workplans by date (newest first)
-  const sortedActiveWorkPlans = [...activeWorkPlans].sort((a, b) => 
-    parseISO(b.id).getTime() - parseISO(a.id).getTime()
-  )
+  console.log('All workplans:', workplans.map(w => ({ id: w.id, status: w.status })))
+  console.log('Active workplans:', activeWorkPlans.map(w => ({ id: w.id, status: w.status })))
+  console.log('Archived workplans:', archivedWorkPlans.map(w => ({ id: w.id, status: w.status })))
   
-  const sortedArchivedWorkPlans = [...archivedWorkPlans].sort((a, b) => 
-    parseISO(b.id).getTime() - parseISO(a.id).getTime()
-  )
+  // Sort workplans by date (newest first)
+  const sortedActiveWorkPlans = [...activeWorkPlans].sort((a, b) => {
+    const dateA = parseISO(b.id)
+    const dateB = parseISO(a.id)
+    console.log(`Comparing dates: ${b.id} (${dateA}) vs ${a.id} (${dateB})`)
+    return dateA.getTime() - dateB.getTime()
+  })
+
+  const sortedArchivedWorkPlans = [...archivedWorkPlans].sort((a, b) => {
+    const dateA = parseISO(b.id)
+    const dateB = parseISO(a.id)
+    return dateA.getTime() - dateB.getTime()
+  })
+  
+  console.log('Sorted active workplans:', sortedActiveWorkPlans.map(w => ({ id: w.id, status: w.status })))
+  console.log('Sorted archived workplans:', sortedArchivedWorkPlans.map(w => ({ id: w.id, status: w.status })))
 
   return (
     <TooltipProvider>
@@ -274,7 +291,7 @@ export default function WorkPlansPage() {
             </div>
 
             {/* Archived WorkPlans (if any) */}
-            {sortedArchivedWorkPlans.length > 0 && (
+            {archivedWorkPlans.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold text-muted-foreground">Archived Work Plans</h2>
                 <div className="grid gap-2">

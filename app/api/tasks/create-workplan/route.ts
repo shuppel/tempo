@@ -16,7 +16,8 @@ import type {
   StoryType,
   APIProcessedTask,
   APIProcessedStory,
-  APISessionResponse
+  TodoWorkPlan,
+  APIWorkPlanResponse
 } from '@/lib/types'
 import {
   transformTaskData,
@@ -26,6 +27,7 @@ import {
   getBaseTaskTitle,
   getBaseStoryTitle
 } from '@/lib/transformUtils'
+import { WorkPlanStorageService } from '@/app/features/workplan-manager/services/workplan-storage.service'
 
 // Extend the duration rules to include the maximum consecutive work time
 const DURATION_RULES = {
@@ -33,6 +35,8 @@ const DURATION_RULES = {
   MAX_WORK_WITHOUT_BREAK: 90 // Maximum consecutive work minutes without a substantial break
 }
 
+// Initialize services
+const workplanStorage = new WorkPlanStorageService()
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 })
@@ -86,14 +90,14 @@ const RequestSchema = z.object({
   storyMapping: z.array(StoryMappingSchema).optional()
 })
 
-class SessionCreationError extends Error {
+class WorkPlanCreationError extends Error {
   constructor(
     message: string,
     public readonly code: string,
     public readonly details?: unknown
   ) {
     super(message)
-    this.name = 'SessionCreationError'
+    this.name = 'WorkPlanCreationError'
   }
 }
 
@@ -138,7 +142,7 @@ interface StoryBlock {
   }>
 }
 
-type SessionResponse = APISessionResponse;
+type SessionResponse = APIWorkPlanResponse;
 
 // Add helper functions for task title handling
 function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } {
@@ -472,7 +476,7 @@ export async function POST(req: Request) {
     
     const { stories: inputStories, startTime: inputStartTime, storyMapping } = parsedBody
     
-    console.log(`Received ${inputStories.length} stories for session creation`)
+    console.log(`Received ${inputStories.length} stories for workplan creation`)
     if (storyMapping) {
       console.log(`Received mapping data for ${storyMapping.length} possible story titles`)
     }
@@ -482,19 +486,19 @@ export async function POST(req: Request) {
     // Validate that total duration is a reasonable value
     const totalDuration = inputStories.reduce((sum, story) => sum + story.estimatedDuration, 0)
     if (totalDuration > 24 * 60) { // More than 24 hours
-      throw new SessionCreationError(
-        'Total session duration exceeds maximum limit',
+      throw new WorkPlanCreationError(
+        'Total workplan duration exceeds maximum limit',
         'DURATION_EXCEEDED',
         { totalDuration, maxDuration: 24 * 60 }
       )
     }
 
     // Create a map of original tasks for validation
-    const originalTasksMap = buildOriginalTasksMap(inputStories);
+    const originalTasksMap = buildOriginalTasksMap(inputStories)
 
     try {
       // Log input data
-      console.log('Creating session with stories:', JSON.stringify(inputStories, null, 2))
+      console.log('Creating workplan with stories:', JSON.stringify(inputStories, null, 2))
       console.log('Start time:', startDateTime.toLocaleTimeString())
 
       // Use the Task type from our schema instead of the imported type
@@ -504,7 +508,7 @@ export async function POST(req: Request) {
           ...task,
           originalTitle: task.originalTitle || task.title
         }))
-      }));
+      }))
 
       const message = await anthropic.messages.create({
         model: "claude-3-haiku-20240307",
@@ -570,7 +574,7 @@ Return JSON with this structure:
 
       const messageContent = message.content[0]
       if (!('text' in messageContent)) {
-        throw new SessionCreationError(
+        throw new WorkPlanCreationError(
           'Invalid API response format',
           'API_RESPONSE_ERROR',
           'Response content does not contain text field'
@@ -625,7 +629,7 @@ Return JSON with this structure:
           }
         } catch (parseError) {
           console.error('JSON parsing failed after repair attempts:', parseError)
-          throw new SessionCreationError(
+          throw new WorkPlanCreationError(
             'Failed to parse AI response as JSON',
             'JSON_PARSE_ERROR',
             {
@@ -638,7 +642,7 @@ Return JSON with this structure:
         // Validate that the parsed data has all required fields
         if (!parsedData.summary || !parsedData.storyBlocks || !Array.isArray(parsedData.storyBlocks)) {
           console.error('Parsed data is missing required fields');
-          throw new SessionCreationError(
+          throw new WorkPlanCreationError(
             'AI response is missing required data structure',
             'INVALID_DATA_STRUCTURE',
             {
@@ -773,7 +777,7 @@ Return JSON with this structure:
             // Find the original story to update its duration
             const originalStory = findOriginalStory(block.title, inputStories, storyMapping);
             if (!originalStory) {
-              throw new SessionCreationError(
+              throw new WorkPlanCreationError(
                 'Story not found in original stories',
                 'UNKNOWN_STORY',
                 { block: block.title }
@@ -788,7 +792,7 @@ Return JSON with this structure:
             // Special handling for pure break blocks which might have 0 work duration
             const expectedTotal = workDuration + breakDuration
             if (totalDuration !== expectedTotal && !(workDuration === 0 && totalDuration === breakDuration)) {
-              throw new SessionCreationError(
+              throw new WorkPlanCreationError(
                 'Story block duration calculation error',
                 'BLOCK_DURATION_ERROR',
                 {
@@ -826,7 +830,7 @@ Return JSON with this structure:
                     .filter((box: TimeBox) => box.type === 'short-break' || box.type === 'long-break')
                     .map((box: TimeBox) => box.type)
                   
-                  throw new SessionCreationError(
+                  throw new WorkPlanCreationError(
                     'Too much work time without a substantial break',
                     'EXCESSIVE_WORK_TIME',
                     {
@@ -861,8 +865,8 @@ Return JSON with this structure:
           // Update the summary total duration to match calculated
           parsedData.summary.totalDuration = calculatedDuration
         } catch (error) {
-          if (error instanceof SessionCreationError) throw error
-          throw new SessionCreationError(
+          if (error instanceof WorkPlanCreationError) throw error
+          throw new WorkPlanCreationError(
             'Duration validation failed',
             'VALIDATION_ERROR',
             error
@@ -890,22 +894,39 @@ Return JSON with this structure:
         
         if (validationResult.isMissingTasks) {
           console.error('Missing tasks in schedule:', validationResult.missingTasks);
-          throw new SessionCreationError(
+          throw new WorkPlanCreationError(
             'Some tasks are missing from the schedule',
             'MISSING_TASKS',
             validationResult
           );
         }
 
-        return NextResponse.json(parsedData)
+        // After successful processing, save the workplan
+        const workplan: TodoWorkPlan = {
+          id: inputStartTime.split('T')[0], // Use the date part as ID
+          storyBlocks: parsedData.storyBlocks,
+          status: 'planned',
+          totalDuration: parsedData.summary.totalDuration,
+          startTime: parsedData.summary.startTime,
+          endTime: parsedData.summary.endTime,
+          lastUpdated: new Date().toISOString(),
+          activeTimeBox: null,
+          timeRemaining: null,
+          isTimerRunning: false
+        }
+
+        await workplanStorage.saveWorkPlan(workplan)
+        console.log(`Successfully saved workplan for date: ${workplan.id}`)
+
+        return NextResponse.json(workplan)
       } catch (error) {
-        console.error('Session creation error:', error);
+        console.error('Workplan creation error:', error);
         
         // Handle max_tokens errors
         if (error instanceof Error && 
             error.message.includes('invalid_request_error') && 
             error.message.includes('max_tokens')) {
-          throw new SessionCreationError(
+          throw new WorkPlanCreationError(
             'Invalid token limit configuration',
             'TOKEN_LIMIT_ERROR',
             error.message
@@ -919,24 +940,24 @@ Return JSON with this structure:
             error.message.includes('rate limit') ||
             error.message.includes('overloaded'))) {
           console.warn('Rate limit error from Anthropic API detected');
-          throw new SessionCreationError(
+          throw new WorkPlanCreationError(
             'Service temporarily overloaded. Please try again in a few moments.',
             'RATE_LIMITED',
             error.message
           );
         }
                 
-        // For other errors, wrap in SessionCreationError
-        if (error instanceof SessionCreationError) throw error;
+        // For other errors, wrap in WorkPlanCreationError
+        if (error instanceof WorkPlanCreationError) throw error;
         
-        throw new SessionCreationError(
+        throw new WorkPlanCreationError(
           'Failed to process session plan',
           'PROCESSING_ERROR',
           error
         );
       }
     } catch (error) {
-      console.error('Session creation error:', error)
+      console.error('Workplan creation error:', error)
       
       // Check for rate limiting errors from Anthropic
       if (error instanceof Error && 
@@ -952,7 +973,7 @@ Return JSON with this structure:
         }, { status: 429 });
       }
       
-      if (error instanceof SessionCreationError) {
+      if (error instanceof WorkPlanCreationError) {
         return NextResponse.json({
           error: error.message,
           code: error.code,
@@ -967,7 +988,7 @@ Return JSON with this structure:
       }, { status: 500 })
     }
   } catch (error) {
-    console.error('Session creation error:', error);
+    console.error('Workplan creation error:', error);
     
     // Handle max_tokens errors
     if (error instanceof Error && 
@@ -995,7 +1016,7 @@ Return JSON with this structure:
     }
     
     // Handle session creation errors
-    if (error instanceof SessionCreationError) {
+    if (error instanceof WorkPlanCreationError) {
       return NextResponse.json({
         error: error.message,
         code: error.code,

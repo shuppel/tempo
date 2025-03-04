@@ -1,3 +1,14 @@
+/**
+ * WorkPlan Database Service
+ * 
+ * Provides a local-first database implementation for managing workplans.
+ * Uses IndexedDB for storage and includes functionality for:
+ * - CRUD operations on workplans
+ * - Status updates for tasks and timeboxes
+ * - Timer state management
+ * - Progress calculations
+ */
+
 import { LocalFirstDB } from '@/app/features/local-first-db/LocalFirstDB'
 import type { 
   TodoWorkPlan, 

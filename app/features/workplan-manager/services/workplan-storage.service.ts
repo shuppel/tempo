@@ -24,7 +24,7 @@ import type {
   TimeBoxStatus,
   TodoWorkPlanStatus
 } from "@/lib/types"
-import { TodoWorkPlanDB } from './session-db'
+import { TodoWorkPlanDB } from './workplan-db'
 
 export class WorkPlanStorageService {
   private db: TodoWorkPlanDB
