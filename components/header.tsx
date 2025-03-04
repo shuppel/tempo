@@ -1,6 +1,6 @@
 "use client"
 
-import { Menu, Moon, Sun } from "lucide-react"
+import { Menu, Moon, Sun, Calendar } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,9 +17,9 @@ export function Header() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Check if we're on a session page and extract the date
-  const sessionMatch = pathname.match(/^\/session\/(\d{4}-\d{2}-\d{2})$/)
-  const sessionDate = sessionMatch ? parseISO(sessionMatch[1]) : null
+  // Check if we're on a workplan page and extract the date
+  const workplanMatch = pathname.match(/^\/workplan\/(\d{4}-\d{2}-\d{2})$/)
+  const workplanDate = workplanMatch ? parseISO(workplanMatch[1]) : null
 
   return (
     <header className="relative border-b bg-gradient-to-r from-background to-card pt-4">
@@ -65,20 +65,20 @@ export function Header() {
                   Plan
                 </TabsTrigger>
               </Link>
-              <Link href="/sessions">
+              <Link href="/workplans">
                 <TabsTrigger 
-                  value="/sessions" 
+                  value="/workplans" 
                   className="font-accent tracking-wide text-base h-10 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-inner"
                 >
-                  Sessions
+                  WorkPlans
                 </TabsTrigger>
               </Link>
-              {sessionDate && (
+              {workplanDate && (
                 <TabsTrigger 
                   value={pathname}
                   className="font-accent tracking-wide text-base h-10 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-inner animate-in fade-in-50 slide-in-from-left-1"
                 >
-                  {format(sessionDate, 'MMM d yyyy')}
+                  {format(workplanDate, 'MMM d yyyy')}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -121,14 +121,15 @@ export function Header() {
                   <span className="font-accent tracking-wide text-base">Plan</span>
                 </Link>
                 <Link 
-                  href="/sessions"
+                  href="/workplans"
                   className={cn(
                     "flex items-center gap-2 px-4 py-3 rounded-md hover:bg-primary/10 transition-colors",
-                    pathname === "/sessions" && "bg-primary/20 text-primary"
+                    pathname === "/workplans" && "bg-primary/20 text-primary"
                   )}
                   onClick={() => setIsOpen(false)}
                 >
-                  <span className="font-accent tracking-wide text-base">Sessions</span>
+                  <Calendar className="mr-2 h-5 w-5" />
+                  <span className="font-accent tracking-wide text-base">WorkPlans</span>
                 </Link>
               </nav>
             </SheetContent>

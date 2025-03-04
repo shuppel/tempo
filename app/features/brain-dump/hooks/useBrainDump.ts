@@ -1,21 +1,22 @@
 // /features/brain-dump/hooks/useBrainDump.ts
 // This hook manages the state and processing logic for the Brain Dump feature.
 // It handles free-form task input, processes tasks via AI services,
-// creates sessions from processed tasks, and interacts with session rollover.
+// creates workplans from processed tasks, and interacts with workplan rollover.
 // It also notifies parent components when new processed stories become available.
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
-import { SessionStorageService } from "@/app/features/session-manager"
+import { WorkPlanStorageService } from "@/app/features/workplan-manager/services/workplan-storage.service"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { TaskRolloverService } from "@/app/features/task-rollover"
+import { format } from "date-fns"
 
-// Create a singleton instance of SessionStorageService to persist session data.
-const sessionStorage = new SessionStorageService()
+// Create a singleton instance of WorkPlanStorageService to persist workplan data.
+const workplanStorage = new WorkPlanStorageService()
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
-  // Next.js router for page navigation after session creation.
+  // Next.js router for page navigation after workplan creation.
   const router = useRouter()
 
   // State for user input: the free-form list of tasks as a string.
@@ -43,21 +44,21 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   const [taskProcessingProgress, setTaskProcessingProgress] = useState(0)
   const [taskProcessingError, setTaskProcessingError] = useState<{ message: string; code?: string; details?: any } | null>(null)
   
-  // --- Session Creation State ---
-  // Flags and values related to creating a session based on processed tasks.
-  const [isCreatingSession, setIsCreatingSession] = useState(false)
-  const [sessionCreationStep, setSessionCreationStep] = useState<string>("")
-  const [sessionCreationProgress, setSessionCreationProgress] = useState(0)
-  const [sessionCreationError, setSessionCreationError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+  // --- Work Plan Creation State ---
+  // Flags and values related to creating a work plan based on processed tasks.
+  const [isCreatingWorkPlan, setIsCreatingWorkPlan] = useState(false)
+  const [workPlanCreationStep, setWorkPlanCreationStep] = useState<string>("")
+  const [workPlanCreationProgress, setWorkPlanCreationProgress] = useState(0)
+  const [workPlanCreationError, setWorkPlanCreationError] = useState<{ message: string; code?: string; details?: any } | null>(null)
 
-  // Create the rollover service only once to manage archiving of previous sessions.
+  // Create the rollover service only once to manage archiving of previous work plans.
   const rolloverService = useMemo(() => new TaskRolloverService(), []);
 
-  // Combine processing state from task processing and session creation.
+  // Combine processing state from task processing and work plan creation.
   // When one of these is active, use its step, progress, and error state.
-  const currentProcessingStep = isProcessing ? taskProcessingStep : isCreatingSession ? sessionCreationStep : ""
-  const currentProcessingProgress = isProcessing ? taskProcessingProgress : isCreatingSession ? sessionCreationProgress : 0
-  const currentError = taskProcessingError || sessionCreationError
+  const currentProcessingStep = isProcessing ? taskProcessingStep : isCreatingWorkPlan ? workPlanCreationStep : ""
+  const currentProcessingProgress = isProcessing ? taskProcessingProgress : isCreatingWorkPlan ? workPlanCreationProgress : 0
+  const currentError = taskProcessingError || workPlanCreationError
 
   // Memoized callback to notify the parent component once new stories are available.
   const notifyParent = useCallback(() => {
@@ -196,15 +197,15 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     }
   }
 
-  // --- Session Creation Function ---
-  // Creates a session from the processed stories.
-  // Applies user-edited durations, validates session data,
-  // calculates start and end times, and triggers navigation to the new session.
-  const handleCreateSession = async () => {
-    setIsCreatingSession(true)
-    setSessionCreationError(null)
-    setSessionCreationStep("Preparing session data...")
-    setSessionCreationProgress(10)
+  // --- Work Plan Creation Function ---
+  // Creates a work plan from the processed stories.
+  // Applies user-edited durations, validates work plan data,
+  // calculates start and end times, and triggers navigation to the new work plan.
+  const handleCreateWorkPlan = async () => {
+    setIsCreatingWorkPlan(true)
+    setWorkPlanCreationError(null)
+    setWorkPlanCreationStep("Preparing work plan data...")
+    setWorkPlanCreationProgress(10)
 
     try {
       // Merge edited durations into stories, ensuring required fields.
@@ -218,193 +219,152 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
 
       // Pre-validate that there are valid stories and tasks.
       if (updatedStories.length === 0 || updatedStories.some(story => !story.tasks || story.tasks.length === 0)) {
-        throw new Error('No valid tasks found for session creation')
+        throw new Error('No valid tasks found for work plan creation')
       }
 
-      console.log('Stories for session creation:', JSON.stringify(updatedStories, null, 2))
+      console.log('Stories for work plan creation:', JSON.stringify(updatedStories, null, 2))
 
-      // Get the current time as the session start time.
+      // Get the current time as the work plan start time.
       const now = new Date()
       if (isNaN(now.getTime())) {
         throw new Error('Invalid current date/time')
       }
       const startTime = now.toISOString()
-      setSessionCreationProgress(20)
-      setSessionCreationStep("Creating session plan...")
+      setWorkPlanCreationProgress(20)
+      setWorkPlanCreationStep("Creating work plan...")
 
-      // Call service to create a session plan based on the updated stories.
-      const sessionPlan = await brainDumpService.createSession(updatedStories, startTime)
+      // Call service to create a work plan based on the updated stories.
+      const workPlan = await brainDumpService.createWorkPlan(updatedStories, startTime)
       
-      setSessionCreationProgress(60)
-      setSessionCreationStep("Processing session data...")
+      setWorkPlanCreationProgress(60)
+      setWorkPlanCreationStep("Processing work plan data...")
 
-      // Validate the session plan response.
-      if (!sessionPlan || typeof sessionPlan !== 'object') {
-        console.error('Invalid session plan:', sessionPlan)
-        throw new Error('Failed to create a valid session plan')
+      // Validate the work plan response.
+      if (!workPlan || typeof workPlan !== 'object') {
+        console.error('Invalid work plan:', workPlan)
+        throw new Error('Failed to create a valid work plan')
       }
-      if (!sessionPlan.storyBlocks || !Array.isArray(sessionPlan.storyBlocks)) {
-        console.error('Session plan missing story blocks:', sessionPlan)
-        throw new Error('Session plan missing required story blocks')
+      if (!workPlan.storyBlocks || !Array.isArray(workPlan.storyBlocks)) {
+        console.error('Work plan missing story blocks:', workPlan)
+        throw new Error('Work plan missing required story blocks')
       }
-      if (sessionPlan.storyBlocks.length === 0) {
-        console.error('Session plan has empty story blocks array:', sessionPlan)
-        throw new Error('Session plan contains no story blocks')
-      }
-
-      // Validate the session duration from the plan.
-      const validTotalDuration = validateSessionDuration(sessionPlan)
-      console.log(`Validated session duration: ${validTotalDuration} minutes`)
-
-      // Format today's date as YYYY-MM-DD for session storage and URL routing.
-      const today = now.toISOString().split('T')[0]
-
-      // Calculate the session end time in milliseconds.
-      const durationMs = Math.floor(validTotalDuration) * 60 * 1000
-      
-      // Validate that the duration is within acceptable bounds.
-      if (durationMs <= 0) {
-        console.error('Invalid duration (too small):', validTotalDuration)
-        throw new Error(`Session duration is too short: ${validTotalDuration} minutes`)
-      }
-      if (durationMs > 24 * 60 * 60 * 1000) {
-        console.error('Invalid duration (too large):', validTotalDuration)
-        throw new Error(`Session duration exceeds maximum allowed: ${validTotalDuration} minutes`)
+      if (workPlan.storyBlocks.length === 0) {
+        console.error('Work plan has empty story blocks array:', workPlan)
+        throw new Error('Work plan contains no story blocks')
       }
 
-      // Calculate the session's end time.
-      const endTime = new Date(now.getTime() + durationMs)
-      if (isNaN(endTime.getTime())) {
-        console.error('End time calculation failed:', {
-          now: now.toISOString(),
-          durationMs,
-          totalDuration: validTotalDuration
-        })
-        throw new Error('Failed to calculate a valid end time')
+      // Validate the work plan duration from the plan.
+      const validTotalDuration = validateWorkPlanDuration(workPlan)
+      console.log(`Validated work plan duration: ${validTotalDuration} minutes`)
+
+      // Format today's date as YYYY-MM-DD for work plan storage and URL routing.
+      const formattedDateForURL = format(now, 'yyyy-MM-dd')
+
+      // Calculate the work plan end time in milliseconds.
+      const endTime = new Date(now.getTime() + validTotalDuration * 60 * 1000).toISOString()
+
+      // Validate the total duration.
+      if (validTotalDuration < 15) {
+        throw new Error(`Work plan duration is too short: ${validTotalDuration} minutes`)
       }
 
-      setSessionCreationProgress(80)
-      setSessionCreationStep("Saving session...")
-
-      // At this point, the session plan is considered complete.
-      setSessionCreationProgress(100)
-      setSessionCreationStep("Session created successfully!")
-
-      // Clear the form state and unlock input for new entries.
-      setTasks("")
-      setProcessedStories([])
-      setEditedDurations({})
-      setIsInputLocked(false)
-
-      // Archive any previous active session.
-      try {
-        const recentSession = await rolloverService.getMostRecentActiveSession();
-        if (recentSession) {
-          console.log(`[useBrainDump] Archiving previous session: ${recentSession.date}`);
-          await rolloverService.archiveSession(recentSession.date);
-        }
-      } catch (archiveError) {
-        // Log the error but don't interrupt session creation if archiving fails.
-        console.error('[useBrainDump] Error archiving previous session:', archiveError);
+      const maxDuration = 24 * 60 // 24 hours in minutes
+      if (validTotalDuration > maxDuration) {
+        throw new Error(`Work plan duration exceeds maximum allowed: ${validTotalDuration} minutes`)
       }
 
-      // Navigate to the new session page after a short delay.
-      const formattedDate = today
-      console.log(`Navigating to session page for date: ${formattedDate}`)
+      // Calculate the work plan's end time.
+      const workPlanData = {
+        ...workPlan,
+        id: formattedDateForURL,
+        startTime,
+        endTime,
+        totalDuration: validTotalDuration,
+        status: 'pending',
+        currentBlockIndex: 0,
+        currentTaskIndex: 0,
+        isActive: false,
+        isPaused: false,
+        isComplete: false,
+        lastUpdated: new Date().toISOString()
+      }
+
+      setWorkPlanCreationProgress(80)
+      setWorkPlanCreationStep("Saving work plan...")
+
+      // Save the work plan data.
+      await workplanStorage.saveWorkPlan(workPlanData)
+
+      // At this point, the work plan is considered complete.
+      setWorkPlanCreationProgress(100)
+      setWorkPlanCreationStep("Work plan created successfully!")
+
+      // Navigate to the new work plan page after a short delay.
       setTimeout(() => {
-        // Ensure the date is URL-friendly.
-        const formattedDateForURL = formattedDate.replace(/\//g, '-')
-        router.push(`/session/${formattedDateForURL}`)
+        console.log(`Navigating to work plan page for date: ${formattedDateForURL}`)
+        router.push(`/workplan/${formattedDateForURL}`)
       }, 500)
 
     } catch (error) {
-      console.error("Failed to create session:", error)
-      
-      // Extract detailed error information for session creation.
-      let errorMessage = error instanceof Error ? error.message : 'Failed to create session'
-      let errorCode = 'SESSION_ERROR'
+      console.error("Failed to create work plan:", error)
+
+      // Extract detailed error information for work plan creation.
+      let errorMessage = error instanceof Error ? error.message : 'Failed to create work plan'
+      let errorCode = 'WORKPLAN_ERROR'
       let errorDetails = error
-      
+
+      // Handle specific error cases.
       if (error instanceof Error) {
-        if (error.message.includes('Details:')) {
-          try {
-            const [message, details] = error.message.split('\n\nDetails:')
-            errorMessage = message.trim()
-            try {
-              errorDetails = JSON.parse(details.trim())
-            } catch {
-              errorDetails = details.trim()
-            }
-          } catch (e) {
-            errorDetails = error.message
-          }
+        if (error.message.includes('too many consecutive work blocks')) {
+          errorMessage = 'Work plan contains too much consecutive work time without breaks. Try splitting large tasks or adding breaks.'
         }
-        
-        // Specific error handling for work time or duration issues.
-        if (error.message.includes('work time') && error.message.includes('break')) {
-          errorCode = 'EXCESSIVE_WORK_TIME'
-          errorMessage = 'Session contains too much consecutive work time without breaks. Try splitting large tasks or adding breaks.'
-        } else if (error.message.includes('duration')) {
-          errorCode = 'INVALID_DURATION'
-          errorMessage = 'Invalid session duration. Please check your task durations.'
+        if (error.message.includes('invalid duration')) {
+          errorMessage = 'Invalid work plan duration. Please check your task durations.'
         }
       }
-      
-      setSessionCreationError({
+
+      // Set error state for work plan creation.
+      setWorkPlanCreationError({
         message: errorMessage,
         code: errorCode,
         details: errorDetails
       })
-      
-      setSessionCreationProgress(0)
-      setSessionCreationStep("Error creating session")
+      setWorkPlanCreationProgress(0)
+      setWorkPlanCreationStep("Error creating work plan")
     } finally {
-      // Reset session creation state after a brief delay.
+      // Reset work plan creation state after a brief delay.
       setTimeout(() => {
-        setIsCreatingSession(false)
-        setSessionCreationProgress(0)
-        setSessionCreationStep("")
+        setIsCreatingWorkPlan(false)
+        setWorkPlanCreationProgress(0)
+        setWorkPlanCreationStep("")
       }, 1000)
     }
   }
 
-  // --- Helper Function: validateSessionDuration ---
-  // Attempts to extract a valid session duration from the session plan.
-  // Checks for a provided totalDuration, then calculates it from story blocks,
-  // or as a fallback from individual story estimated durations.
-  function validateSessionDuration(sessionPlan: any): number {
-    console.log('Validating session duration for plan:', sessionPlan)
-    
-    if (typeof sessionPlan.totalDuration === 'number' && sessionPlan.totalDuration > 0) {
-      console.log(`Using provided totalDuration: ${sessionPlan.totalDuration}`)
-      return sessionPlan.totalDuration
+  // --- Helper Function: validateWorkPlanDuration ---
+  // Attempts to extract a valid work plan duration from the work plan.
+  // Returns the total duration in minutes.
+  // Throws an error if no valid duration can be determined.
+  function validateWorkPlanDuration(workPlan: any): number {
+    console.log('Validating work plan duration for plan:', workPlan)
+
+    if (typeof workPlan.totalDuration === 'number' && workPlan.totalDuration > 0) {
+      console.log(`Using provided totalDuration: ${workPlan.totalDuration}`)
+      return workPlan.totalDuration
     }
-    
-    console.warn('Session plan missing valid totalDuration, calculating from story blocks')
-    
-    if (Array.isArray(sessionPlan.storyBlocks) && sessionPlan.storyBlocks.length > 0) {
-      const calculatedDuration = sessionPlan.storyBlocks.reduce(
+
+    console.warn('Work plan missing valid totalDuration, calculating from story blocks')
+
+    if (Array.isArray(workPlan.storyBlocks) && workPlan.storyBlocks.length > 0) {
+      const calculatedDuration = workPlan.storyBlocks.reduce(
         (sum: number, block: { totalDuration?: number }) => sum + (block.totalDuration || 0),
         0
       )
       
       if (calculatedDuration > 0) {
         console.log(`Calculated duration from blocks: ${calculatedDuration}`)
-        sessionPlan.totalDuration = calculatedDuration
+        workPlan.totalDuration = calculatedDuration
         return calculatedDuration
-      }
-    }
-    
-    if (Array.isArray(sessionPlan.stories) && sessionPlan.stories.length > 0) {
-      const durationFromStories = sessionPlan.stories.reduce(
-        (sum: number, story: { estimatedDuration?: number }) => sum + (story.estimatedDuration || 0),
-        0
-      )
-      
-      if (durationFromStories > 0) {
-        console.log(`Calculated duration from stories: ${durationFromStories}`)
-        sessionPlan.totalDuration = durationFromStories
-        return durationFromStories
       }
     }
     
@@ -416,13 +376,13 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       
       if (originalDuration > 0) {
         console.log(`Using original story durations as fallback: ${originalDuration}`)
-        sessionPlan.totalDuration = originalDuration
+        workPlan.totalDuration = originalDuration
         return originalDuration
       }
     }
     
-    console.error('Could not determine valid session duration from any source')
-    throw new Error('Unable to determine valid session duration')
+    console.error('Could not determine valid work plan duration from any source')
+    throw new Error('Unable to determine valid work plan duration')
   }
 
   // --- Duration Change Handler ---
@@ -495,7 +455,13 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     setProcessedStories([]) // Clear previously processed stories.
     setEditedDurations({}) // Reset duration adjustments.
     setTaskProcessingError(null)
-    setSessionCreationError(null)
+    setWorkPlanCreationError(null)
+    setTaskProcessingProgress(0)
+    setWorkPlanCreationProgress(0)
+    setTaskProcessingStep("")
+    setWorkPlanCreationStep("")
+    setIsProcessing(false)
+    setIsCreatingWorkPlan(false)
   }
 
   // --- Logging-Enhanced Setter for Task Input ---
@@ -520,16 +486,16 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     isInputLocked,
     retryCount,
     
-    // Processing status (combining task and session processing).
+    // Processing status (combining task and work plan processing).
     isProcessing,
-    isCreatingSession,
+    isCreatingWorkPlan,
     processingStep: currentProcessingStep,
     processingProgress: currentProcessingProgress,
     error: currentError,
     
     // Action handlers.
     processTasks,
-    handleCreateSession,
+    handleCreateWorkPlan,
     handleDurationChange,
     handleRetry,
   }

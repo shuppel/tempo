@@ -24,7 +24,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TaskRolloverService } from '../services/task-rollover.service';
-import { TimeBoxTask, Session } from '@/lib/types';
+import { TimeBoxTask, TodoWorkPlan } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 export interface IncompleteTask {
@@ -52,7 +52,7 @@ export interface UseTaskRolloverReturn {
   /** Whether the service is currently loading data */
   isLoading: boolean;
   /** The most recent active session with incomplete tasks */
-  recentSession: Session | null;
+  workplan: TodoWorkPlan | null;
   /** List of incomplete tasks that can be rolled over */
   incompleteTasks: IncompleteTask[];
   /** Number of tasks currently selected for rollover */
@@ -74,7 +74,7 @@ export interface UseTaskRolloverReturn {
   /** Close the dialog and discard all changes */
   closeAndDiscard: () => void;
   /** Navigate to the previous session for debriefing */
-  debriefPreviousSession: () => void;
+  debriefPreviousWorkPlan: () => void;
   /** Manually check for incomplete tasks from previous sessions */
   checkForIncompleteTasks: (forceCheck?: boolean, preventAutoPopulate?: boolean) => Promise<void>;
   /** Reset the state of task rollover */
@@ -129,7 +129,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasIncompleteTasks, setHasIncompleteTasks] = useState(false);
-  const [recentSession, setRecentSession] = useState<Session | null>(null);
+  const [workplan, setWorkplan] = useState<TodoWorkPlan | null>(null);
   const [incompleteTasks, setIncompleteTasks] = useState<IncompleteTask[]>([]);
   const [brainDumpText, setBrainDumpText] = useState('');
   
@@ -162,21 +162,21 @@ export function useTaskRollover(): UseTaskRolloverReturn {
 
   // Mark a specific session as having completed its transfers
   // If no date is provided, use the current recentSession
-  const markTransferCompleted = useCallback(async (sessionDate?: string) => {
-    const date = sessionDate || recentSession?.date;
+  const markTransferCompleted = useCallback(async (workplanId?: string) => {
+    const id = workplanId || workplan?.id;
     
-    if (!date) {
-      console.warn('[useTaskRollover] Cannot mark transfers completed without a session date');
+    if (!id) {
+      console.warn('[useTaskRollover] Cannot mark transfers completed without a workplan ID');
       return;
     }
     
-    console.log(`[useTaskRollover] Marking session ${date} as having completed transfers`);
+    console.log(`[useTaskRollover] Marking session ${id} as having completed transfers`);
     
     try {
       // Add to the list of completed transfers in localStorage
       const completedTransfers = getCompletedTransfers();
-      if (!completedTransfers.includes(date)) {
-        completedTransfers.push(date);
+      if (!completedTransfers.includes(id)) {
+        completedTransfers.push(id);
         safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(completedTransfers));
       }
       
@@ -185,13 +185,13 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     } catch (error) {
       console.error('[useTaskRollover] Error marking transfers completed:', error);
     }
-  }, [recentSession, getCompletedTransfers]);
+  }, [workplan, getCompletedTransfers]);
 
   // Check if a session's transfers have been completed
-  const hasCompletedTransfers = useCallback((sessionDate: string): boolean => {
-    if (!sessionDate) return false;
+  const hasCompletedTransfers = useCallback((workplanId: string): boolean => {
+    if (!workplanId) return false;
     const completedTransfers = getCompletedTransfers();
-    return completedTransfers.includes(sessionDate);
+    return completedTransfers.includes(workplanId);
   }, [getCompletedTransfers]);
 
   // Function to determine if we should check today
@@ -261,10 +261,10 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       }
       
       // Get the specific tasks that are incomplete
-      const incompleteData = await rolloverService.getIncompleteTasks();
+      const result = await rolloverService.getIncompleteTasks();
       
       // If no specific incomplete task data, something went wrong
-      if (!incompleteData) {
+      if (!result) {
         console.log("[useTaskRollover] No incomplete task data found");
         setHasIncompleteTasks(false);
         setIsLoading(false);
@@ -273,14 +273,14 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       
       // Debug log all tasks for troubleshooting
       console.log("[useTaskRollover] Incomplete tasks detail:", 
-        incompleteData.tasks.map(t => ({
+        result.tasks.map(t => ({
           title: t.task.title,
           status: t.task.status
         }))
       );
       
       // Check if all tasks are already mitigated - if so, no need to show rollover
-      const allTasksMitigated = incompleteData.tasks.every(
+      const allTasksMitigated = result.tasks.every(
         task => task.task.status === 'mitigated'
       );
       
@@ -291,34 +291,38 @@ export function useTaskRollover(): UseTaskRolloverReturn {
         return;
       }
       
-      console.log(`[useTaskRollover] Found ${incompleteData.tasks.length} incomplete tasks in session ${incompleteData.session.date}`);
+      console.log(`[useTaskRollover] Found ${result.tasks.length} incomplete tasks in session ${result.workplan.id}`);
       
       // Set session data
       setHasIncompleteTasks(true);
-      setRecentSession(incompleteData.session);
+      setWorkplan(result.workplan);
       
       // Map tasks with selected property for UI
-      const mappedTasks = incompleteData.tasks.map(task => ({
+      const formattedTasks = result.tasks.map(task => ({
         ...task,
         selected: true // Select all tasks by default
       }));
       
-      setIncompleteTasks(mappedTasks);
+      setIncompleteTasks(formattedTasks);
       
       // Create brain dump text from all tasks
       if (!preventAutoPopulate) {
-        const text = rolloverService.convertTasksToBrainDumpFormat(
-          mappedTasks.map(task => ({
-            task: task.task,
-            storyTitle: task.storyTitle
+        const taskText = rolloverService.convertTasksToBrainDumpFormat(
+          formattedTasks.map(t => ({
+            task: t.task,
+            storyTitle: t.storyTitle
           }))
         );
-        setBrainDumpText(text);
+        setBrainDumpText(taskText);
       } else {
         console.log("[useTaskRollover] Preventing auto-population of brain dump");
       }
       
       console.log("[useTaskRollover] Check complete, found incomplete tasks");
+      
+      if (!hasCompletedTransfers(result.workplan.id)) {
+        setIsOpen(true);
+      }
     } catch (error) {
       console.error("[useTaskRollover] Error checking for incomplete tasks:", error);
       setHasIncompleteTasks(false);
@@ -326,7 +330,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       setIsLoading(false);
       hasCheckedToday.current = true;
     }
-  }, [serviceEnabled, isLoading, rolloverService]);
+  }, [serviceEnabled, isLoading, rolloverService, hasCompletedTransfers]);
 
   // Improve the initial effect to provide better logging
   // Run the check only once when the component mounts
@@ -389,9 +393,9 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     
     if (selectedTasks.length > 0) {
       try {
-        const text = rolloverService.convertTasksToBrainDumpFormat(selectedTasks);
-        console.log(`[useTaskRollover] Generated brain dump text: ${text.length} chars for ${selectedTasks.length} tasks`);
-        setBrainDumpText(text);
+        const taskText = rolloverService.convertTasksToBrainDumpFormat(selectedTasks);
+        console.log(`[useTaskRollover] Generated brain dump text: ${taskText.length} chars for ${selectedTasks.length} tasks`);
+        setBrainDumpText(taskText);
       } catch (error) {
         console.error('[useTaskRollover] Error generating brain dump text:', error);
         setBrainDumpText(''); // Reset on error
@@ -433,14 +437,14 @@ export function useTaskRollover(): UseTaskRolloverReturn {
 
   // Mark a task as completed in its original session
   const completeTask = useCallback(async (taskIndex: number) => {
-    if (!recentSession) return;
+    if (!workplan) return;
     
     const task = incompleteTasks[taskIndex];
     if (!task) return;
     
     try {
       const success = await rolloverService.completeTask(
-        recentSession.date,
+        workplan.id,
         task.storyId,
         task.timeBoxIndex,
         task.taskIndex
@@ -455,7 +459,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     } catch (error) {
       console.error('Error completing task:', error);
     }
-  }, [recentSession, incompleteTasks, rolloverService]);
+  }, [workplan, incompleteTasks, rolloverService]);
 
   // Delete a task from the rollover (without completing it)
   const deleteTask = useCallback((taskIndex: number) => {
@@ -469,11 +473,11 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     console.log('[useTaskRollover] Finishing rollover');
     
     // Mark transfer as completed for today to prevent rechecking
-    await markTransferCompleted();
+    await markTransferCompleted(workplan?.id);
     
     // If there's a previous session and there are selected tasks to be rolled over,
     // we need to update the status of tasks in the previous session
-    if (recentSession && incompleteTasks.length > 0) {
+    if (workplan && incompleteTasks.length > 0) {
       try {
         // Mark all unselected tasks as "mitigated" so they're not counted for rollover again
         const taskInfos = incompleteTasks.map((task, index) => ({
@@ -484,13 +488,13 @@ export function useTaskRollover(): UseTaskRolloverReturn {
         }));
         
         console.log('[useTaskRollover] Mitigating unselected tasks in previous session');
-        await rolloverService.mitigateUnselectedTasks(recentSession.date, taskInfos);
+        await rolloverService.mitigateUnselectedTasks(workplan.id, taskInfos);
         
         // For selected tasks, update them to indicate they were rolled over
         // We'll do this by getting the session again after mitigation and updating it
         try {
-          const updatedSession = await rolloverService.getMostRecentSessionWithIncompleteTasks();
-          if (updatedSession && updatedSession.date === recentSession.date) {
+          const updatedWorkplan = await rolloverService.getMostRecentWorkPlanWithIncompleteTasks();
+          if (updatedWorkplan && updatedWorkplan.id === workplan.id) {
             // Find selected tasks in our incompleteTasks list
             const selectedTasks = incompleteTasks
               .filter(task => task.selected)
@@ -506,7 +510,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
             // Update these tasks in the original session to mark as rolled over
             await Promise.all(selectedTasks.map(async taskInfo => {
               await rolloverService.markTaskRolledOver(
-                updatedSession.date,
+                updatedWorkplan.id,
                 taskInfo.storyId,
                 taskInfo.timeBoxIndex,
                 taskInfo.taskIndex
@@ -518,8 +522,8 @@ export function useTaskRollover(): UseTaskRolloverReturn {
         }
         
         // Archive the previous session now that we're done with it
-        console.log('[useTaskRollover] Archiving previous session:', recentSession.date);
-        const archived = await rolloverService.archiveSession(recentSession.date);
+        console.log('[useTaskRollover] Archiving previous session:', workplan.id);
+        const archived = await rolloverService.archiveWorkPlan(workplan.id);
         if (archived) {
           console.log('[useTaskRollover] Previous session archived successfully');
         } else {
@@ -542,7 +546,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     setIsOpen(false);
     
     // Store transfer completion in localStorage to ensure persistence across page loads
-    if (recentSession) {
+    if (workplan) {
       try {
         // Add an extra entry with today's date to prevent checks on page refresh
         safeLocalStorage.setItem(`${COMPLETED_TRANSFERS_KEY}-today`, new Date().toISOString());
@@ -550,7 +554,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
         console.error('[useTaskRollover] Error storing transfer completion:', error);
       }
     }
-  }, [recentSession, incompleteTasks, rolloverService, markTransferCompleted, updateBrainDumpText]);
+  }, [workplan, incompleteTasks, rolloverService, markTransferCompleted, updateBrainDumpText]);
 
   // Close the rollover and discard all changes
   const closeAndDiscard = useCallback(() => {
@@ -558,14 +562,14 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   }, []);
 
   // Navigate to the previous session for debriefing
-  const debriefPreviousSession = useCallback(() => {
-    if (recentSession) {
+  const debriefPreviousWorkPlan = useCallback(() => {
+    if (workplan) {
       // Mark as checked for today to prevent rechecking
       hasCheckedToday.current = true;
       safeLocalStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
-      router.push(`/session/${recentSession.date}`);
+      router.push(`/workplan/${workplan.id}`);
     }
-  }, [recentSession, router]);
+  }, [workplan, router]);
 
   // Toggle the service enabled state
   const toggleServiceEnabled = useCallback(() => {
@@ -587,7 +591,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       hasIncompleteTasks,
       serviceEnabled,
       completedTransfers: getCompletedTransfers(),
-      recentSessionDate: recentSession?.date
+      workplanId: workplan?.id
     });
     
     // Clear localStorage entries
@@ -597,17 +601,17 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     // Don't clear the service enabled setting
     
     // Clear session-specific completed transfers to force reevaluation
-    if (recentSession?.date) {
+    if (workplan?.id) {
       const transfers = getCompletedTransfers();
-      const updatedTransfers = transfers.filter(date => date !== recentSession.date);
+      const updatedTransfers = transfers.filter(date => date !== workplan.id);
       safeLocalStorage.setItem(COMPLETED_TRANSFERS_KEY, JSON.stringify(updatedTransfers));
-      console.log(`[useTaskRollover] Removed session ${recentSession.date} from completed transfers list`);
+      console.log(`[useTaskRollover] Removed session ${workplan.id} from completed transfers list`);
     }
     
     // Reset all in-memory state
     hasCheckedToday.current = false;
     setHasIncompleteTasks(false);
-    setRecentSession(null);
+    setWorkplan(null);
     setIncompleteTasks([]);
     setIsOpen(false);
     
@@ -622,14 +626,31 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     });
     
     return true;
-  }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers, recentSession]);
+  }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers, workplan]);
+
+  useEffect(() => {
+    const checkForIncompleteWorkPlan = async () => {
+      try {
+        const recentWorkPlan = await rolloverService.getMostRecentWorkPlanWithIncompleteTasks();
+        if (recentWorkPlan) {
+          router.push(`/workplan/${recentWorkPlan.id}`);
+        }
+      } catch (error) {
+        console.error("Error checking for incomplete tasks:", error);
+      }
+    };
+    
+    if (shouldCheckToday()) {
+      checkForIncompleteWorkPlan();
+    }
+  }, [rolloverService, router, shouldCheckToday]);
 
   return {
     isOpen,
     setIsOpen,
     hasIncompleteTasks,
     isLoading,
-    recentSession,
+    workplan,
     incompleteTasks,
     selectedCount,
     brainDumpText,
@@ -640,7 +661,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     deleteTask,
     finishRollover,
     closeAndDiscard,
-    debriefPreviousSession,
+    debriefPreviousWorkPlan,
     checkForIncompleteTasks,
     resetTaskRolloverState,
     updateBrainDumpText

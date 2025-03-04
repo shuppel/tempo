@@ -221,15 +221,15 @@ export const TimeboxView = ({
     }
   };
 
-  // Calculate total session duration
+  // Calculate total workplan duration
   const totalDuration = storyBlocks.reduce(
-    (total, story) => total + story.timeBoxes.reduce((sum, box) => sum + box.duration, 0), 
+    (total: number, story: StoryBlock) => total + story.timeBoxes.reduce((sum: number, box: TimeBox) => sum + box.duration, 0), 
     0
   );
 
   // Calculate work and break distribution
   const workDuration = storyBlocks.reduce(
-    (total, story) => total + story.timeBoxes.filter(box => box.type === 'work').reduce((sum, box) => sum + box.duration, 0), 
+    (total: number, story: StoryBlock) => total + story.timeBoxes.filter(box => box.type === 'work').reduce((sum: number, box: TimeBox) => sum + box.duration, 0), 
     0
   );
   const breakDuration = totalDuration - workDuration;
@@ -237,37 +237,34 @@ export const TimeboxView = ({
   // Calculate total completed work timeboxes
   const totalWorkBoxes = storyBlocks.flatMap(s => s.timeBoxes.filter(t => t.type === 'work')).length;
   const completedWorkBoxes = storyBlocks.flatMap(s => s.timeBoxes.filter(t => t.type === 'work' && t.status === 'completed')).length;
-  const sessionProgress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0;
+  const workPlanProgress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0;
 
   return (
     <TooltipProvider>
     <div className="space-y-6">
-      {/* Session summary - conditionally rendered */}
+      {/* WorkPlan summary - conditionally rendered */}
       {!hideOverview && (
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-background rounded-lg p-4 border border-border shadow-sm">
           <div>
-            <h3 className="font-medium">Session Overview</h3>
+            <h3 className="font-medium">WorkPlan Overview</h3>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
                 <span>Total: {Math.floor(totalDuration / 60)}h {totalDuration % 60}m</span>
               </div>
-              <div className="flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Work: {Math.floor(workDuration / 60)}h {workDuration % 60}m</span>
+              <div className="flex items-center gap-1.5">
+                <Brain className="h-4 w-4" />
+                <span>Focus: {Math.floor(workDuration / 60)}h {workDuration % 60}m</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Pause className="h-3.5 w-3.5 text-teal-500" />
+              <div className="flex items-center gap-1.5">
+                <Pause className="h-4 w-4" />
                 <span>Breaks: {Math.floor(breakDuration / 60)}h {breakDuration % 60}m</span>
               </div>
             </div>
           </div>
-          <div className="w-full sm:w-36">
-            <div className="flex items-center justify-between mb-1 text-sm">
-              <span>Progress</span>
-              <span>{sessionProgress}%</span>
-            </div>
-            <Progress value={sessionProgress} className="h-2" />
+          <div className="w-full sm:w-auto flex items-center gap-2">
+            <Progress value={workPlanProgress} className="w-full sm:w-32 h-2" />
+            <span className="text-sm font-medium">{workPlanProgress}%</span>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import type { Session } from '../../../lib/types'
+import type { WorkPlan } from '../../../lib/types'
 
 export type Timestamp = string // ISO string format
 export type DocumentId = string
@@ -40,4 +40,4 @@ export interface LocalFirstDBOptions {
   conflictResolver?: <T>(doc1: LocalDocument<T>, doc2: LocalDocument<T>) => LocalDocument<T>
 }
 
-export type SessionDocument = LocalDocument<Session> 
+export type WorkPlanDocument = LocalDocument<WorkPlan> 

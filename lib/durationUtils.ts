@@ -69,7 +69,7 @@ export function generateSchedulingSuggestion(duration: number): string {
   }
   
   if (duration > DURATION_RULES.MAX_DURATION) {
-    suggestions.push(`Consider splitting this ${duration}m task into smaller sessions (${DURATION_RULES.MIN_DURATION}-${DURATION_RULES.MAX_DURATION}m each)`)
+    suggestions.push(`Consider splitting this ${duration}m task into smaller work blocks (${DURATION_RULES.MIN_DURATION}-${DURATION_RULES.MAX_DURATION}m each)`)
   }
   
   if (duration % DURATION_RULES.BLOCK_SIZE !== 0) {
@@ -126,11 +126,11 @@ export function calculateEstimatedEndTime(durationInMinutes: number, startTime: 
 }
 
 /**
- * Get time estimates for a session
+ * Get time estimates for a workplan
  * @param totalDurationInMinutes Total duration in minutes
  * @returns Object with formatted total time and estimated completion time
  */
-export function getSessionTimeEstimates(totalDurationInMinutes: number) {
+export function getWorkPlanTimeEstimates(totalDurationInMinutes: number) {
   return {
     totalTime: formatDuration(totalDurationInMinutes),
     estimatedEnd: calculateEstimatedEndTime(totalDurationInMinutes)

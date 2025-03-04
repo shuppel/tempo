@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { Task, TaskCategory } from "@/lib/types"
+import type { Task, TaskCategory, DifficultyLevel } from "@/lib/types"
 
 interface TaskDialogProps {
   open: boolean
@@ -25,37 +25,43 @@ interface TaskDialogProps {
   onAddTask: (task: Task) => void
 }
 
-export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
+const TaskDialog = ({ open, onOpenChange, onAddTask }: TaskDialogProps) => {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [duration, setDuration] = useState("25")
   const [taskCategory, setTaskCategory] = useState<TaskCategory>("focus")
   const [projectType, setProjectType] = useState("")
-  const [difficulty, setDifficulty] = useState("25")
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("medium")
   const [isFrog, setIsFrog] = useState(false)
+
+  const createTask = (): Task => ({
+    id: crypto.randomUUID(),
+    title,
+    description,
+    duration: parseInt(duration),
+    difficulty,
+    taskCategory,
+    projectType,
+    isFrog,
+    status: "todo",
+    children: [],
+    refined: false
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onAddTask({
-      id: crypto.randomUUID(),
-      title,
-      description,
-      duration: Number.parseInt(duration),
-      difficulty: Number.parseInt(difficulty),
-      taskCategory,
-      projectType: projectType || undefined,
-      isFrog,
-      status: "todo",
-      children: [],
-      refined: false,
-    })
+    onAddTask(createTask())
     setTitle("")
     setDescription("")
     setDuration("25")
     setTaskCategory("focus")
     setProjectType("")
-    setDifficulty("25")
+    setDifficulty("medium")
     setIsFrog(false)
+  }
+
+  const handleFrogChange = (checked: boolean) => {
+    setIsFrog(checked)
   }
 
   return (
@@ -64,7 +70,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add Task</DialogTitle>
-            <DialogDescription>Create a new task for your Pomodoro session</DialogDescription>
+            <DialogDescription>Create a new task for your work block</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -132,23 +138,24 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="difficulty">Difficulty</Label>
-                <Select value={difficulty} onValueChange={setDifficulty}>
+                <Select
+                  value={difficulty}
+                  onValueChange={(value: DifficultyLevel) => setDifficulty(value)}
+                >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="100">Physical/Logistics (100)</SelectItem>
-                    <SelectItem value="75">High Effort (75)</SelectItem>
-                    <SelectItem value="50">Medium Effort (50)</SelectItem>
-                    <SelectItem value="25">Low Effort (25)</SelectItem>
-                    <SelectItem value="13">Learning (13)</SelectItem>
+                    <SelectItem value="low">Easy</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">Hard</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="isFrog">Priority Task</Label>
                 <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox id="isFrog" checked={isFrog} onCheckedChange={(checked) => setIsFrog(!!checked)} />
+                  <Checkbox id="isFrog" checked={isFrog} onCheckedChange={handleFrogChange} />
                   <label htmlFor="isFrog" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Mark as "Eat the Frog" task
                   </label>
@@ -164,4 +171,6 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
     </Dialog>
   )
 }
+
+export default TaskDialog
 

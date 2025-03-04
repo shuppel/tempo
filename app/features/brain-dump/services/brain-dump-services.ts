@@ -2,14 +2,14 @@
 // This service module provides two main functions:
 // 1. processTasks: Sends a list of raw tasks to the AI processing endpoint,
 //    validates and enriches the response with duration and difficulty.
-// 2. createSession: Creates a session from processed stories, including
+// 2. createWorkPlan: Creates a work plan from processed stories, including
 //    task splitting for workload management, error-based modifications,
-//    retries with exponential backoff, and finally saving the session using
-//    the SessionStorageService.
+//    retries with exponential backoff, and finally saving the work plan using
+//    the WorkPlanStorageService.
 
 import type { DifficultyLevel } from "@/lib/types"
 import type { ProcessedStory, ProcessedTask } from "../types"
-import { SessionStorageService } from "@/app/features/session-manager"
+import { WorkPlanStorageService } from "@/app/features/workplan-manager/services/workplan-storage.service"
 import { isApiError } from "../types"
 import { 
   DURATION_RULES,
@@ -19,8 +19,8 @@ import {
   type TimeBox
 } from "@/lib/durationUtils"
 
-// Create a singleton instance of SessionStorageService for saving sessions.
-const sessionStorage = new SessionStorageService()
+// Create a singleton instance of WorkPlanStorageService for saving workplans.
+const workplanStorage = new WorkPlanStorageService()
 
 // Helper function to determine task difficulty based on its duration.
 const determineDifficulty = (duration: number): DifficultyLevel => {
@@ -260,9 +260,9 @@ function recalculateStoryDuration(story: ProcessedStory): void {
   console.log(`Recalculated duration for "${story.title}": ${story.estimatedDuration} minutes (work: ${totalWorkTime}, breaks: ${totalBreakTime})`)
 }
 
-// createSession builds a session from processed stories, handles retries with exponential backoff,
-// validates the total duration, saves the session, and returns the session data.
-const createSession = async (stories: ProcessedStory[], startTime: string, maxRetries = 1) => {
+// createWorkPlan builds a work plan from processed stories, handles retries with exponential backoff,
+// validates the total duration, saves the work plan, and returns the work plan data.
+const createWorkPlan = async (stories: ProcessedStory[], startTime: string, maxRetries = 1) => {
   let currentStories = [...stories]
   let retryCount = 0
   let lastError = null
@@ -442,17 +442,18 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           }))
         }
         
-        // Save the session using the SessionStorageService.
-        await sessionStorage.saveSession(today, sessionToSave);
-        console.log(`Session saved using SessionStorageService for date: ${today}`)
+        // Save the workplan using the WorkPlanStorageService
+        const workplanToSave = { ...sessionToSave, id: today };
+        await workplanStorage.saveWorkPlan(workplanToSave);
+        console.log(`WorkPlan saved using WorkPlanStorageService for date: ${today}`)
         
-        // Verify that the session was saved.
-        const savedSession = await sessionStorage.getSession(today);
-        if (!savedSession) {
-          console.error('Failed to verify saved session - not found in session storage');
-          throw new Error('Session was not properly saved to storage');
+        // Verify that the workplan was saved.
+        const savedWorkPlan = await workplanStorage.getWorkPlan(today);
+        if (!savedWorkPlan) {
+          console.error('Failed to verify saved workplan - not found in workplan storage');
+          throw new Error('WorkPlan was not properly saved to storage');
         } else {
-          console.log(`Session successfully saved and verified with ${savedSession.storyBlocks?.length || 0} story blocks`);
+          console.log(`WorkPlan successfully saved and verified with ${savedWorkPlan.storyBlocks?.length || 0} story blocks`);
         }
         
         return data;
@@ -473,7 +474,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           error.message.includes('overloaded')
         ));
       
-      // Check if it’s an overloaded error (specific 529 error).
+      // Check if it's an overloaded error (specific 529 error).
       const isOverloadedError = isRateLimitError && 
         (error instanceof Error && (
           error.message.includes('529') || 
@@ -536,5 +537,5 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
 // Export the brainDumpService as a constant object.
 export const brainDumpService = {
   processTasks,
-  createSession
+  createWorkPlan
 } as const

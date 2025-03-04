@@ -38,7 +38,6 @@ export interface StoredWorkPlan extends WorkPlan {
   endTime: string
   status?: WorkPlanStatus
   lastUpdated?: string // Add to track when workplan was last updated
-  
   // Timer state persistence
   activeTimeBox?: { storyId: string; timeBoxIndex: number } | null
   timeRemaining?: number | null

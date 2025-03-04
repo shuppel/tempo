@@ -1,4 +1,5 @@
-export { SessionView } from './components/session-view'
+export { WorkPlanView } from './components/workplan-view'
 export { TimeboxView } from './components/timebox-view'
-export { useSession } from './hooks/useSession'
-export { SessionStorageService } from './services/session-storage.service' 
+export {TodoWorkPlanService } from './services/session-storage.service'
+export { useSession as useWorkPlan } from './hooks/useSession'
+export type { UseSessionProps as UseWorkPlanProps, UseSessionReturn as UseWorkPlanReturn } from './hooks/useSession' 

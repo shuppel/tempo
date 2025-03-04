@@ -5,14 +5,14 @@ import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
 import { Plus, AlertCircle, Loader2, RefreshCw, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskCard } from "./task-card"
-import { TaskDialog } from "./task-dialog"
+import TaskDialog from "./task-dialog"
 import { TaskActionModal } from "./task-action-modal"
-import { TimeboxView } from "./timebox-view"
+import { TimeboxView } from "@/app/features/workplan-manager/components/timebox-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { organizeTasks, createTimeBoxes } from "@/lib/task-manager"
-import type { Task, SessionPlan, StoryBlock } from "@/lib/types"
+import type { Task, WorkPlan, StoryBlock, TimeBox } from "@/lib/types"
 
 interface LoadingState {
   organizing: boolean
@@ -32,7 +32,7 @@ export function TaskBoard() {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [currentAction, setCurrentAction] = useState<string>()
   const [actionProgress, setActionProgress] = useState(0)
-  const [sessionPlan, setSessionPlan] = useState<SessionPlan>()
+  const [workPlan, setWorkPlan] = useState<WorkPlan>()
   const [error, setError] = useState<ErrorState | null>(null)
   const [loadingState, setLoadingState] = useState<LoadingState>({
     organizing: false,
@@ -47,11 +47,11 @@ export function TaskBoard() {
     if (tasks.length > 0) {
       organizeAndPlanTasks()
     } else {
-      // Animate out the session plan
-      if (sessionPlan) {
+      // Animate out the work plan
+      if (workPlan) {
         setLoadingState(prev => ({ ...prev, generating: true }))
         setTimeout(() => {
-          setSessionPlan(undefined)
+          setWorkPlan(undefined)
           setLoadingState(prev => ({ ...prev, generating: false }))
         }, 300)
       }
@@ -84,21 +84,21 @@ export function TaskBoard() {
       setLoadingState(prev => ({ ...prev, planning: false, generating: true }))
       
       // Step 3: Generate Final Plan
-      setCurrentAction("Finalizing session plan...")
+      setCurrentAction("Finalizing workplan...")
       
       // Animate out the old plan before setting the new one
-      setSessionPlan(undefined)
+      setWorkPlan(undefined)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      setSessionPlan(plan)
+      setWorkPlan(plan)
       setActionProgress(100)
-      setCurrentAction("Plan created successfully!")
+      setCurrentAction("WorkPlan created successfully!")
       setShowSuccess(true)
 
     } catch (error) {
-      console.error("Failed to create session plan:", error)
+      console.error("Failed to create workplan:", error)
       setError({
-        message: "Failed to create session plan",
+        message: "Failed to create workplan",
         code: error instanceof Error ? error.name : 'UNKNOWN_ERROR',
         details: error instanceof Error ? error.message : 'An unexpected error occurred'
       })
@@ -185,13 +185,13 @@ export function TaskBoard() {
         <Alert className="bg-green-50 text-green-900 border-green-200 animate-in fade-in slide-in-from-top-1">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle>Success</AlertTitle>
-          <AlertDescription>Session plan created successfully!</AlertDescription>
+          <AlertDescription>WorkPlan created successfully!</AlertDescription>
         </Alert>
       )}
 
-      {isLoading && !sessionPlan && <LoadingSkeleton />}
+      {isLoading && !workPlan && <LoadingSkeleton />}
 
-      {sessionPlan && (
+      {workPlan && (
         <div 
           className={cn(
             "rounded-lg border p-4 space-y-4",
@@ -201,7 +201,7 @@ export function TaskBoard() {
           )}
         >
           <div className="flex items-center justify-between">
-            <h3 className="font-medium">Session Timeline</h3>
+            <h3 className="font-medium">WorkPlan Timeline</h3>
             <Button 
               variant="outline" 
               size="sm"
@@ -222,13 +222,13 @@ export function TaskBoard() {
           </div>
           
           <TimeboxView 
-            storyBlocks={sessionPlan.storyBlocks}
-            isCurrentTimeBox={(box) => false}
+            storyBlocks={workPlan.storyBlocks}
+            isCurrentTimeBox={(box: TimeBox) => false}
           />
           
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>
-              Total Duration: {Math.floor(sessionPlan.totalDuration / 60)} hours {sessionPlan.totalDuration % 60} minutes
+              Total Duration: {Math.floor(workPlan.totalDuration / 60)} hours {workPlan.totalDuration % 60} minutes
             </p>
             <Progress 
               value={tasks.filter(t => t.status === "completed").length / tasks.length * 100} 
@@ -277,7 +277,7 @@ export function TaskBoard() {
       {tasks.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center animate-in fade-in-50">
           <h3 className="text-lg font-medium">No tasks yet</h3>
-          <p className="text-sm text-muted-foreground">Add a task to get started with your Pomodoro session</p>
+          <p className="text-sm text-muted-foreground">Add a task to get started with your work blocks</p>
         </div>
       )}
 

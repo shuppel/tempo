@@ -12,14 +12,14 @@
  * - Consistent async/await pattern usage
  * - Session archiving integration
  */
-import { SessionStorageService } from "@/app/features/session-manager";
-import { TimeBoxTask, Session, StoryBlock, TimeBox } from "@/lib/types";
+import { TimeBoxTask, TodoWorkPlan, StoryBlock, TimeBox } from "@/lib/types";
 import { formatDuration } from "@/lib/durationUtils";
+import { WorkPlanStorageService } from "@/app/features/workplan-manager";
 
 // Define the status for mitigated tasks (tasks that are neither completed nor rolled over)
 export type TaskStatus = "todo" | "completed" | "mitigated";
 
-// Define tracked metrics for incomplete tasks in archived sessions
+// Define tracked metrics for incomplete tasks in archived workplans
 export interface IncompleteTasks {
   count: number;
   tasks: Array<{
@@ -33,82 +33,82 @@ export interface IncompleteTasks {
 }
 
 export class TaskRolloverService {
-  private sessionStorage: SessionStorageService;
+  private workplanStorage: WorkPlanStorageService;
 
   constructor() {
-    this.sessionStorage = new SessionStorageService();
+    this.workplanStorage = new WorkPlanStorageService();
   }
 
   /**
-   * Check if there are any incomplete tasks from recent sessions
+   * Check if there are any incomplete tasks from recent workplans
    * 
    * This is the initial check to determine if we need to show the rollover UI
    * 
    * @returns Promise<boolean> - True if there are incomplete tasks
    */
   async hasIncompleteTasks(): Promise<boolean> {
-    console.log("[TaskRolloverService] Checking for incomplete tasks in any session");
-    const sessionWithIncompleteTasks = await this.getMostRecentSessionWithIncompleteTasks();
-    const hasIncomplete = sessionWithIncompleteTasks !== null;
+    console.log("[TaskRolloverService] Checking for incomplete tasks in any workplan");
+    const workplanWithIncompleteTasks = await this.getMostRecentWorkPlanWithIncompleteTasks();
+    const hasIncomplete = workplanWithIncompleteTasks !== null;
     console.log(`[TaskRolloverService] Has incomplete tasks: ${hasIncomplete}`);
     return hasIncomplete;
   }
 
   /**
-   * Get the most recent session that has incomplete tasks
+   * Get the most recent workplan that has incomplete tasks
    * 
-   * This finds the newest session that has incomplete tasks, regardless of status
-   * (in-progress, planned, or even completed sessions might have incomplete tasks)
+   * This finds the newest workplan that has incomplete tasks, regardless of status
+   * (in-progress, planned, or even completed workplans might have incomplete tasks)
    * 
-   * @returns Promise<Session | null> - The most recent session with incomplete tasks or null if none found
+   * @returns Promise<TodoWorkPlan | null> - The most recent workplan with incomplete tasks or null if none found
    */
-  async getMostRecentSessionWithIncompleteTasks(): Promise<Session | null> {
-    console.log("[TaskRolloverService] Finding most recent session with incomplete tasks");
-    const allSessions = await this.sessionStorage.getAllSessions();
+  async getMostRecentWorkPlanWithIncompleteTasks(): Promise<TodoWorkPlan | null> {
+    console.log("[TaskRolloverService] Finding most recent workplan with incomplete tasks");
+    const allWorkPlans = await this.workplanStorage.getAllWorkPlans() as TodoWorkPlan[];
     
-    // Debug log of all sessions found
-    console.log(`[TaskRolloverService] Found ${allSessions.length} total sessions`);
-    for (const session of allSessions) {
-      console.log(`[TaskRolloverService] Session date: ${session.date}, status: ${session.status}`);
+    // Debug log of all workplans found
+    console.log(`[TaskRolloverService] Found ${allWorkPlans.length} total workplans`);
+    for (const workplan of allWorkPlans) {
+      console.log(`[TaskRolloverService] WorkPlan date: ${workplan.id}, status: ${workplan.status}`);
     }
     
     // Convert to array and sort by date (newest first)
-    const sessionArray = Object.values(allSessions)
-      .map(session => ({
-        ...session,
-        date: session.date || ''
+    const workplanArray = allWorkPlans
+      .map(workplan => ({
+        ...workplan,
+        date: workplan.id
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    console.log(`[TaskRolloverService] Sorted ${sessionArray.length} sessions by date`);
+    console.log(`[TaskRolloverService] Sorted ${workplanArray.length} workplans by date`);
     
-    // Check each session for incomplete tasks, starting with the most recent
-    for (const session of sessionArray) {
-      const hasIncompleteTasks = this.sessionHasIncompleteTasks(session);
-      console.log(`[TaskRolloverService] Session ${session.date} has incomplete tasks: ${hasIncompleteTasks}`);
+    // Check each workplan for incomplete tasks, starting with the most recent
+    for (const workplan of workplanArray) {
+      const hasIncompleteTasks = this.workplanHasIncompleteTasks(workplan);
+      console.log(`[TaskRolloverService] WorkPlan ${workplan.date} has incomplete tasks: ${hasIncompleteTasks}`);
       
       if (hasIncompleteTasks) {
-        return session;
+        return workplan;
       }
     }
     
-    console.log("[TaskRolloverService] No session with incomplete tasks found");
+    console.log("[TaskRolloverService] No workplan with incomplete tasks found");
     return null;
   }
   
   /**
-   * Check if a session has any incomplete tasks
+   * Check if a workplan has any incomplete tasks
    * 
-   * @param session The session to check
-   * @returns boolean True if the session has any incomplete tasks
+   * @param workplan The workplan to check
+   * @returns boolean True if the workplan has any incomplete tasks
    */
-  private sessionHasIncompleteTasks(session: Session): boolean {
+  private workplanHasIncompleteTasks(workplan: TodoWorkPlan): boolean {
     let incompleteTasks = 0;
     let completedTasks = 0;
     let mitigatedTasks = 0;
     
     // Go through all story blocks, timeboxes, and tasks to find any incomplete ones
-    for (const story of session.storyBlocks) {
+    for (const story of workplan.storyBlocks) {
       for (const timeBox of story.timeBoxes) {
         // Only consider work timeboxes with tasks
         if (timeBox.type === 'work' && timeBox.tasks && timeBox.tasks.length > 0) {
@@ -118,19 +118,19 @@ export class TaskRolloverService {
             } else if (task.status === 'mitigated') {
               mitigatedTasks++;
               // Log mitigated tasks for debugging
-              console.log(`[TaskRolloverService] Found mitigated task: "${task.title}" in session ${session.date}`);
+              console.log(`[TaskRolloverService] Found mitigated task: "${task.title}" in workplan ${workplan.id}`);
             } else {
               // Any other status (todo, in-progress, etc.) is considered incomplete
               incompleteTasks++;
               // Log incomplete tasks for debugging
-              console.log(`[TaskRolloverService] Found incomplete task: "${task.title}" in session ${session.date}`);
+              console.log(`[TaskRolloverService] Found incomplete task: "${task.title}" in workplan ${workplan.id}`);
             }
           }
         }
       }
     }
     
-    console.log(`[TaskRolloverService] Session ${session.date} task breakdown - incomplete: ${incompleteTasks}, completed: ${completedTasks}, mitigated: ${mitigatedTasks}`);
+    console.log(`[TaskRolloverService] WorkPlan ${workplan.id} task breakdown - incomplete: ${incompleteTasks}, completed: ${completedTasks}, mitigated: ${mitigatedTasks}`);
     
     // Only return true if there are actually incomplete tasks (not mitigated)
     // This ensures that if all tasks are either completed or mitigated, we won't trigger the paywall
@@ -138,32 +138,32 @@ export class TaskRolloverService {
   }
 
   /**
-   * Get the most recent active session (in-progress or planned)
+   * Get the most recent active workplan (in-progress or planned)
    * 
-   * This is a more restrictive method that only looks at active sessions
-   * Use getMostRecentSessionWithIncompleteTasks() instead for finding incomplete tasks
+   * This is a more restrictive method that only looks at active workplans
+   * Use getMostRecentWorkPlanWithIncompleteTasks() instead for finding incomplete tasks
    * 
-   * @returns Promise<Session | null> - The most recent active session or null if none found
+   * @returns Promise<TodoWorkPlan | null> - The most recent active workplan or null if none found
    */
-  async getMostRecentActiveSession(): Promise<Session | null> {
-    console.log("[TaskRolloverService] Finding most recent active session");
-    const allSessions = await this.sessionStorage.getAllSessions();
+  async getMostRecentActiveWorkPlan(): Promise<TodoWorkPlan | null> {
+    console.log("[TaskRolloverService] Finding most recent active workplan");
+    const allWorkPlans = await this.workplanStorage.getAllWorkPlans() as TodoWorkPlan[];
     
     // Convert to array and sort by date (newest first)
-    const sessionArray = Object.values(allSessions)
-      .map(session => ({
-        ...session,
-        date: session.date || ''
+    const workplanArray = allWorkPlans
+      .map(workplan => ({
+        ...workplan,
+        date: workplan.id
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    // Find the first session that's not completed or archived
-    const activeSession = sessionArray.find(session => 
-      session.status === 'in-progress' || session.status === 'planned'
+    // Find the first workplan that's not completed or archived
+    const activeWorkPlan = workplanArray.find(workplan => 
+      workplan.status === 'in-progress' || workplan.status === 'planned'
     );
     
-    console.log(`[TaskRolloverService] Most recent active session: ${activeSession ? activeSession.date : 'none'}`);
-    return activeSession || null;
+    console.log(`[TaskRolloverService] Most recent active workplan: ${activeWorkPlan ? activeWorkPlan.date : 'none'}`);
+    return activeWorkPlan || null;
   }
 
   /**
@@ -175,7 +175,7 @@ export class TaskRolloverService {
    * @returns Promise with session and task details, or null if no tasks found
    */
   async getIncompleteTasks(): Promise<{
-    session: Session;
+    workplan: TodoWorkPlan;
     tasks: Array<{
       task: TimeBoxTask;
       storyTitle: string;
@@ -184,14 +184,14 @@ export class TaskRolloverService {
       taskIndex: number;
     }>;
   } | null> {
-    const recentSession = await this.getMostRecentSessionWithIncompleteTasks();
+    const recentWorkPlan = await this.getMostRecentWorkPlanWithIncompleteTasks();
     
-    if (!recentSession) {
-      console.log("[TaskRolloverService] No recent session with incomplete tasks found");
+    if (!recentWorkPlan) {
+      console.log("[TaskRolloverService] No recent workplan with incomplete tasks found");
       return null;
     }
     
-    console.log(`[TaskRolloverService] Finding incomplete tasks in session ${recentSession.date}`);
+    console.log(`[TaskRolloverService] Finding incomplete tasks in workplan ${recentWorkPlan.id}`);
     
     const incompleteTasks: Array<{
       task: TimeBoxTask;
@@ -202,7 +202,7 @@ export class TaskRolloverService {
     }> = [];
     
     // Extract all incomplete tasks from work timeboxes
-    recentSession.storyBlocks.forEach(story => {
+    recentWorkPlan.storyBlocks.forEach(story => {
       story.timeBoxes.forEach((timeBox, timeBoxIndex) => {
         // Only consider work timeboxes
         if (timeBox.type === 'work' && timeBox.tasks) {
@@ -222,74 +222,65 @@ export class TaskRolloverService {
       });
     });
     
-    console.log(`[TaskRolloverService] Found ${incompleteTasks.length} incomplete tasks in session ${recentSession.date}`);
+    console.log(`[TaskRolloverService] Found ${incompleteTasks.length} incomplete tasks in workplan ${recentWorkPlan.id}`);
     
     return {
-      session: recentSession,
+      workplan: recentWorkPlan,
       tasks: incompleteTasks
     };
   }
 
   /**
-   * Mark a task as completed in its original session
+   * Mark a task as completed in its original workplan
    * 
    * Used when a user indicates they've actually completed the task and don't want to roll it over
    * 
-   * @param sessionDate - Date of the session containing the task
+   * @param workplanDate - Date of the workplan containing the task
    * @param storyId - ID of the story containing the task
    * @param timeBoxIndex - Index of the timebox containing the task
    * @param taskIndex - Index of the task within the timebox
    * @returns Promise<boolean> - Success status
    */
   async completeTask(
-    sessionDate: string,
+    workplanDate: string,
     storyId: string,
     timeBoxIndex: number,
     taskIndex: number
   ): Promise<boolean> {
-    console.log(`[TaskRolloverService] Marking task as completed in session ${sessionDate}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex}`);
-    
-    const result = await this.sessionStorage.updateTaskStatus(
-      sessionDate,
+    const result = await this.workplanStorage.updateTaskStatus(
+      workplanDate,
       storyId,
       timeBoxIndex,
       taskIndex,
       'completed'
     );
-    
-    console.log(`[TaskRolloverService] Task completion result: ${result}`);
     return result;
   }
 
   /**
-   * Mark a task as mitigated in its original session
+   * Mark a task as mitigated in its original workplan
    * 
-   * Used when a user chooses not to roll over a task but also hasn't completed it
-   * These tasks are considered "mitigated" - the user decided not to pursue them
+   * Used when a user indicates they don't need to complete the task and don't want to roll it over
    * 
-   * @param sessionDate - Date of the session containing the task
+   * @param workplanDate - Date of the workplan containing the task
    * @param storyId - ID of the story containing the task
    * @param timeBoxIndex - Index of the timebox containing the task
    * @param taskIndex - Index of the task within the timebox
    * @returns Promise<boolean> - Success status
    */
   async mitigateTask(
-    sessionDate: string,
+    workplanDate: string,
     storyId: string,
     timeBoxIndex: number,
     taskIndex: number
   ): Promise<boolean> {
-    console.log(`[TaskRolloverService] Marking task as mitigated in session ${sessionDate}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex}`);
-    
-    const result = await this.sessionStorage.updateTaskStatus(
-      sessionDate,
+    const result = await this.workplanStorage.updateTaskStatus(
+      workplanDate,
       storyId,
       timeBoxIndex,
       taskIndex,
       'mitigated'
     );
-    
-    console.log(`[TaskRolloverService] Task mitigation result: ${result}`);
     return result;
   }
 
@@ -346,68 +337,55 @@ export class TaskRolloverService {
   }
 
   /**
-   * Archives the session for the given date.
+   * Archive a workplan and update its incomplete tasks tracking
    * 
-   * This changes the session status to 'archived' so it won't be shown in active views
-   * Used after creating a new session to archive the previous one
-   * Also adds information about incomplete tasks to the archived session
-   * 
-   * @param date The date of the session to archive
-   * @returns A boolean indicating whether the archiving was successful
+   * @param date - The date of the workplan to archive
+   * @returns Promise<boolean> - Success status
    */
-  async archiveSession(date: string): Promise<boolean> {
-    try {
-      console.log(`[TaskRolloverService] Archiving session ${date}`);
-      
-      // First, get the session to update it with incomplete tasks data
-      const session = await this.sessionStorage.getSession(date);
-      if (!session) {
-        console.error(`[TaskRolloverService] Failed to archive: session ${date} not found`);
-        return false;
-      }
-      
-      // Collect information about incomplete tasks
-      const incompleteTasks: IncompleteTasks = {
-        count: 0,
-        tasks: []
-      };
-      
-      // Go through all story blocks, timeboxes, and tasks to find any incomplete ones
-      for (const story of session.storyBlocks) {
-        for (const timeBox of story.timeBoxes) {
-          // Only consider work timeboxes with tasks
-          if (timeBox.type === 'work' && timeBox.tasks) {
-            for (const task of timeBox.tasks) {
-              if (task.status !== 'completed') {
-                incompleteTasks.count++;
-                incompleteTasks.tasks.push({
-                  title: task.title,
-                  storyTitle: story.title,
-                  duration: task.duration || 0,
-                  taskCategory: task.taskCategory,
-                  mitigated: task.status === 'mitigated',
-                  rolledOver: false // Default to false, updated after rollover if needed
-                });
-              }
-            }
-          }
-        }
-      }
-      
-      // Add the incomplete tasks data to the session
-      const updatedSession = {
-        ...session,
-        incompleteTasks
-      };
-      
-      // Now archive the session with the updated data
-      const success = await this.sessionStorage.archiveSession(date, updatedSession);
-      console.log(`[TaskRolloverService] Session archive result: ${success}`);
-      return success;
-    } catch (error) {
-      console.error('[TaskRolloverService] Failed to archive session:', error);
+  async archiveWorkPlan(date: string): Promise<boolean> {
+    const workplan = await this.workplanStorage.getWorkPlan(date);
+    if (!workplan) {
+      console.error(`[TaskRolloverService] Failed to find workplan for date: ${date}`);
       return false;
     }
+
+    // Track incomplete tasks before archiving
+    const incompleteTasks: IncompleteTasks = {
+      count: 0,
+      tasks: []
+    };
+
+    // Go through all story blocks and timeboxes to find incomplete tasks
+    workplan.storyBlocks.forEach((story: StoryBlock) => {
+      story.timeBoxes.forEach((timeBox: TimeBox) => {
+        if (timeBox.type === 'work' && timeBox.tasks) {
+          timeBox.tasks.forEach((task: TimeBoxTask) => {
+            if (task.status !== 'completed') {
+              incompleteTasks.count++;
+              incompleteTasks.tasks.push({
+                title: task.title,
+                storyTitle: story.title,
+                duration: task.duration,
+                taskCategory: task.taskCategory,
+                mitigated: task.status === 'mitigated',
+                rolledOver: false // Will be updated when task is rolled over
+              });
+            }
+          });
+        }
+      });
+    });
+
+    // Update the workplan with incomplete tasks tracking
+    const updatedWorkPlan = {
+      ...workplan,
+      incompleteTasks,
+      status: 'archived' as const
+    };
+
+    // Save the workplan with archived status
+    await this.workplanStorage.saveWorkPlan({ ...updatedWorkPlan, id: date });
+    return true;
   }
 
   /**
@@ -448,102 +426,123 @@ export class TaskRolloverService {
   }
 
   /**
-   * Mark a task as rolled over to a new session
+   * Mark a task as rolled over in its original workplan
    * 
-   * This method updates a task in a session to record that it was rolled over to a new session
-   * 
-   * @param sessionDate The date of the session containing the task
-   * @param storyId The ID of the story that contains the task
-   * @param timeBoxIndex The index of the timeBox in the story
-   * @param taskIndex The index of the task in the timeBox
-   * @returns A boolean indicating whether the update was successful
+   * @param workplanDate - Date of the workplan containing the task
+   * @param storyId - ID of the story containing the task
+   * @param timeBoxIndex - Index of the timebox containing the task
+   * @param taskIndex - Index of the task within the timebox
+   * @returns Promise<boolean> - Success status
    */
   async markTaskRolledOver(
-    sessionDate: string,
+    workplanDate: string,
     storyId: string,
     timeBoxIndex: number,
     taskIndex: number
   ): Promise<boolean> {
-    try {
-      console.log(`[TaskRolloverService] Marking task as rolled over: session=${sessionDate}, story=${storyId}, timeBox=${timeBoxIndex}, task=${taskIndex}`);
-      
-      // First, update the task status to mitigated
-      const statusUpdated = await this.sessionStorage.updateTaskStatus(
-        sessionDate, 
-        storyId, 
-        timeBoxIndex, 
-        taskIndex, 
-        "mitigated"
-      );
-      
-      if (!statusUpdated) {
-        console.error('[TaskRolloverService] Failed to update task status for rolled over task');
-        return false;
-      }
-      
-      // Now get the session to add this task to the incompleteTasks field
-      const session = await this.sessionStorage.getSession(sessionDate);
-      if (!session) {
-        console.error(`[TaskRolloverService] Session ${sessionDate} not found when marking task as rolled over`);
-        return false;
-      }
-      
-      // Find the task to mark as rolled over
-      let taskTitle = '';
-      let storyTitle = '';
-      let taskDuration = 0;
-      let taskCategory = undefined;
-      
-      // Find the story, timeBox, and task
-      const story = session.storyBlocks.find(s => s.id === storyId);
-      if (story && story.timeBoxes[timeBoxIndex]) {
-        storyTitle = story.title;
-        const timeBox = story.timeBoxes[timeBoxIndex];
-        
-        if (timeBox.tasks && timeBox.tasks[taskIndex]) {
-          const task = timeBox.tasks[taskIndex];
-          taskTitle = task.title;
-          taskDuration = task.duration || 0;
-          taskCategory = task.taskCategory;
-        }
-      }
-      
-      // Initialize the incompleteTasks field if it doesn't exist
-      if (!session.incompleteTasks) {
-        session.incompleteTasks = {
-          count: 0,
-          tasks: []
-        };
-      }
-      
-      // Check if this task is already in the incompleteTasks list
-      const existingTaskIndex = session.incompleteTasks.tasks.findIndex(t => 
-        t.title === taskTitle && t.storyTitle === storyTitle
-      );
-      
-      if (existingTaskIndex >= 0) {
-        // Update the existing entry
-        session.incompleteTasks.tasks[existingTaskIndex].rolledOver = true;
-      } else if (taskTitle && storyTitle) {
-        // Add a new entry
-        session.incompleteTasks.tasks.push({
-          title: taskTitle,
-          storyTitle: storyTitle,
-          duration: taskDuration,
-          taskCategory: taskCategory,
-          mitigated: true,
-          rolledOver: true
-        });
-        session.incompleteTasks.count++;
-      }
-      
-      // Save the updated session
-      await this.sessionStorage.saveSession(sessionDate, session);
-      
-      return true;
-    } catch (error) {
-      console.error('[TaskRolloverService] Error marking task as rolled over:', error);
+    const statusUpdated = await this.workplanStorage.updateTaskStatus(
+      workplanDate,
+      storyId,
+      timeBoxIndex,
+      taskIndex,
+      'mitigated'
+    );
+
+    if (!statusUpdated) {
+      console.error(`[TaskRolloverService] Failed to update task status for workplan: ${workplanDate}`);
       return false;
     }
+
+    // Update the incompleteTasks tracking to mark this task as rolled over
+    const workplan = await this.workplanStorage.getWorkPlan(workplanDate);
+    if (!workplan || !workplan.incompleteTasks) {
+      console.error(`[TaskRolloverService] Failed to find workplan or incomplete tasks for date: ${workplanDate}`);
+      return false;
+    }
+
+    const updatedIncompleteTasks = {
+      ...workplan.incompleteTasks,
+      tasks: workplan.incompleteTasks.tasks.map((task) => {
+        // Find the task in the workplan to get its title for matching
+        const matchingTask = this.findTaskInWorkPlan(workplan, storyId, timeBoxIndex, taskIndex);
+        if (matchingTask && task.title === matchingTask.title) {
+          return {
+            ...task,
+            storyTitle: task.storyTitle || '',
+            duration: task.duration || 0,
+            mitigated: task.mitigated || false,
+            rolledOver: true
+          };
+        }
+        return {
+          ...task,
+          storyTitle: task.storyTitle || '',
+          duration: task.duration || 0,
+          mitigated: task.mitigated || false,
+          rolledOver: task.rolledOver || false
+        };
+      })
+    };
+
+    const updatedWorkPlan = {
+      ...workplan,
+      incompleteTasks: updatedIncompleteTasks
+    };
+
+    await this.workplanStorage.saveWorkPlan({ ...updatedWorkPlan, id: workplanDate });
+    return true;
+  }
+
+  /**
+   * Helper function to find a task in a workplan by its location
+   */
+  private findTaskInWorkPlan(
+    workplan: TodoWorkPlan,
+    storyId: string,
+    timeBoxIndex: number,
+    taskIndex: number
+  ): TimeBoxTask | null {
+    const story = workplan.storyBlocks.find(s => s.id === storyId);
+    if (!story) return null;
+
+    const timeBox = story.timeBoxes[timeBoxIndex];
+    if (!timeBox || !timeBox.tasks) return null;
+
+    return timeBox.tasks[taskIndex] || null;
+  }
+
+  private processStoryTasks(
+    story: StoryBlock,
+    timeBox: TimeBox,
+    timeBoxIndex: number
+  ): void {
+    if (timeBox.tasks) {
+      timeBox.tasks.forEach((task: TimeBoxTask) => {
+        // ... existing code ...
+      });
+    }
+  }
+
+  async getAllWorkPlans(): Promise<TodoWorkPlan[]> {
+    const allWorkPlans = await this.workplanStorage.getAllWorkPlans();
+    return allWorkPlans as TodoWorkPlan[];
+  }
+
+  async getWorkPlan(date: string): Promise<TodoWorkPlan> {
+    const workplan = await this.workplanStorage.getWorkPlan(date);
+    return workplan as TodoWorkPlan;
+  }
+
+  async saveWorkPlan(date: string, workplan: TodoWorkPlan): Promise<void> {
+    const workplanWithId = { ...workplan, id: date };
+    await this.workplanStorage.saveWorkPlan(workplanWithId);
+  }
+
+  private sortByDuration(s1: { duration: number }, s2: { duration: number }): number {
+    return s2.duration - s1.duration;
+  }
+
+  private sortByTitle(t1: { title: string }, t2: { title: string }): number {
+    return t1.title.localeCompare(t2.title);
   }
 } 

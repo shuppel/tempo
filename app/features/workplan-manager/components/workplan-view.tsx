@@ -8,12 +8,10 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
-  CheckCircle, 
-  Circle, 
+  CheckCircle,  
   Clock, 
   Play, 
   Pause, 
-  RotateCcw, 
   ChevronRight,
   Calendar,
   CheckCircle2,
@@ -24,15 +22,14 @@ import {
   ChevronLeft,
   MinusCircle,
   PlusCircle,
-  Bug,
   ListChecks,
   Timer,
   Hourglass,
   BarChart2
 } from "lucide-react"
-import { useSession } from "../hooks/useSession"
-import { SessionStorageService } from "../services/session-storage.service"
-import type { Session, TimeBox, TimeBoxTask, StoryBlock } from "@/lib/types"
+import { useWorkPlan, type UseWorkPlanReturn } from "../hooks/useWorkPlan"
+import { WorkPlanStorageService } from "../services/workplan-storage.service"
+import type { TimeBox, TimeBoxTask, StoryBlock, TodoWorkPlan } from "@/lib/types"
 import { format } from "date-fns"
 import { VerticalTimeline } from './vertical-timeline'
 import { 
@@ -55,10 +52,14 @@ import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { LiaFrogSolid } from "react-icons/lia"
 
-interface SessionViewProps {
+interface StoryBlockWithTimeBoxes extends StoryBlock {
+  timeBoxes: TimeBox[];
+}
+
+interface WorkPlanViewProps {
   id?: string;
   date?: string;
-  storageService?: SessionStorageService;
+  storageService?: WorkPlanStorageService;
 }
 
 // Separate timer display component to prevent re-animations
@@ -507,9 +508,13 @@ const FloatingTimerWrapper = React.memo(({
 
 FloatingTimerWrapper.displayName = 'FloatingTimerWrapper';
 
-export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
+export const WorkPlanView: React.FC<WorkPlanViewProps> = ({ 
+  id, 
+  date = format(new Date(), 'yyyy-MM-dd'),
+  storageService = new WorkPlanStorageService()
+}) => {
   // Use date as id if provided (for backward compatibility)
-  const sessionId = id || date;
+  const workPlanId = id || date;
   
   // Ref for timer section to detect when it's out of viewport
   const timerCardRef = useRef<HTMLDivElement>(null);
@@ -543,14 +548,14 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
   const isFloatingTimerInitialized = useRef(false);
   
   const {
-    session,
+    workplan: workPlan,
     loading,
     error,
     activeTimeBox,
     timeRemaining,
     isTimerRunning,
     completedPercentage,
-    isSessionComplete,
+    isWorkPlanComplete,
     handleTaskClick,
     startTimeBox,
     pauseTimer,
@@ -558,9 +563,11 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     resetTimer,
     completeTimeBox,
     undoCompleteTimeBox,
+    findNextWorkTimeBox,
+    findNextTimeBox,
     isCurrentTimeBox,
     updateTimeRemaining
-  } = useSession({ id: sessionId, storageService });
+  }: UseWorkPlanReturn = useWorkPlan({ id: workPlanId, storageService });
 
   // State for active time update
   const [currentFormattedTime, setCurrentFormattedTime] = useState('00:00');
@@ -627,13 +634,13 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
 
   // Calculate the active timebox type and details
   const getActiveTimeBoxDetails = useCallback(() => {
-    if (!session || !activeTimeBox) return null;
+    if (!workPlan || !activeTimeBox) return null;
     
-    const storyIndex = session.storyBlocks.findIndex(story => story.id === activeTimeBox.storyId);
+    const storyIndex = workPlan.storyBlocks.findIndex(story => story.id === activeTimeBox.storyId);
     if (storyIndex === -1) return null;
     
-    const timeBox = session.storyBlocks[storyIndex].timeBoxes[activeTimeBox.timeBoxIndex];
-    const storyTitle = session.storyBlocks[storyIndex].title;
+    const timeBox = workPlan.storyBlocks[storyIndex].timeBoxes[activeTimeBox.timeBoxIndex];
+    const storyTitle = workPlan.storyBlocks[storyIndex].title;
     
     return {
       title: storyTitle,
@@ -642,7 +649,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
       type: timeBox.type,
       progress: timeRemaining !== null ? 100 - Math.round((timeRemaining / (timeBox.duration * 60)) * 100) : 0
     };
-  }, [session, activeTimeBox, timeRemaining]);
+  }, [workPlan, activeTimeBox, timeRemaining]);
   
   const activeTimeBoxDetails = useMemo(() => 
     getActiveTimeBoxDetails()
@@ -744,9 +751,9 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
 
   // Get badge styles based on session status
   const getSessionStatusBadge = () => {
-    if (!session) return null;
+    if (!workPlan) return null;
     
-    if (isSessionComplete) {
+    if (isWorkPlanComplete) {
       return <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700/60">
         <CheckCircle2 className="mr-1 h-3 w-3" />
         Completed
@@ -767,15 +774,15 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
   };
 
   // Calculate work and break durations
-  const workDuration = session ? session.storyBlocks.reduce(
-    (total, story) => total + story.timeBoxes.filter(box => box.type === 'work').reduce(
-      (sum, box) => sum + box.duration, 0
+  const workDuration = workPlan ? workPlan.storyBlocks.reduce(
+    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.type === 'work').reduce(
+      (sum: number, box: TimeBox) => sum + box.duration, 0
     ), 0
   ) : 0;
 
-  const breakDuration = session ? session.storyBlocks.reduce(
-    (total, story) => total + story.timeBoxes.filter(box => box.type !== 'work').reduce(
-      (sum, box) => sum + box.duration, 0
+  const breakDuration = workPlan ? workPlan.storyBlocks.reduce(
+    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.type !== 'work').reduce(
+      (sum: number, box: TimeBox) => sum + box.duration, 0
     ), 0
   ) : 0;
 
@@ -829,10 +836,20 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     if (timeRemaining !== null && activeTimeBox) {
       // Ensure we don't go below zero
       const newTime = Math.max(0, timeRemaining + (minutes * 60));
-      // Use the updateTimeRemaining function from the useSession hook
+      // Use the updateTimeRemaining function from the useWorkPlan hook
       updateTimeRemaining(newTime);
     }
   }, [timeRemaining, activeTimeBox, updateTimeRemaining]);
+
+  const onTimeBoxClick = (storyId: string, timeBoxIndex: number) => {
+    const story = workPlan?.storyBlocks.find(s => s.id === storyId);
+    if (!story) return;
+    
+    const timeBox = story.timeBoxes[timeBoxIndex];
+    if (!timeBox) return;
+    
+    startTimeBox(storyId, timeBoxIndex, timeBox.duration);
+  };
 
   if (loading) {
     return (
@@ -858,7 +875,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     );
   }
 
-  if (!session) {
+  if (!workPlan) {
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
         <div className="flex items-center">
@@ -899,12 +916,12 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
         <Card className="border-2 xl:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-2xl font-bold">
-              Session for {format(new Date(session.date), 'EEEE, MMMM d, yyyy')}
+              WorkPlan for {format(new Date(workPlan.id), 'EEEE, MMMM d, yyyy')}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-white dark:bg-gray-900/80 border-gray-200 dark:border-gray-700/60 text-gray-700 dark:text-gray-300">
                 <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                <span>Total: {Math.floor(session.totalDuration / 60)}h {session.totalDuration % 60}m</span>
+                <span>Total: {Math.floor(workPlan.totalDuration / 60)}h {workPlan.totalDuration % 60}m</span>
               </Badge>
               
               <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-700/60 text-indigo-700 dark:text-indigo-300">
@@ -930,10 +947,10 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                 </div>
                 <span className="text-xs font-medium text-violet-600 dark:text-violet-400 mb-1">Frogs Completed</span>
                 <span className="text-lg font-bold">
-                  {session.storyBlocks.filter(story => 
+                  {workPlan.storyBlocks.filter(story => 
                     story.timeBoxes.every(box => box.type === 'work' ? box.status === 'completed' : true)
                   ).length}
-                  <span className="text-sm font-medium text-violet-500/70 dark:text-violet-400/70"> / {session.storyBlocks.length}</span>
+                  <span className="text-sm font-medium text-violet-500/70 dark:text-violet-400/70"> / {workPlan.storyBlocks.length}</span>
                 </span>
               </div>
               
@@ -944,18 +961,19 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                 </div>
                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Tasks Completed</span>
                 <span className="text-lg font-bold">
-                  {session.storyBlocks.reduce(
-                    (sum, story) => sum + story.timeBoxes.reduce(
-                      (boxSum, box) => boxSum + (box.tasks?.filter(t => t.status === 'completed').length || 0), 0
+                  {workPlan.storyBlocks.reduce(
+                    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.reduce(
+                      (sum: number, box: TimeBox) => sum + (box.tasks?.filter(t => t.status === 'completed').length || 0), 0
                     ), 0
                   )}
-                  <span className="text-sm font-medium text-emerald-500/70 dark:text-emerald-400/70"> / {
-                    session.storyBlocks.reduce(
-                      (sum, story) => sum + story.timeBoxes.reduce(
-                        (boxSum, box) => boxSum + (box.tasks?.length || 0), 0
+                  <span className="text-sm font-medium text-emerald-500/70 dark:text-emerald-400/70">
+                    {' '}/{' '}
+                    {workPlan.storyBlocks.reduce(
+                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.reduce(
+                        (sum: number, box: TimeBox) => sum + (box.tasks?.length || 0), 0
                       ), 0
-                    )
-                  }</span>
+                    )}
+                  </span>
                 </span>
               </div>
               
@@ -966,11 +984,10 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                 </div>
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Time Worked</span>
                 <span className="text-lg font-bold">
-                  {/* Calculate time worked based on completed timeboxes */}
                   {(() => {
-                    const completedMinutes = session.storyBlocks.reduce(
-                      (total, story) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
-                        (sum, box) => sum + box.duration, 0
+                    const completedMinutes = workPlan.storyBlocks.reduce(
+                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
+                        (sum: number, box: TimeBox) => sum + box.duration, 0
                       ), 0
                     );
                     const hours = Math.floor(completedMinutes / 60);
@@ -988,10 +1005,10 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Time Remaining</span>
                 <span className="text-lg font-bold">
                   {(() => {
-                    const totalMinutes = session.totalDuration;
-                    const completedMinutes = session.storyBlocks.reduce(
-                      (total, story) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
-                        (sum, box) => sum + box.duration, 0
+                    const totalMinutes = workPlan.totalDuration;
+                    const completedMinutes = workPlan.storyBlocks.reduce(
+                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
+                        (sum: number, box: TimeBox) => sum + box.duration, 0
                       ), 0
                     );
                     const remainingMinutes = totalMinutes - completedMinutes;
@@ -1248,34 +1265,18 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
           </CardHeader>
           <CardContent className="pt-6">
             <VerticalTimeline 
-              storyBlocks={session.storyBlocks}
+              storyBlocks={workPlan.storyBlocks}
               activeTimeBoxId={activeTimeBox ? `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}` : undefined}
               activeStoryId={activeTimeBox?.storyId}
               activeTimeBoxIndex={activeTimeBox?.timeBoxIndex}
-              startTime={session.lastUpdated || new Date().toISOString()}
+              startTime={workPlan.lastUpdated || new Date().toISOString()}
               completedPercentage={completedPercentage}
               onTaskClick={handleTaskClick}
-              onTimeBoxClick={(storyId, timeBoxIndex) => {
-                const story = session.storyBlocks.find(s => s.id === storyId);
-                if (!story) return;
-                
-                const timeBox = story.timeBoxes[timeBoxIndex];
-                if (!timeBox) return;
-                
-                if (isCurrentTimeBox(timeBox)) {
-                  // If already current, show details instead
-                  console.log("Show details for current timebox:", timeBox);
-                }
-              }}
+              onTimeBoxClick={onTimeBoxClick}
               onStartTimeBox={startTimeBox}
-              onCompleteTimeBox={(storyId, timeBoxIndex) => {
-                completeTimeBox(storyId, timeBoxIndex);
-              }}
-              onUndoCompleteTimeBox={(storyId, timeBoxIndex) => {
-                undoCompleteTimeBox(storyId, timeBoxIndex);
-              }}
-              onStartSessionDebrief={(duration) => {
-                // Create a synthetic timebox for the debrief
+              onCompleteTimeBox={completeTimeBox}
+              onUndoCompleteTimeBox={undoCompleteTimeBox}
+              onStartWorkPlanDebrief={(duration: number) => {
                 const debriefId = "session-debrief";
                 
                 // Set up a special timer for the debrief
@@ -1295,4 +1296,4 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
       </div>
     </div>
   )
-} 
+}

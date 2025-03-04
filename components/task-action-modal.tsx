@@ -43,7 +43,7 @@ export function TaskActionModal({
         <DialogHeader>
           <DialogTitle>Processing Tasks</DialogTitle>
           <DialogDescription>
-            {currentTask?.title || "Optimizing your work session..."}
+            {currentTask?.title || "Optimizing your work blocks..."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-4">

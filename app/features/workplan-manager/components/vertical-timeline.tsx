@@ -56,7 +56,7 @@ export interface VerticalTimelineProps {
   onStartTimeBox?: (storyId: string, timeBoxIndex: number, duration: number) => void
   onCompleteTimeBox?: (storyId: string, timeBoxIndex: number) => void
   onUndoCompleteTimeBox?: (storyId: string, timeBoxIndex: number) => void
-  onStartSessionDebrief?: (duration: number) => void
+  onStartWorkPlanDebrief?: (duration: number) => void
   isCompactView?: boolean
 }
 
@@ -72,7 +72,7 @@ export const VerticalTimeline = ({
   onStartTimeBox,
   onCompleteTimeBox,
   onUndoCompleteTimeBox,
-  onStartSessionDebrief,
+  onStartWorkPlanDebrief: onStartSessionDebrief,
   isCompactView = false
 }: VerticalTimelineProps) => {
   const [visibleBoxes, setVisibleBoxes] = useState<Set<string>>(new Set())
@@ -85,9 +85,9 @@ export const VerticalTimeline = ({
   // Track the current next action to detect changes
   const [lastNextActionId, setLastNextActionId] = useState<string | null>(null)
   
-  // Add state to track if session debrief is active
-  const [sessionDebriefActive, setSessionDebriefActive] = useState(false)
-  const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
+  // Add state to track if workplan debrief is active
+  const [workPlanDebriefActive, setWorkPlanDebriefActive] = useState(false)
+  const [workPlanDebriefCompleted, setWorkPlanDebriefCompleted] = useState(false)
   
   // Override the default confirm dialog with our own dialogs
   // This prevents the browser's built-in confirm dialog from showing
@@ -1168,7 +1168,7 @@ export const VerticalTimeline = ({
                     </div>
                   </div>
                   
-                  {sessionDebriefActive && (
+                  {workPlanDebriefActive && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -1176,8 +1176,8 @@ export const VerticalTimeline = ({
                           variant="outline"
                           className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
                           onClick={() => {
-                            setSessionDebriefCompleted(true);
-                            setSessionDebriefActive(false);
+                            setWorkPlanDebriefCompleted(true);
+                            setWorkPlanDebriefActive(false);
                           }}
                         >
                           <CheckCircle2 className="h-4.5 w-4.5 mr-1.5" />
@@ -1190,7 +1190,7 @@ export const VerticalTimeline = ({
                     </Tooltip>
                   )}
                   
-                  {!sessionDebriefActive && !sessionDebriefCompleted && onStartSessionDebrief && (
+                  {!workPlanDebriefActive && !workPlanDebriefCompleted && onStartSessionDebrief && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -1200,7 +1200,7 @@ export const VerticalTimeline = ({
                           onClick={() => {
                             // 10 minutes for the debrief by default
                             onStartSessionDebrief(10);
-                            setSessionDebriefActive(true);
+                            setWorkPlanDebriefActive(true);
                           }}
                         >
                           <FileText className="h-4.5 w-4.5 mr-1.5" />
@@ -1213,7 +1213,7 @@ export const VerticalTimeline = ({
                     </Tooltip>
                   )}
                   
-                  {sessionDebriefCompleted && (
+                  {workPlanDebriefCompleted && (
                     <Badge className="bg-green-500 text-white dark:bg-green-700 dark:text-white px-2.5 py-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                       <span>Completed</span>

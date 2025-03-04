@@ -1,14 +1,17 @@
 // lib/task-manager.ts
-import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType, DifficultyLevel } from "./types"
+import type { Task, TaskGroup, TimeBox, StoryBlock, WorkPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType, DifficultyLevel } from "./types"
 
 const DURATION_RULES = {
-  FIRST_SESSION: { min: 20, max: 30 },
-  MIDDLE_SESSION: { min: 25, max: 60 },
-  FINAL_SESSION: { min: 15, max: 60 },
-  SINGLE_TASK: { min: 20, max: 60 },
+  FIRST_BLOCK: { min: 20, max: 30 },
+  MIDDLE_BLOCK: { min: 25, max: 60 },
+  FINAL_BLOCK: { min: 15, max: 60 },
+  MIN_DURATION: 15,
+  MAX_DURATION: 60,
   SHORT_BREAK: 5,
   LONG_BREAK: 15,
-  DEBRIEF: 5,
+  DEBRIEF: 15,
+  LUNCH_BREAK: 30,
+  FROG_TARGET_HOUR: 10, // Target hour for frog tasks (10 AM)
   SPLIT_THRESHOLD: 60,
   DURATION_TOLERANCE: 10,
   MAX_WORK_WITHOUT_BREAK: 90
@@ -84,7 +87,7 @@ function calculateSplitDurations(totalDuration: number): { workDurations: number
 
   // Calculate remaining parts ensuring breaks are accounted for
   while (remaining > DURATION_RULES.SHORT_BREAK) {
-    if (remaining <= DURATION_RULES.FINAL_SESSION.max + DURATION_RULES.SHORT_BREAK) {
+    if (remaining <= DURATION_RULES.FINAL_BLOCK.max + DURATION_RULES.SHORT_BREAK) {
       // Last part: remaining time minus break
       parts.push(remaining - DURATION_RULES.SHORT_BREAK)
       breakTime += DURATION_RULES.SHORT_BREAK
@@ -160,11 +163,11 @@ async function analyzeAndGroupTasks(tasks: Task[]): Promise<{ title: string, tas
     }))
 }
 
-export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
+export async function createTimeBoxes(tasks: Task[]): Promise<WorkPlan> {
   // Get grouped and prioritized tasks
   const groups = await analyzeAndGroupTasks(tasks)
   const storyBlocks: StoryBlock[] = []
-  let totalSessionDuration = 0
+  let totalWorkPlanDuration = 0
 
   // Enhanced frog tracking
   const frogTasks = tasks.filter(t => t.isFrog)
@@ -188,7 +191,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
     for (const task of group.tasks) {
       if (task.isFrog) {
         // Track frog scheduling
-        const currentTotalDuration = totalSessionDuration + storyDuration
+        const currentTotalDuration = totalWorkPlanDuration + storyDuration
         
         if (currentTotalDuration > frogDeadlineMinutes) {
           console.warn(`Warning: Frog task "${task.title}" scheduled beyond the first third of the day (${currentTotalDuration}/${frogDeadlineMinutes} minutes)`)
@@ -320,7 +323,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
       taskIds: group.tasks.map(task => task.id)
     })
 
-    totalSessionDuration += storyDuration
+    totalWorkPlanDuration += storyDuration
   }
 
   // Validate all frogs were scheduled
@@ -328,19 +331,20 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
     throw new Error(`Not all frog tasks were scheduled: ${frogTracker.scheduled}/${frogTracker.total} completed`)
   }
 
-  // Validate total session duration matches sum of story blocks
+  // Validate total workplan duration matches sum of story blocks
   const storyBlockTotal = storyBlocks.reduce((sum, block) => sum + block.totalDuration, 0)
-  if (storyBlockTotal !== totalSessionDuration) {
-    throw new Error(`Session duration mismatch: ` +
-      `calculated=${totalSessionDuration}, blockSum=${storyBlockTotal}`)
+  if (storyBlockTotal !== totalWorkPlanDuration) {
+    throw new Error(`WorkPlan duration mismatch: ` +
+      `calculated=${totalWorkPlanDuration}, blockSum=${storyBlockTotal}`)
   }
 
+  // Return the workplan
   const now = new Date()
   return {
     storyBlocks,
-    totalDuration: totalSessionDuration,
+    totalDuration: totalWorkPlanDuration,
     startTime: now.toISOString(),
-    endTime: new Date(now.getTime() + totalSessionDuration * 60000).toISOString(),
+    endTime: new Date(now.getTime() + totalWorkPlanDuration * 60000).toISOString(),
     frogMetrics: {
       total: frogTracker.total,
       scheduled: frogTracker.scheduled,

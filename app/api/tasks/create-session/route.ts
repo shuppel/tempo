@@ -466,28 +466,21 @@ function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask
 }
 
 export async function POST(req: Request) {
-  const currentTime = new Date()
-  let startTime
-  let stories
-  let storyMapping
-
   try {
     const body = await req.json()
     const parsedBody = RequestSchema.parse(body)
     
-    stories = parsedBody.stories
-    startTime = parsedBody.startTime
-    storyMapping = parsedBody.storyMapping
+    const { stories: inputStories, startTime: inputStartTime, storyMapping } = parsedBody
     
-    console.log(`Received ${stories.length} stories for session creation`)
+    console.log(`Received ${inputStories.length} stories for session creation`)
     if (storyMapping) {
       console.log(`Received mapping data for ${storyMapping.length} possible story titles`)
     }
     
-    const startDateTime = new Date(startTime)
-
+    const startDateTime = new Date(inputStartTime)
+    
     // Validate that total duration is a reasonable value
-    const totalDuration = stories.reduce((sum, story) => sum + story.estimatedDuration, 0)
+    const totalDuration = inputStories.reduce((sum, story) => sum + story.estimatedDuration, 0)
     if (totalDuration > 24 * 60) { // More than 24 hours
       throw new SessionCreationError(
         'Total session duration exceeds maximum limit',
@@ -497,15 +490,15 @@ export async function POST(req: Request) {
     }
 
     // Create a map of original tasks for validation
-    const originalTasksMap = buildOriginalTasksMap(stories);
+    const originalTasksMap = buildOriginalTasksMap(inputStories);
 
     try {
       // Log input data
-      console.log('Creating session with stories:', JSON.stringify(stories, null, 2))
+      console.log('Creating session with stories:', JSON.stringify(inputStories, null, 2))
       console.log('Start time:', startDateTime.toLocaleTimeString())
 
       // Use the Task type from our schema instead of the imported type
-      const enhancedStories = stories.map((story: z.infer<typeof StorySchema>) => ({
+      const enhancedStories = inputStories.map((story: z.infer<typeof StorySchema>) => ({
         ...story,
         tasks: story.tasks.map((task: z.infer<typeof TaskSchema>) => ({
           ...task,
@@ -531,8 +524,8 @@ Rules:
 6. Don't exceed ${DURATION_RULES.MAX_WORK_WITHOUT_BREAK} minutes of continuous work
 
 Session Params:
-- Start: ${startTime}
-- Stories: ${stories.length}
+- Start: ${inputStartTime}
+- Stories: ${inputStories.length}
 
 Stories Data:
 ${JSON.stringify(enhancedStories)}
@@ -712,7 +705,7 @@ Return JSON with this structure:
 
         // Create a map of original task durations for validation
         const originalTaskDurations = new Map<string, number>()
-        stories.forEach((story: z.infer<typeof StorySchema>) => {
+        inputStories.forEach((story: z.infer<typeof StorySchema>) => {
           story.tasks.forEach((task: z.infer<typeof TaskSchema>) => {
             originalTaskDurations.set(task.title, task.duration)
           })
@@ -778,7 +771,7 @@ Return JSON with this structure:
             console.log('- Total duration:', totalDuration)
 
             // Find the original story to update its duration
-            const originalStory = findOriginalStory(block.title, stories, storyMapping);
+            const originalStory = findOriginalStory(block.title, inputStories, storyMapping);
             if (!originalStory) {
               throw new SessionCreationError(
                 'Story not found in original stories',
@@ -891,7 +884,7 @@ Return JSON with this structure:
         
         // Validate that all original tasks are included
         const validationResult = validateAllTasksIncluded(
-          stories.flatMap((story: Story) => story.tasks),
+          inputStories.flatMap((story: Story) => story.tasks),
           allScheduledTasks
         )
         

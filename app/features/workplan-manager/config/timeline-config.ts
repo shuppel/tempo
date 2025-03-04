@@ -24,7 +24,7 @@ export const timeboxTypeConfig: Record<string, TimeboxTypeConfig> = {
     color: "indigo",
     bg: "bg-indigo-50 dark:bg-indigo-950/30",
     border: "border-indigo-200 dark:border-indigo-800",
-    title: "Focus Session"
+    title: "Focus Block"
   },
   "short-break": {
     icon: Pause,
@@ -52,7 +52,7 @@ export const timeboxTypeConfig: Record<string, TimeboxTypeConfig> = {
     color: "rose",
     bg: "bg-rose-50 dark:bg-rose-950/30",
     border: "border-rose-200 dark:border-rose-900",
-    title: "Debrief"
+    title: "WorkPlan Debrief"
   }
 };
 

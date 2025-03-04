@@ -4,6 +4,28 @@ import { get as getLocal, set as setLocal, remove as removeLocal, keys as keysLo
 import { get as getSession, set as setSession, remove as removeSession, keys as keysSession } from '@byojs/storage/session-storage'
 import { get as getOPFS, set as setOPFS, remove as removeOPFS, keys as keysOPFS } from '@byojs/storage/opfs'
 
+// Memory storage fallback for server-side
+class MemoryStorageAPI implements StorageAPI {
+  private store: Map<string, any> = new Map()
+
+  async get(key: string): Promise<any> {
+    return this.store.get(key)
+  }
+
+  async set(key: string, value: any): Promise<boolean> {
+    this.store.set(key, value)
+    return true
+  }
+
+  async remove(key: string): Promise<boolean> {
+    return this.store.delete(key)
+  }
+
+  async keys(): Promise<string[]> {
+    return Array.from(this.store.keys())
+  }
+}
+
 interface StorageAPI {
   get: typeof get
   set: typeof set
@@ -76,9 +98,7 @@ class BYOJSStorageAdapter implements StorageAdapter {
       const allKeys = await this.storage.keys()
       if (!this.prefix) return allKeys
 
-      return allKeys
-        .filter((key: string) => key.startsWith(this.prefix))
-        .map((key: string) => key.slice(this.prefix.length + 1))
+      return allKeys.filter((key: string) => key.startsWith(this.prefix))
     } catch (error) {
       console.error('Storage keys error:', error)
       return []
@@ -86,18 +106,29 @@ class BYOJSStorageAdapter implements StorageAdapter {
   }
 }
 
-export type StorageType = 'indexedDB' | 'localStorage' | 'sessionStorage' | 'opfs'
+export type StorageType = 'indexedDB' | 'localStorage' | 'sessionStorage' | 'opfs' | 'memory'
 
-// Storage API implementations
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined'
+
+// Storage API implementations with memory fallback
+const memoryStorage = new MemoryStorageAPI()
 const storageAPIs: Record<StorageType, StorageAPI> = {
-  indexedDB: { get, set, remove, keys },
-  localStorage: { get: getLocal, set: setLocal, remove: removeLocal, keys: keysLocal },
-  sessionStorage: { get: getSession, set: setSession, remove: removeSession, keys: keysSession },
-  opfs: { get: getOPFS, set: setOPFS, remove: removeOPFS, keys: keysOPFS }
+  indexedDB: isBrowser ? { get, set, remove, keys } : memoryStorage,
+  localStorage: isBrowser ? { get: getLocal, set: setLocal, remove: removeLocal, keys: keysLocal } : memoryStorage,
+  sessionStorage: isBrowser ? { get: getSession, set: setSession, remove: removeSession, keys: keysSession } : memoryStorage,
+  opfs: isBrowser ? { get: getOPFS, set: setOPFS, remove: removeOPFS, keys: keysOPFS } : memoryStorage,
+  memory: memoryStorage
 }
 
 // Factory function to create the appropriate storage adapter
 export const createStorageAdapter = (type: StorageType, prefix?: string): StorageAdapter => {
+  // Default to memory storage in server-side environment
+  if (!isBrowser && type !== 'memory') {
+    console.warn(`Storage type '${type}' not available in server environment, falling back to memory storage`)
+    type = 'memory'
+  }
+
   const storage = storageAPIs[type]
   if (!storage) {
     throw new Error(`Unknown storage adapter type: ${type}`)

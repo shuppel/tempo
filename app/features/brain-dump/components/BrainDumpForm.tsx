@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CircularProgress } from "@/components/ui/circular-progress"
 import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
-import { ProcessedStories } from "./ProcessedStories"
+import { ProcessedStories } from "@/app/features/brain-dump"
 import { useBrainDump } from "../hooks/useBrainDump"
 import type { ProcessedStory } from "@/lib/types"
 
@@ -21,7 +21,7 @@ interface BrainDumpFormProps {
 export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
   // Retrieve state and event handlers from our custom brain dump hook.
   // This hook handles task input, processing state, errors, and actions like retrying
-  // or creating a session based on processed stories.
+  // or creating a work plan based on processed stories.
   const {
     tasks,
     setTasks,
@@ -29,12 +29,12 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
     editedDurations,
     isInputLocked,
     isProcessing,
-    isCreatingSession,
+    isCreatingWorkPlan,
     processingStep,
     processingProgress,
     error,
     processTasks,
-    handleCreateSession,
+    handleCreateWorkPlan,
     handleDurationChange,
     handleRetry
   } = useBrainDump(onTasksProcessed)
@@ -206,14 +206,14 @@ Task 4 - due by 5pm`}
         {/* Render the ProcessedStories component which:
               - Displays the processed tasks/stories.
               - Allows users to adjust task durations.
-              - Provides actions to retry or create a session. */}
+              - Provides actions to retry or create a work plan. */}
         <ProcessedStories 
           stories={processedStories}
           editedDurations={editedDurations}
-          isCreatingSession={isCreatingSession}
+          isCreatingWorkPlan={isCreatingWorkPlan}
           onDurationChange={handleDurationChange}
           onRetry={handleRetry}
-          onCreateSession={handleCreateSession}
+          onCreateWorkPlan={handleCreateWorkPlan}
         />
       </div>
     </>
