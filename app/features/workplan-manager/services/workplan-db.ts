@@ -19,37 +19,49 @@ import type {
   BaseStatus,
   TimeBox
 } from '@/lib/types'
+import { createStorageAdapter } from '@/app/features/local-first-db/adapters'
 
 export class TodoWorkPlanDB extends LocalFirstDB<TodoWorkPlan> {
   constructor() {
     super({
       name: 'todo_workplans',
-      storage: undefined, // Will use default IndexedDB
+      storage: createStorageAdapter('indexedDB', 'todo_workplans'), // Explicitly use IndexedDB
       syncInterval: 5000
     })
+    console.log('[TodoWorkPlanDB] Initialized with IndexedDB storage')
   }
 
   // Core CRUD operations
   async findByDate(date: string): Promise<TodoWorkPlan | null> {
+    console.log(`[TodoWorkPlanDB] Finding workplan for date: ${date}`)
     const doc = await this.get(date)
+    console.log(`[TodoWorkPlanDB] Found workplan for date ${date}:`, doc?.data || null)
     return doc ? doc.data : null
   }
 
   async findAllWorkPlans(): Promise<TodoWorkPlan[]> {
+    console.log('[TodoWorkPlanDB] Finding all workplans')
     const docs = await this.getAll()
-    return docs.map(doc => doc.data)
+    const workplans = docs.map(doc => doc.data)
+    console.log('[TodoWorkPlanDB] Found workplans:', workplans.map(w => ({ id: w.id, status: w.status })))
+    return workplans
   }
 
   async upsertWorkPlan(workplan: TodoWorkPlan): Promise<TodoWorkPlan> {
+    console.log(`[TodoWorkPlanDB] Upserting workplan for date ${workplan.id}:`, workplan)
     const updatedWorkPlan = {
       ...workplan,
       lastUpdated: new Date().toISOString()
     }
-    return (await this.put(workplan.id, updatedWorkPlan)).data
+    const result = await this.put(workplan.id, updatedWorkPlan)
+    console.log(`[TodoWorkPlanDB] Upserted workplan result:`, result.data)
+    return result.data
   }
 
   async deleteWorkPlan(date: string): Promise<void> {
+    console.log(`[TodoWorkPlanDB] Deleting workplan for date: ${date}`)
     await this.delete(date)
+    console.log(`[TodoWorkPlanDB] Deleted workplan for date: ${date}`)
   }
 
   // Status updates

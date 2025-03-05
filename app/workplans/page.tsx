@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Clock, ArrowRight, Trash2, Archive, MoreHorizontal, AlertCircle, CheckSquare, CalendarX } from "lucide-react"
 import type { TodoWorkPlan, TodoWorkPlanStatus, IncompleteTasks } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { WorkPlanStorageService } from "@/app/features/workplan-manager"
+import { WorkPlanStorageService } from "@/app/features/workplan-manager/services/workplan-storage.service"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 
+// Create storage service instance
 const storageService = new WorkPlanStorageService()
+
+// Debug: Log when storage service is instantiated
+console.log('WorkPlanStorageService instantiated')
+
 const DELETE_CONFIRMATION_TEXT = "Delete This Work Plan!"
 
 export default function WorkPlansPage() {
@@ -47,6 +52,8 @@ export default function WorkPlansPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
+    // Debug: Log when loadWorkPlans is called
+    console.log('loadWorkPlans effect triggered')
     loadWorkPlans()
   }, [])
 
@@ -60,8 +67,19 @@ export default function WorkPlansPage() {
   const loadWorkPlans = async () => {
     try {
       setLoading(true)
+      console.log('Fetching workplans from storage service...')
       const loadedWorkPlans = await storageService.getAllWorkPlans()
-      console.log('Loaded workplans:', loadedWorkPlans)
+      console.log('Raw loaded workplans:', loadedWorkPlans)
+      
+      // Debug: Log each workplan's data
+      loadedWorkPlans.forEach(wp => {
+        console.log(`Workplan ${wp.id}:`, {
+          status: wp.status,
+          totalDuration: wp.totalDuration,
+          storyBlocks: wp.storyBlocks?.length || 0
+        })
+      })
+      
       setWorkPlans(loadedWorkPlans)
     } catch (error) {
       console.error('Failed to load workplans:', error)
