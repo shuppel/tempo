@@ -12,15 +12,12 @@
 
 import type { DifficultyLevel } from "@/lib/types"
 import type { ProcessedStory, ProcessedTask } from "../types"
-import { WorkPlanStorageService } from "@/app/features/workplan-manager/services/workplan-storage.service"
+import type { APIWorkPlanResponse, WorkPlan } from "@/lib/types"
 import { isApiError } from "../types"
 import { 
   DURATION_RULES,
   roundToNearestBlock
 } from "@/lib/durationUtils"
-
-// Create a singleton instance of WorkPlanStorageService for persisting workplans
-const workplanStorage = new WorkPlanStorageService()
 
 /**
  * PART 1: TASK ANALYSIS AND PROCESSING
@@ -309,167 +306,56 @@ function recalculateStoryDuration(story: ProcessedStory): void {
 }
 
 /**
- * Create a workplan from processed stories with intelligent retry handling
+ * Create a workplan from processed stories
  * 
- * This function:
- * 1. Prepares stories for workplan creation
- * 2. Sends data to the API to create timeboxes
- * 3. Handles errors with retries and exponential backoff
- * 4. Validates and saves the final workplan
- * 
- * @param stories - Processed stories from AI analysis
+ * @param processedStories - Processed stories from AI analysis
  * @param startTime - ISO string of when the workplan should start
- * @param maxRetries - Maximum number of retry attempts
  * @returns The created workplan object
- * @throws Error if workplan creation fails after retries
+ * @throws Error if workplan creation fails
  */
-const createWorkPlan = async (stories: ProcessedStory[], startTime: string, maxRetries = 3) => {
-  let retryCount = 0;
-  let lastError = null;
-
-  while (retryCount < maxRetries) {
-    try {
-      // STEP 1: Prepare request data
-      const request = {
-        stories,
-        startTime
-      };
-
-      // STEP 2: Send request to create a workplan
-      const response = await fetch("/api/tasks/create-workplan", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(request)
-      });
-
-      // STEP 2.1: Check response status and content type
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.toLowerCase().includes('application/json')) {
-        // If we get HTML instead of JSON, it's likely a server error
-        const text = await response.text();
-        console.error('Received non-JSON response:', {
-          status: response.status,
-          contentType,
-          text: text.substring(0, 200) // Log first 200 chars
-        });
-        
-        // Try to parse the text as JSON in case the content type is wrong but content is JSON
-        try {
-          const jsonData = JSON.parse(text);
-          if (jsonData && typeof jsonData === 'object') {
-            // If we can parse it as JSON, use it
-            return jsonData;
-          }
-        } catch (parseError) {
-          // If it's not JSON, throw the original error
-          throw new Error('Invalid response content type', {
-            cause: {
-              code: 'INVALID_CONTENT_TYPE',
-              contentType,
-              status: response.status,
-              responseText: text.substring(0, 200),
-              error: parseError instanceof Error ? parseError.message : String(parseError)
-            }
-          });
-        }
-      }
-
-      // STEP 2.2: Parse response as JSON
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        throw new Error('Failed to parse response as JSON', {
-          cause: {
-            code: 'PARSE_ERROR',
-            error: parseError,
-            status: response.status
-          }
-        });
-      }
-
-      // STEP 2.3: Handle API error responses
-      if (!response.ok || !data.success) {
-        const errorMessage = data.error || 'Unknown API error';
-        const errorCode = data.code || 'UNKNOWN_ERROR';
-        const errorDetails = data.details || {};
-
-        throw new Error(errorMessage, {
-          cause: {
-            code: errorCode,
-            details: errorDetails,
-            status: response.status
-          }
-        });
-      }
-
-      // STEP 2.4: Validate successful response structure
-      if (!data.data || !data.data.storyBlocks || !Array.isArray(data.data.storyBlocks)) {
-        throw new Error('Invalid API response structure', {
-          cause: {
-            code: 'INVALID_RESPONSE',
-            response: data
-          }
-        });
-      }
-
-      // STEP 2.5: Process and return the data
-      return data.data;
-
-    } catch (error) {
-      console.error(`Workplan creation attempt ${retryCount + 1} failed:`, error);
-      lastError = error;
-      
-      // STEP 3: Determine if error is retryable
-      const errorCause = error instanceof Error ? (error.cause as any) : {};
-      const isRetryableError = 
-        // Content type errors (likely temporary server issues)
-        errorCause.code === 'INVALID_CONTENT_TYPE' ||
-        errorCause.code === 'PARSE_ERROR' ||
-        // Rate limit errors
-        errorCause.status === 429 ||
-        errorCause.status === 529 ||
-        // Server errors
-        errorCause.status >= 500 ||
-        // Check error message for other indicators
-        (error instanceof Error && (
-          error.message.includes('rate limit') ||
-          error.message.includes('overloaded')
-        ));
-
-      // Check if we should retry
-      if (!isRetryableError || retryCount >= maxRetries - 1) {
-        break;
-      }
-
-      // STEP 4: Implement exponential backoff
-      retryCount++;
-      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  // STEP 5: Handle final error
-  const finalError = lastError instanceof Error ? lastError : new Error('Failed to create workplan');
-  const errorCause = finalError.cause as any || {};
-  
-  throw new Error(finalError.message, {
-    cause: {
-      code: errorCause.code || 'WORKPLAN_CREATION_FAILED',
-      details: {
-        ...errorCause.details || {},
-        status: errorCause.status,
-        contentType: errorCause.contentType,
-        responseText: errorCause.responseText
+export async function createWorkPlan(
+  stories: ProcessedStory[],
+  startTime: string
+): Promise<WorkPlan> {
+  try {
+    const response = await fetch('/api/tasks/create-workplan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      status: errorCause.status || 500
+      body: JSON.stringify({ stories, startTime }),
+    });
+
+    let data;
+    try {
+      // Attempt to parse response as JSON
+      data = await response.json();
+    } catch (e) {
+      // Handle non-JSON responses
+      const text = await response.text().catch(() => "");
+      console.error('Failed to parse response as JSON:', text);
+      throw new Error(`Server returned invalid JSON response: ${response.status} ${response.statusText}`);
     }
-  });
-};
+
+    if (!response.ok) {
+      // Handle error responses with structured data
+      const errorMessage = data?.error || `Server error: ${response.status} ${response.statusText}`;
+      console.error('API error:', data);
+      throw new Error(errorMessage);
+    }
+
+    // Validate response structure
+    if (!data?.success || !data?.data) {
+      console.error('Invalid response format:', data);
+      throw new Error('Invalid response format from server');
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Error creating work plan:', error);
+    throw error;
+  }
+}
 
 /**
  * Exported service object with public API methods

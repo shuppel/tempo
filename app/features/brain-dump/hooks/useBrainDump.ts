@@ -288,13 +288,16 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
             startTime,
             endTime,
             totalDuration: validTotalDuration,
-            status: 'pending',
+            status: 'planned' as const,
             currentBlockIndex: 0,
             currentTaskIndex: 0,
             isActive: false,
             isPaused: false,
             isComplete: false,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            activeTimeBox: null,
+            timeRemaining: null,
+            isTimerRunning: false
           }
 
           setWorkPlanCreationProgress(80)

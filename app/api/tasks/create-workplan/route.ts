@@ -27,7 +27,6 @@ import {
   getBaseTaskTitle,
   getBaseStoryTitle
 } from '@/lib/transformUtils'
-import { WorkPlanStorageService } from '@/app/features/workplan-manager/services/workplan-storage.service'
 
 // Extend the duration rules to include the maximum consecutive work time
 const DURATION_RULES = {
@@ -36,7 +35,6 @@ const DURATION_RULES = {
 }
 
 // Initialize services
-const workplanStorage = new WorkPlanStorageService()
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 })
@@ -619,56 +617,70 @@ Return JSON with this structure:
         
         let parsedData
         try {
-          // Try to extract JSON if the response contains multiple objects
-          const jsonMatch = messageContent.text.match(/\{[\s\S]*\}/)
-          let jsonText = jsonMatch ? jsonMatch[0] : messageContent.text
-          
-          // Check if the JSON appears to be truncated
-          if (jsonText.trim().endsWith('":') || 
-              jsonText.trim().endsWith(',') || 
-              !jsonText.trim().endsWith('}')) {
-            console.warn('JSON appears to be truncated or malformed')
+          // First attempt: Direct JSON parsing
+          try {
+            parsedData = JSON.parse(messageContent.text);
+          } catch (initialError: unknown) {
+            // Second attempt: Extract JSON if there's surrounding text
+            const jsonMatch = messageContent.text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+              throw new Error("No JSON object found in response");
+            }
             
-            // Try to reconstruct if it's a known response pattern by checking the structure
-            if (jsonText.includes('"storyBlocks"') && jsonText.includes('"summary"')) {
-              // This is likely our expected format but truncated
-              console.warn('Attempting to reconstruct truncated JSON with the expected structure')
+            let jsonText = jsonMatch[0];
+            
+            // Check for truncation or malformation
+            if (jsonText.trim().endsWith('":') || 
+                jsonText.trim().endsWith(',') || 
+                !jsonText.trim().endsWith('}')) {
               
-              // Check if we're missing the final closing brace
-              if (!jsonText.trim().endsWith('}') && jsonText.split('{').length > jsonText.split('}').length) {
-                jsonText = jsonText + '}}' // Add closing braces for potentially nested unclosed objects
+              console.warn('JSON appears to be truncated or malformed');
+              
+              // Check for obvious structure and try to complete it
+              const openBraces = (jsonText.match(/\{/g) || []).length;
+              const closeBraces = (jsonText.match(/\}/g) || []).length;
+              
+              if (openBraces > closeBraces) {
+                // Add missing closing braces
+                jsonText += '}'.repeat(openBraces - closeBraces);
+                console.log(`Fixed unbalanced braces: added ${openBraces - closeBraces} closing braces`);
               }
-            } else {
-              throw new Error('JSON structure is too damaged to repair automatically')
+
+              // Fix common JSON issues
+              jsonText = jsonText
+                .replace(/,\s*}/g, '}')           // Fix trailing commas
+                .replace(/,\s*]/g, ']')           // Fix trailing commas in arrays
+                .replace(/:\s*}/g, ':null}')      // Fix missing values
+                .replace(/:\s*]/g, ':null]')      // Fix missing values in arrays
+                .replace(/([{,])\s*"(\w+)"\s*:\s*(?=[,}])/g, '$1"$2":null') // Fix missing values for keys
+                .replace(/([{,])\s*"(\w+)"\s*:/g, '$1"$2":'); // Ensure space after colon
+            }
+            
+            try {
+              parsedData = JSON.parse(jsonText);
+            } catch (repairError: unknown) {
+              console.error('JSON repair failed:', repairError, '\nAttempted to parse:', jsonText);
+              throw new WorkPlanCreationError(
+                'Failed to parse AI response as JSON after repair attempts',
+                'JSON_PARSE_ERROR',
+                {
+                  originalError: initialError instanceof Error ? initialError.message : String(initialError),
+                  repairError: repairError instanceof Error ? repairError.message : String(repairError),
+                  responsePreview: messageContent.text.substring(0, 200) + '...'
+                }
+              );
             }
           }
-          
-          // Rest of the parsing logic remains the same
-          try {
-            parsedData = JSON.parse(jsonText)
-          } catch (initialParseError) {
-            // If standard parsing fails, try a more lenient approach
-            console.warn('Standard JSON parsing failed, attempting repair:', initialParseError)
-            
-            // Check if we can fix common truncation issues
-            const fixedJson = jsonText
-              .replace(/,\s*}$/, '}')         // Fix trailing commas
-              .replace(/,\s*]$/, ']')         // Fix trailing commas in arrays
-              .replace(/:\s*}/, ':null}')     // Fix missing values
-              .replace(/:\s*]/, ':null]')     // Fix missing values in arrays
-            
-            parsedData = JSON.parse(fixedJson)
-          }
         } catch (parseError) {
-          console.error('JSON parsing failed after repair attempts:', parseError)
+          console.error('All JSON parsing attempts failed:', parseError);
           throw new WorkPlanCreationError(
             'Failed to parse AI response as JSON',
             'JSON_PARSE_ERROR',
             {
-              error: parseError,
-              response: messageContent.text
+              error: parseError instanceof Error ? parseError.message : String(parseError),
+              rawResponse: messageContent.text
             }
-          )
+          );
         }
 
         // Validate that the parsed data has all required fields
@@ -933,7 +945,7 @@ Return JSON with this structure:
           );
         }
 
-        // After successful processing, save the workplan
+        // After successful processing, create the workplan object
         const workplan: TodoWorkPlan = {
           id: inputStartTime.split('T')[0], // Use the date part as ID
           storyBlocks: parsedData.storyBlocks,
@@ -947,46 +959,67 @@ Return JSON with this structure:
           isTimerRunning: false
         }
 
-        await workplanStorage.saveWorkPlan(workplan)
-        console.log(`Successfully saved workplan for date: ${workplan.id}`)
+        // Fix date validation and ensure proper structure
+        const now = new Date().toISOString();
+        workplan.startTime = workplan.startTime || now;
+        workplan.endTime = workplan.endTime || new Date(Date.now() + workplan.totalDuration * 60000).toISOString();
+        workplan.lastUpdated = now;
 
+        // Ensure storyBlocks are properly structured
+        workplan.storyBlocks = workplan.storyBlocks.map(story => {
+          // Ensure each story has required fields
+          return {
+            ...story,
+            id: story.id || crypto.randomUUID(),
+            timeBoxes: story.timeBoxes || [],
+            progress: typeof story.progress === 'number' ? story.progress : 0,
+            taskIds: story.taskIds || []
+          };
+        });
+
+        // Return the workplan without saving it (client will handle storage)
         return new Response(JSON.stringify({ success: true, data: workplan }), { headers });
       } catch (error) {
         console.error('Workplan creation error:', error);
         
-        // Handle max_tokens errors
-        if (error instanceof Error && 
-            error.message.includes('invalid_request_error') && 
-            error.message.includes('max_tokens')) {
-          throw new WorkPlanCreationError(
-            'Invalid token limit configuration',
-            'TOKEN_LIMIT_ERROR',
-            error.message
-          );
-        }
+        let status = 500;
+        let errorMessage = 'Internal server error';
+        let errorCode = 'INTERNAL_ERROR';
+        let errorDetails = {};
         
-        // Handle rate limiting errors
-        if (error instanceof Error && 
+        if (error instanceof WorkPlanCreationError) {
+          status = 400;
+          errorMessage = error.message;
+          errorCode = error.code;
+          errorDetails = error.details || {};
+        } else if (error instanceof z.ZodError) {
+          status = 400;
+          errorMessage = 'Invalid request data format';
+          errorCode = 'VALIDATION_ERROR';
+          errorDetails = error.errors;
+        } else if (error instanceof Error && 
             (error.message.includes('429') || 
-            error.message.includes('529') || 
-            error.message.includes('rate limit') ||
-            error.message.includes('overloaded'))) {
-          console.warn('Rate limit error from Anthropic API detected');
-          throw new WorkPlanCreationError(
-            'Service temporarily overloaded. Please try again in a few moments.',
-            'RATE_LIMITED',
-            error.message
-          );
+             error.message.includes('529') || 
+             error.message.includes('rate limit') ||
+             error.message.includes('overloaded'))) {
+          status = 429;
+          errorMessage = 'Service temporarily overloaded. Please try again in a few moments.';
+          errorCode = 'RATE_LIMITED';
+          errorDetails = { message: error.message };
+        } else if (error instanceof Error) {
+          errorDetails = { 
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+          };
         }
-                
-        // For other errors, wrap in WorkPlanCreationError
-        if (error instanceof WorkPlanCreationError) throw error;
         
-        throw new WorkPlanCreationError(
-          'Failed to process session plan',
-          'PROCESSING_ERROR',
-          error
-        );
+        // Always return a structured error response
+        return new Response(JSON.stringify({
+          success: false,
+          error: errorMessage,
+          code: errorCode,
+          details: errorDetails
+        }), { status, headers });
       }
     } catch (error) {
       console.error('Workplan creation error:', error)
@@ -1022,45 +1055,43 @@ Return JSON with this structure:
   } catch (error) {
     console.error('Workplan creation error:', error);
     
-    // Handle different types of errors
-    if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Invalid request data format',
-        code: 'VALIDATION_ERROR',
-        details: error.errors
-      }), { status: 400, headers });
-    }
+    let status = 500;
+    let errorMessage = 'Internal server error';
+    let errorCode = 'INTERNAL_ERROR';
+    let errorDetails = {};
     
     if (error instanceof WorkPlanCreationError) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: error.message,
-        code: error.code,
-        details: error.details
-      }), { status: 400, headers });
-    }
-
-    // Handle rate limiting errors from Anthropic
-    if (error instanceof Error && 
+      status = 400;
+      errorMessage = error.message;
+      errorCode = error.code;
+      errorDetails = error.details || {};
+    } else if (error instanceof z.ZodError) {
+      status = 400;
+      errorMessage = 'Invalid request data format';
+      errorCode = 'VALIDATION_ERROR';
+      errorDetails = error.errors;
+    } else if (error instanceof Error && 
         (error.message.includes('429') || 
          error.message.includes('529') || 
          error.message.includes('rate limit') ||
          error.message.includes('overloaded'))) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Service temporarily overloaded. Please try again in a few moments.',
-        code: 'RATE_LIMITED',
-        details: error.message
-      }), { status: 429, headers });
+      status = 429;
+      errorMessage = 'Service temporarily overloaded. Please try again in a few moments.';
+      errorCode = 'RATE_LIMITED';
+      errorDetails = { message: error.message };
+    } else if (error instanceof Error) {
+      errorDetails = { 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      };
     }
     
-    // Generic error handler
+    // Always return a structured error response
     return new Response(JSON.stringify({
       success: false,
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR',
-      details: error instanceof Error ? error.message : String(error)
-    }), { status: 500, headers });
+      error: errorMessage,
+      code: errorCode,
+      details: errorDetails
+    }), { status, headers });
   }
 } 
