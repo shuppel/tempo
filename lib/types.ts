@@ -7,6 +7,24 @@
 */
 
 /**
+* UserPreferences - Configuration settings for user's work and break patterns
+* 
+* Defines user-specific settings for managing work duration, break intervals,
+* and notification preferences to maintain optimal productivity.
+*/
+export interface UserPreferences {
+  durationRules: {
+    maxWorkWithoutBreak: number;  // minutes
+    minBreakDuration: number;     // minutes
+    shortBreakDuration: number;   // minutes
+    longBreakDuration: number;    // minutes
+    blockSize: number;            // minutes (for rounding)
+  };
+  breakReminders: boolean;
+  breakSuggestionFrequency: 'low' | 'medium' | 'high';
+}
+
+/**
 * SplitInfo - Metadata for tasks that have been divided into smaller parts
 * 
 * When a task is too large for a single work session, it gets split into multiple parts.
@@ -87,22 +105,25 @@ export interface SplitInfo {
  * discrete units of work that a user needs to complete.
  */
  export interface Task {
-  id: string                  // Unique identifier for the task
-  title: string               // Brief description of the task
-  description: string         // Detailed explanation of what needs to be done
-  duration: number            // Estimated time in minutes to complete the task
-  difficulty: DifficultyLevel // How complex/challenging the task is
-  taskCategory: TaskCategory  // Type of activity (focus, learning, etc.)
-  projectType?: string        // Optional project/category the task belongs to
-  isFrog: boolean             // Whether this is a high priority task ("eat the frog first")
-  status: BaseStatus          // Current state of the task (todo, in-progress, etc.)
-  children: Task[]            // Subtasks or component parts of this task
-  refined: boolean            // Whether this task has been reviewed and clarified
-  needsSplitting?: boolean    // Flag indicating if task is too large and should be divided
-  splitInfo?: SplitInfo       // Metadata for split tasks (if applicable)
-  storyId?: string            // ID of the story this task belongs to
-  groupId?: string            // ID of the group this task belongs to
-  originalTitle?: string      // Original title before any modifications
+  id: string;
+  title: string;
+  description?: string;
+  duration?: number; // in minutes
+  taskCategory?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  status: "todo" | "in-progress" | "completed";
+  priority: "low" | "medium" | "high";
+  tags?: string[];
+  dueDate?: Date;
+  estimatedDuration?: number; // in minutes
+  actualDuration?: number; // in minutes
+  assignedTo?: string;
+  parentTaskId?: string;
+  subtasks?: Task[];
+  notes?: string;
+  attachments?: string[];
+  metadata?: Record<string, unknown>;
  }
  
  /**
