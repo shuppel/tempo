@@ -1,45 +1,45 @@
-// /features/brain-dump/hooks/useSessionCreation.ts
+// /features/brain-dump/hooks/useWorkPlanCreation.ts
 import { useState } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
-import type { ProcessedStory } from "@/lib/types"
+import type { ProcessedStory, WorkPlan } from "@/lib/types"
 import { useRouter } from "next/navigation"
 
-export function useSessionCreation() {
+export function useWorkPlanCreation() {
   const router = useRouter()
-  const [isCreatingSession, setIsCreatingSession] = useState(false)
+  const [isCreatingWorkPlan, setIsCreatingWorkPlan] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>("")
   const [processingProgress, setProcessingProgress] = useState(0)
   const [error, setError] = useState<{ message: string; code?: string; details?: any } | null>(null)
 
-  const createSession = async (stories: ProcessedStory[]) => {
-    setIsCreatingSession(true)
+  const createWorkPlan = async (stories: ProcessedStory[]) => {
+    setIsCreatingWorkPlan(true)
     setError(null)
-    setProcessingStep("Creating session...")
+    setProcessingStep("Creating work plan...")
     setProcessingProgress(0)
 
     try {
       const startTime = new Date().toISOString()
       setProcessingProgress(50)
       
-      const result = await brainDumpService.createSession(stories, startTime)
+      const result = await brainDumpService.createWorkPlan(stories, startTime)
       
       setProcessingProgress(100)
-      setProcessingStep("Session created successfully!")
+      setProcessingStep("Work plan created successfully!")
       
-      // Navigate to the newly created session page
+      // Navigate to the newly created work plan page
       const today = new Date().toISOString().split('T')[0]
-      console.log(`[useSessionCreation] Navigating to session page for date: ${today}`)
+      console.log(`[useWorkPlanCreation] Navigating to work plan page for date: ${today}`)
       
-      // Add a small delay to ensure the session is saved before navigation
+      // Add a small delay to ensure the work plan is saved before navigation
       setTimeout(() => {
         // Make sure the date is in the correct format (YYYY-MM-DD)
         const formattedDateForURL = today.replace(/\//g, '-')
-        router.push(`/session/${formattedDateForURL}`)
+        router.push(`/workplan/${formattedDateForURL}`)
       }, 500)
       
       return result
     } catch (error) {
-      console.error("Failed to create session:", error)
+      console.error("Failed to create work plan:", error)
       
       let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
       let errorDetails = error instanceof Error ? error.cause : error
@@ -51,16 +51,16 @@ export function useSessionCreation() {
 
       setError({
         message: errorMessage,
-        code: "SESSION_ERROR",
+        code: "WORKPLAN_ERROR",
         details: errorDetails
       })
       
       setProcessingProgress(0)
-      setProcessingStep("Error creating session")
+      setProcessingStep("Error creating work plan")
       throw error
     } finally {
       setTimeout(() => {
-        setIsCreatingSession(false)
+        setIsCreatingWorkPlan(false)
         setProcessingProgress(0)
         setProcessingStep("")
       }, 1000)
@@ -68,11 +68,11 @@ export function useSessionCreation() {
   }
 
   return {
-    createSession,
-    isCreatingSession,
+    createWorkPlan,
+    isCreatingWorkPlan,
     processingStep,
     processingProgress,
     error,
     setError,
   }
-}
+} 

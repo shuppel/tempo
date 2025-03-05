@@ -9,6 +9,8 @@
  * - Progress calculations
  */
 
+'use client';
+
 import { LocalFirstDB } from '@/app/features/local-first-db/LocalFirstDB'
 import type { 
   TodoWorkPlan, 
@@ -25,46 +27,33 @@ export class TodoWorkPlanDB extends LocalFirstDB<TodoWorkPlan> {
   constructor() {
     super({
       name: 'todo_workplans',
-      storage: createStorageAdapter('indexedDB', 'todo_workplans'), // Explicitly use IndexedDB
+      storage: createStorageAdapter('localStorage', 'todo_workplans'),
       syncInterval: 5000
     })
-    console.log('[TodoWorkPlanDB] Initialized with IndexedDB storage')
   }
 
-  // Core CRUD operations
   async findByDate(date: string): Promise<TodoWorkPlan | null> {
-    console.log(`[TodoWorkPlanDB] Finding workplan for date: ${date}`)
     const doc = await this.get(date)
-    console.log(`[TodoWorkPlanDB] Found workplan for date ${date}:`, doc?.data || null)
     return doc ? doc.data : null
   }
 
   async findAllWorkPlans(): Promise<TodoWorkPlan[]> {
-    console.log('[TodoWorkPlanDB] Finding all workplans')
     const docs = await this.getAll()
-    const workplans = docs.map(doc => doc.data)
-    console.log('[TodoWorkPlanDB] Found workplans:', workplans.map(w => ({ id: w.id, status: w.status })))
-    return workplans
+    return docs.map(doc => doc.data)
   }
 
   async upsertWorkPlan(workplan: TodoWorkPlan): Promise<TodoWorkPlan> {
-    console.log(`[TodoWorkPlanDB] Upserting workplan for date ${workplan.id}:`, workplan)
-    const updatedWorkPlan = {
+    const result = await this.put(workplan.id, {
       ...workplan,
       lastUpdated: new Date().toISOString()
-    }
-    const result = await this.put(workplan.id, updatedWorkPlan)
-    console.log(`[TodoWorkPlanDB] Upserted workplan result:`, result.data)
+    })
     return result.data
   }
 
   async deleteWorkPlan(date: string): Promise<void> {
-    console.log(`[TodoWorkPlanDB] Deleting workplan for date: ${date}`)
     await this.delete(date)
-    console.log(`[TodoWorkPlanDB] Deleted workplan for date: ${date}`)
   }
 
-  // Status updates
   async updateTaskStatus(
     workplanId: string,
     storyId: string,
@@ -75,22 +64,17 @@ export class TodoWorkPlanDB extends LocalFirstDB<TodoWorkPlan> {
     const workplan = await this.findByDate(workplanId)
     if (!workplan) return null
 
-    const updatedStoryBlocks = this.updateStoryBlocksWithTaskStatus(
-      workplan.storyBlocks,
-      storyId,
-      timeBoxIndex,
-      taskIndex,
-      status
-    )
+    const storyBlock = workplan.storyBlocks.find(story => story.id === storyId)
+    if (!storyBlock) return null
 
-    const updatedWorkPlan = {
-      ...workplan,
-      storyBlocks: updatedStoryBlocks,
-      status: this.calculateWorkPlanStatus(updatedStoryBlocks),
-      lastUpdated: new Date().toISOString()
-    }
+    const timeBox = storyBlock.timeBoxes[timeBoxIndex]
+    if (!timeBox || !timeBox.tasks) return null
 
-    return this.upsertWorkPlan(updatedWorkPlan)
+    const task = timeBox.tasks[taskIndex]
+    if (!task) return null
+
+    task.status = status
+    return this.upsertWorkPlan(workplan)
   }
 
   async updateTimeBoxStatus(
@@ -102,24 +86,16 @@ export class TodoWorkPlanDB extends LocalFirstDB<TodoWorkPlan> {
     const workplan = await this.findByDate(workplanId)
     if (!workplan) return null
 
-    const updatedStoryBlocks = this.updateStoryBlocksWithTimeBoxStatus(
-      workplan.storyBlocks,
-      storyId,
-      timeBoxIndex,
-      status
-    )
+    const storyBlock = workplan.storyBlocks.find(story => story.id === storyId)
+    if (!storyBlock) return null
 
-    const updatedWorkPlan = {
-      ...workplan,
-      storyBlocks: updatedStoryBlocks,
-      status: this.calculateWorkPlanStatus(updatedStoryBlocks),
-      lastUpdated: new Date().toISOString()
-    }
+    const timeBox = storyBlock.timeBoxes[timeBoxIndex]
+    if (!timeBox) return null
 
-    return this.upsertWorkPlan(updatedWorkPlan)
+    timeBox.status = status
+    return this.upsertWorkPlan(workplan)
   }
 
-  // Timer state management
   async updateTimerState(
     workplanId: string,
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
@@ -133,8 +109,7 @@ export class TodoWorkPlanDB extends LocalFirstDB<TodoWorkPlan> {
       ...workplan,
       activeTimeBox,
       timeRemaining,
-      isTimerRunning,
-      lastUpdated: new Date().toISOString()
+      isTimerRunning
     }
 
     return this.upsertWorkPlan(updatedWorkPlan)

@@ -15,6 +15,14 @@ import { format } from "date-fns"
 // Create a singleton instance of WorkPlanStorageService to persist workplan data.
 const workplanStorage = new WorkPlanStorageService()
 
+// Add interface for error details
+interface ErrorDetails {
+  status?: number;
+  code?: string;
+  message?: string;
+  [key: string]: any;
+}
+
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
   // Next.js router for page navigation after workplan creation.
   const router = useRouter()
@@ -198,9 +206,6 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   }
 
   // --- Work Plan Creation Function ---
-  // Creates a work plan from the processed stories.
-  // Applies user-edited durations, validates work plan data,
-  // calculates start and end times, and triggers navigation to the new work plan.
   const handleCreateWorkPlan = async () => {
     setIsCreatingWorkPlan(true)
     setWorkPlanCreationError(null)
@@ -208,7 +213,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     setWorkPlanCreationProgress(10)
 
     try {
-      // Merge edited durations into stories, ensuring required fields.
+      // Merge edited durations into stories, ensuring required fields
       const updatedStories = processedStories.map(story => ({
         ...story,
         estimatedDuration: editedDurations[story.title] || story.estimatedDuration,
@@ -217,14 +222,14 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
         category: story.category || 'Development'
       }))
 
-      // Pre-validate that there are valid stories and tasks.
+      // Pre-validate that there are valid stories and tasks
       if (updatedStories.length === 0 || updatedStories.some(story => !story.tasks || story.tasks.length === 0)) {
         throw new Error('No valid tasks found for work plan creation')
       }
 
       console.log('Stories for work plan creation:', JSON.stringify(updatedStories, null, 2))
 
-      // Get the current time as the work plan start time.
+      // Get the current time as the work plan start time
       const now = new Date()
       if (isNaN(now.getTime())) {
         throw new Error('Invalid current date/time')
@@ -233,97 +238,143 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       setWorkPlanCreationProgress(20)
       setWorkPlanCreationStep("Creating work plan...")
 
-      // Call service to create a work plan based on the updated stories.
-      const workPlan = await brainDumpService.createWorkPlan(updatedStories, startTime)
-      
-      setWorkPlanCreationProgress(60)
-      setWorkPlanCreationStep("Processing work plan data...")
+      // Call service to create a work plan based on the updated stories
+      let retryCount = 0
+      const maxRetries = 3
+      let lastError = null
 
-      // Validate the work plan response.
-      if (!workPlan || typeof workPlan !== 'object') {
-        console.error('Invalid work plan:', workPlan)
-        throw new Error('Failed to create a valid work plan')
+      while (retryCount < maxRetries) {
+        try {
+          const workPlan = await brainDumpService.createWorkPlan(updatedStories, startTime)
+          
+          setWorkPlanCreationProgress(60)
+          setWorkPlanCreationStep("Processing work plan data...")
+
+          // Validate the work plan response
+          if (!workPlan || typeof workPlan !== 'object') {
+            throw new Error('Failed to create a valid work plan')
+          }
+          if (!workPlan.storyBlocks || !Array.isArray(workPlan.storyBlocks)) {
+            throw new Error('Work plan missing required story blocks')
+          }
+          if (workPlan.storyBlocks.length === 0) {
+            throw new Error('Work plan contains no story blocks')
+          }
+
+          // Validate the work plan duration from the plan
+          const validTotalDuration = validateWorkPlanDuration(workPlan)
+          console.log(`Validated work plan duration: ${validTotalDuration} minutes`)
+
+          // Format today's date as YYYY-MM-DD for work plan storage and URL routing
+          const formattedDateForURL = format(now, 'yyyy-MM-dd')
+
+          // Calculate the work plan end time in milliseconds
+          const endTime = new Date(now.getTime() + validTotalDuration * 60 * 1000).toISOString()
+
+          // Validate the total duration
+          if (validTotalDuration < 15) {
+            throw new Error(`Work plan duration is too short: ${validTotalDuration} minutes`)
+          }
+
+          const maxDuration = 24 * 60 // 24 hours in minutes
+          if (validTotalDuration > maxDuration) {
+            throw new Error(`Work plan duration exceeds maximum allowed: ${validTotalDuration} minutes`)
+          }
+
+          // Calculate the work plan's end time
+          const workPlanData = {
+            ...workPlan,
+            id: formattedDateForURL,
+            startTime,
+            endTime,
+            totalDuration: validTotalDuration,
+            status: 'pending',
+            currentBlockIndex: 0,
+            currentTaskIndex: 0,
+            isActive: false,
+            isPaused: false,
+            isComplete: false,
+            lastUpdated: new Date().toISOString()
+          }
+
+          setWorkPlanCreationProgress(80)
+          setWorkPlanCreationStep("Saving work plan...")
+
+          // Save the work plan data
+          await workplanStorage.saveWorkPlan(workPlanData)
+
+          // At this point, the work plan is considered complete
+          setWorkPlanCreationProgress(100)
+          setWorkPlanCreationStep("Work plan created successfully!")
+
+          // Navigate to the new work plan page after a short delay
+          setTimeout(() => {
+            console.log(`Navigating to work plan page for date: ${formattedDateForURL}`)
+            router.push(`/workplan/${formattedDateForURL}`)
+          }, 500)
+
+          return // Success - exit the retry loop
+
+        } catch (error) {
+          console.error(`Attempt ${retryCount + 1} failed:`, error)
+          lastError = error
+
+          // Extract error details
+          let errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          let errorCode = 'UNKNOWN_ERROR'
+          let errorDetails: ErrorDetails = {}
+
+          if (error instanceof Error && error.cause) {
+            const cause = error.cause as any
+            errorCode = cause.code || errorCode
+            errorDetails = cause.details || {}
+          }
+
+          // Check if this is a retryable error
+          const isRetryableError = (
+            // API errors
+            errorCode === 'INVALID_CONTENT_TYPE' ||
+            errorCode === 'RATE_LIMITED' ||
+            // Status codes
+            errorDetails.status === 429 ||
+            errorDetails.status === 500 ||
+            errorDetails.status === 503
+          )
+
+          if (!isRetryableError || retryCount >= maxRetries - 1) {
+            // Set error state with detailed information
+            setWorkPlanCreationError({
+              message: errorMessage,
+              code: errorCode,
+              details: errorDetails
+            })
+            break
+          }
+
+          // Exponential backoff for retries
+          retryCount++
+          const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
+          setWorkPlanCreationStep(`Retrying... (Attempt ${retryCount + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          setWorkPlanCreationProgress(20) // Reset progress for new attempt
+        }
       }
-      if (!workPlan.storyBlocks || !Array.isArray(workPlan.storyBlocks)) {
-        console.error('Work plan missing story blocks:', workPlan)
-        throw new Error('Work plan missing required story blocks')
-      }
-      if (workPlan.storyBlocks.length === 0) {
-        console.error('Work plan has empty story blocks array:', workPlan)
-        throw new Error('Work plan contains no story blocks')
-      }
-
-      // Validate the work plan duration from the plan.
-      const validTotalDuration = validateWorkPlanDuration(workPlan)
-      console.log(`Validated work plan duration: ${validTotalDuration} minutes`)
-
-      // Format today's date as YYYY-MM-DD for work plan storage and URL routing.
-      const formattedDateForURL = format(now, 'yyyy-MM-dd')
-
-      // Calculate the work plan end time in milliseconds.
-      const endTime = new Date(now.getTime() + validTotalDuration * 60 * 1000).toISOString()
-
-      // Validate the total duration.
-      if (validTotalDuration < 15) {
-        throw new Error(`Work plan duration is too short: ${validTotalDuration} minutes`)
-      }
-
-      const maxDuration = 24 * 60 // 24 hours in minutes
-      if (validTotalDuration > maxDuration) {
-        throw new Error(`Work plan duration exceeds maximum allowed: ${validTotalDuration} minutes`)
-      }
-
-      // Calculate the work plan's end time.
-      const workPlanData = {
-        ...workPlan,
-        id: formattedDateForURL,
-        startTime,
-        endTime,
-        totalDuration: validTotalDuration,
-        status: 'pending',
-        currentBlockIndex: 0,
-        currentTaskIndex: 0,
-        isActive: false,
-        isPaused: false,
-        isComplete: false,
-        lastUpdated: new Date().toISOString()
-      }
-
-      setWorkPlanCreationProgress(80)
-      setWorkPlanCreationStep("Saving work plan...")
-
-      // Save the work plan data.
-      await workplanStorage.saveWorkPlan(workPlanData)
-
-      // At this point, the work plan is considered complete.
-      setWorkPlanCreationProgress(100)
-      setWorkPlanCreationStep("Work plan created successfully!")
-
-      // Navigate to the new work plan page after a short delay.
-      setTimeout(() => {
-        console.log(`Navigating to work plan page for date: ${formattedDateForURL}`)
-        router.push(`/workplan/${formattedDateForURL}`)
-      }, 500)
 
     } catch (error) {
       console.error("Failed to create work plan:", error)
 
-      // Extract detailed error information for work plan creation.
+      // Extract error information
       let errorMessage = error instanceof Error ? error.message : 'Failed to create work plan'
       let errorCode = 'WORKPLAN_ERROR'
       let errorDetails = error
 
-      // Handle specific error cases.
-      if (error instanceof Error) {
-        if (error.message.includes('too many consecutive work blocks')) {
-          errorMessage = 'Work plan contains too much consecutive work time without breaks. Try splitting large tasks or adding breaks.'
-        }
-        if (error.message.includes('invalid duration')) {
-          errorMessage = 'Invalid work plan duration. Please check your task durations.'
-        }
+      if (error instanceof Error && error.cause) {
+        const cause = error.cause as any
+        errorCode = cause.code || errorCode
+        errorDetails = cause.details || errorDetails
       }
 
-      // Set error state for work plan creation.
+      // Set error state with detailed information
       setWorkPlanCreationError({
         message: errorMessage,
         code: errorCode,
@@ -332,7 +383,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       setWorkPlanCreationProgress(0)
       setWorkPlanCreationStep("Error creating work plan")
     } finally {
-      // Reset work plan creation state after a brief delay.
+      // Reset work plan creation state after a brief delay
       setTimeout(() => {
         setIsCreatingWorkPlan(false)
         setWorkPlanCreationProgress(0)

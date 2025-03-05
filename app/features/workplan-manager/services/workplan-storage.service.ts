@@ -15,101 +15,182 @@
  * All workplan keys are formatted using a consistent date format (YYYY-MM-DD) with a common prefix.
  */
 
+'use client';
+
 import type { 
   TodoWorkPlan, 
-  StoryBlock, 
-  TimeBox, 
-  TimeBoxTask,
   BaseStatus,
   TimeBoxStatus,
-  TodoWorkPlanStatus
+  StoryBlock
 } from "@/lib/types"
 import { TodoWorkPlanDB } from './workplan-db'
 
+const VALID_BASE_STATUSES: BaseStatus[] = ['todo', 'completed', 'in-progress', 'mitigated']
+const VALID_WORKPLAN_STATUSES = ['planned', 'in-progress', 'completed', 'archived']
+
 export class WorkPlanStorageService {
   private db: TodoWorkPlanDB
+  private isDestroyed = false
 
   constructor() {
     this.db = new TodoWorkPlanDB()
   }
 
-  /**
-   * Get a workplan by date.
-   */
-  async getWorkPlan(date: string): Promise<TodoWorkPlan | null> {
-    console.log(`[WorkPlanStorageService] Getting workplan for date: ${date}`)
-    
-    try {
-      const workplan = await this.db.findByDate(date)
-      
-      if (!workplan) {
-        console.log(`[WorkPlanStorageService] No workplan found for date: ${date}`)
-        
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`[WorkPlanStorageService] Creating dummy workplan for development`)
-          const dummyWorkPlan = this.createDummyWorkPlan(date)
-          await this.saveWorkPlan(dummyWorkPlan)
-          return dummyWorkPlan
-        }
-        
-        return null
+  private validateWorkPlan(workplan: TodoWorkPlan): boolean {
+    if (!workplan.id || !workplan.status || !workplan.storyBlocks) {
+      return false
+    }
+
+    if (!VALID_WORKPLAN_STATUSES.includes(workplan.status)) {
+      return false
+    }
+
+    if (!Array.isArray(workplan.storyBlocks) || workplan.storyBlocks.length === 0) {
+      return false
+    }
+
+    if (!this.validateStoryBlocks(workplan.storyBlocks)) {
+      return false
+    }
+
+    if (!this.validateDates(workplan.startTime, workplan.endTime)) {
+      return false
+    }
+
+    return true
+  }
+
+  private validateStoryBlocks(storyBlocks: StoryBlock[]): boolean {
+    return storyBlocks.every(block => {
+      if (!block.id || !block.title || !block.timeBoxes) {
+        return false
       }
-      
-      console.log(`[WorkPlanStorageService] Found workplan for date: ${date} with ${workplan.storyBlocks?.length || 0} story blocks`)
-      return workplan
+
+      if (!Array.isArray(block.timeBoxes)) {
+        return false
+      }
+
+      return block.timeBoxes.every(box => {
+        if (!box.type || !box.duration) {
+          return false
+        }
+
+        if (box.tasks && !Array.isArray(box.tasks)) {
+          return false
+        }
+
+        if (box.status && !this.validateTimeBoxStatus(box.status)) {
+          return false
+        }
+
+        return true
+      })
+    })
+  }
+
+  private validateDates(startTime: string, endTime: string): boolean {
+    try {
+      const start = new Date(startTime)
+      const end = new Date(endTime)
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return false
+      }
+
+      return start <= end
+    } catch {
+      return false
+    }
+  }
+
+  private validateBaseStatus(status: BaseStatus): boolean {
+    if (!status) {
+      return false
+    }
+    return VALID_BASE_STATUSES.includes(status)
+  }
+
+  private validateTimeBoxStatus(status: TimeBoxStatus): boolean {
+    if (!status) {
+      return false
+    }
+    return VALID_BASE_STATUSES.includes(status)
+  }
+
+  private validateTimerState(
+    activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
+    timeRemaining: number | null,
+    isTimerRunning: boolean
+  ): boolean {
+    if (typeof isTimerRunning !== 'boolean') {
+      return false
+    }
+
+    if (activeTimeBox) {
+      if (!activeTimeBox.storyId || typeof activeTimeBox.timeBoxIndex !== 'number') {
+        return false
+      }
+    }
+
+    if (timeRemaining !== null) {
+      if (typeof timeRemaining !== 'number' || timeRemaining < 0) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  private checkDestroyed(): void {
+    if (this.isDestroyed) {
+      throw new Error('Service has been destroyed')
+    }
+  }
+
+  async getWorkPlan(date: string): Promise<TodoWorkPlan | null> {
+    this.checkDestroyed()
+    try {
+      return await this.db.findByDate(date)
     } catch (error) {
       console.error(`[WorkPlanStorageService] Error getting workplan for date: ${date}:`, error)
       return null
     }
   }
 
-  /**
-   * Get all workplans.
-   */
   async getAllWorkPlans(): Promise<TodoWorkPlan[]> {
-    console.log(`[WorkPlanStorageService] Getting all workplans`)
-    
+    this.checkDestroyed()
     try {
-      const workplans = await this.db.findAllWorkPlans()
-      console.log(`[WorkPlanStorageService] Found ${workplans.length} workplans`)
-      return workplans
+      return await this.db.findAllWorkPlans()
     } catch (error) {
       console.error(`[WorkPlanStorageService] Error getting all workplans:`, error)
       return []
     }
   }
 
-  /**
-   * Save a workplan.
-   */
   async saveWorkPlan(workplan: TodoWorkPlan): Promise<void> {
-    console.log(`[WorkPlanStorageService] Saving workplan for date: ${workplan.id} with ${workplan.storyBlocks?.length || 0} story blocks`)
-    
+    this.checkDestroyed()
+    if (!this.validateWorkPlan(workplan)) {
+      throw new Error('Invalid workplan')
+    }
+
     try {
       await this.db.upsertWorkPlan(workplan)
-      console.log(`[WorkPlanStorageService] Successfully saved workplan for date: ${workplan.id}`)
     } catch (error) {
       console.error(`[WorkPlanStorageService] Error saving workplan for date: ${workplan.id}:`, error)
       throw error
     }
   }
 
-  /**
-   * Delete a workplan.
-   */
   async deleteWorkPlan(date: string): Promise<void> {
+    this.checkDestroyed()
     try {
       await this.db.deleteWorkPlan(date)
-      console.log(`[WorkPlanStorageService] Deleted workplan for date: ${date}`)
     } catch (error) {
       console.error(`[WorkPlanStorageService] Error deleting workplan for date: ${date}:`, error)
       throw error
     }
   }
 
-  /**
-   * Update task status.
-   */
   async updateTaskStatus(
     workplanId: string,
     storyId: string,
@@ -117,6 +198,11 @@ export class WorkPlanStorageService {
     taskIndex: number,
     status: BaseStatus
   ): Promise<boolean> {
+    this.checkDestroyed()
+    if (!this.validateBaseStatus(status)) {
+      return false
+    }
+
     try {
       const updatedWorkPlan = await this.db.updateTaskStatus(workplanId, storyId, timeBoxIndex, taskIndex, status)
       return !!updatedWorkPlan
@@ -126,15 +212,17 @@ export class WorkPlanStorageService {
     }
   }
 
-  /**
-   * Update timebox status.
-   */
   async updateTimeBoxStatus(
     workplanId: string,
     storyId: string,
     timeBoxIndex: number,
     status: TimeBoxStatus
   ): Promise<boolean> {
+    this.checkDestroyed()
+    if (!this.validateTimeBoxStatus(status)) {
+      return false
+    }
+
     try {
       const updatedWorkPlan = await this.db.updateTimeBoxStatus(workplanId, storyId, timeBoxIndex, status)
       return !!updatedWorkPlan
@@ -144,15 +232,17 @@ export class WorkPlanStorageService {
     }
   }
 
-  /**
-   * Update timer state.
-   */
   async updateTimerState(
     workplanId: string,
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
   ): Promise<boolean> {
+    this.checkDestroyed()
+    if (!this.validateTimerState(activeTimeBox, timeRemaining, isTimerRunning)) {
+      return false
+    }
+
     try {
       const updatedWorkPlan = await this.db.updateTimerState(workplanId, activeTimeBox, timeRemaining, isTimerRunning)
       return !!updatedWorkPlan
@@ -162,21 +252,11 @@ export class WorkPlanStorageService {
     }
   }
 
-  /**
-   * Create a dummy workplan for development environments.
-   */
-  private createDummyWorkPlan(date: string): TodoWorkPlan {
-    return {
-      id: date,
-      storyBlocks: [],
-      status: 'planned',
-      totalDuration: 0,
-      startTime: new Date().toISOString(),
-      endTime: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      activeTimeBox: null,
-      timeRemaining: null,
-      isTimerRunning: false
+  destroy(): void {
+    if (this.isDestroyed) {
+      return
     }
+    this.db.destroy()
+    this.isDestroyed = true
   }
 }

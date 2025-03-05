@@ -168,7 +168,7 @@ export default function WorkPlanPage({ params }: WorkPlanPageProps) {
   if (workplanData?.status === 'planned' && !showStartModal) {
     setShowStartModal(true)
   }
-  
+
   return (
     <main className="flex-1 container py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -281,7 +281,7 @@ export default function WorkPlanPage({ params }: WorkPlanPageProps) {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+    </div>
     </main>
   )
 } 

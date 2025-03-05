@@ -323,67 +323,19 @@ function recalculateStoryDuration(story: ProcessedStory): void {
  * @returns The created workplan object
  * @throws Error if workplan creation fails after retries
  */
-const createWorkPlan = async (stories: ProcessedStory[], startTime: string, maxRetries = 1) => {
-  let currentStories = [...stories]
-  let retryCount = 0
-  let lastError = null
-  
-  // STEP 1: Build mapping of possible story titles to handle variations in API responses
-  const titleToStoryMap = new Map<string, ProcessedStory>()
-  
-  // Preemptively modify stories to avoid common errors
-  currentStories = modifyStoriesForRetry(currentStories, {
-    details: { preventiveModification: true }
-  })
-  
-  // Build comprehensive mapping of all possible story title variations
-  currentStories.forEach(story => {
-    // Map main title
-    titleToStoryMap.set(story.title, story)
-    
-    // Map original title if different
-    if (story.originalTitle && story.originalTitle !== story.title) {
-      titleToStoryMap.set(story.originalTitle, story)
-    }
-    
-    // Map split task variations (for parts of split tasks)
-    story.tasks.forEach(task => {
-      if (task.title.includes('Part') && task.originalTitle) {
-        const syntheticStoryTitle = `${story.title}: ${task.title}`
-        titleToStoryMap.set(syntheticStoryTitle, story)
-        const baseStoryTitle = `${story.title}: ${task.originalTitle}`
-        titleToStoryMap.set(baseStoryTitle, story)
-      }
-    })
-  })
+const createWorkPlan = async (stories: ProcessedStory[], startTime: string, maxRetries = 3) => {
+  let retryCount = 0;
+  let lastError = null;
 
-  // STEP 2: Attempt workplan creation with retries
   while (retryCount < maxRetries) {
     try {
-      console.log(`Attempting to create workplan (attempt ${retryCount + 1}/${maxRetries})`)
-      
-      // Ensure every task has a unique ID
-      currentStories.forEach(story => {
-        story.tasks.forEach(task => {
-          if (!task.id) {
-            task.id = crypto.randomUUID();
-            console.log(`Added missing ID to task: ${task.title}`);
-          }
-        });
-      });
-      
-      // STEP 2.1: Prepare the request data
+      // STEP 1: Prepare request data
       const request = {
-        stories: currentStories,
-        startTime,
-        // Send mapping data to help API match story variants
-        storyMapping: Array.from(titleToStoryMap.keys()).map(title => ({
-          possibleTitle: title,
-          originalTitle: titleToStoryMap.get(title)?.originalTitle || titleToStoryMap.get(title)?.title
-        }))
-      }
+        stories,
+        startTime
+      };
 
-      // STEP 2.2: Send request to create a workplan with timeboxes
+      // STEP 2: Send request to create a workplan
       const response = await fetch("/api/tasks/create-workplan", {
         method: "POST",
         headers: { 
@@ -391,228 +343,133 @@ const createWorkPlan = async (stories: ProcessedStory[], startTime: string, maxR
           "Accept": "application/json"
         },
         body: JSON.stringify(request)
-      })
+      });
 
-      // STEP 2.3: Validate response content type
-      const contentType = response.headers.get("content-type")
-      if (!contentType?.includes("application/json")) {
-        console.error("Received non-JSON response:", contentType)
-        const rawText = await response.text()
-        console.error("Raw response:", rawText.substring(0, 1000))
-        throw new Error("Server returned non-JSON response", {
-          cause: {
-            contentType,
-            statusCode: response.status,
-            responsePreview: rawText.substring(0, 1000)
-          }
-        })
-      }
-
-      // STEP 2.4: Parse JSON response with robust error handling
-      let data
-      try {
-        const rawText = await response.text()
+      // STEP 2.1: Check response status and content type
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.toLowerCase().includes('application/json')) {
+        // If we get HTML instead of JSON, it's likely a server error
+        const text = await response.text();
+        console.error('Received non-JSON response:', {
+          status: response.status,
+          contentType,
+          text: text.substring(0, 200) // Log first 200 chars
+        });
         
-        // Check for empty response
-        if (!rawText.trim()) {
-          throw new Error("Empty response from server")
-        }
-
-        // Check for HTML content (error page)
-        if (rawText.trim().startsWith("<!DOCTYPE") || rawText.trim().startsWith("<html")) {
-          console.error("Received HTML response instead of JSON")
-          throw new Error("Server returned HTML instead of JSON", {
-            cause: {
-              responsePreview: rawText.substring(0, 1000)
-            }
-          })
-        }
-
-        // First attempt at parsing JSON
+        // Try to parse the text as JSON in case the content type is wrong but content is JSON
         try {
-          data = JSON.parse(rawText)
+          const jsonData = JSON.parse(text);
+          if (jsonData && typeof jsonData === 'object') {
+            // If we can parse it as JSON, use it
+            return jsonData;
+          }
         } catch (parseError) {
-          console.error("Failed to parse response as JSON:", parseError)
-          console.log("Raw response:", rawText.substring(0, 1000))
-          
-          // Fallback: Try cleaning the response before parsing
-          const cleanedText = rawText
-            .replace(/\n/g, "")
-            .replace(/\r/g, "")
-            .replace(/\t/g, "")
-            .trim()
-          
-          try {
-            data = JSON.parse(cleanedText)
-          } catch (secondaryParseError) {
-            throw new Error("Failed to parse API response as JSON", {
-              cause: {
-                originalError: parseError,
-                secondaryError: secondaryParseError,
-                rawResponse: rawText.substring(0, 1000)
-              }
-            })
-          }
-        }
-      } catch (error) {
-        // If we get here, we failed to parse the response
-        console.error("Failed to process response:", error)
-        
-        // Check if it's a rate limit or server error (retryable)
-        if (response.status === 429 || response.status >= 500) {
-          throw new Error(`Server error (${response.status})`, {
+          // If it's not JSON, throw the original error
+          throw new Error('Invalid response content type', {
             cause: {
-              statusCode: response.status,
-              error
+              code: 'INVALID_CONTENT_TYPE',
+              contentType,
+              status: response.status,
+              responseText: text.substring(0, 200),
+              error: parseError instanceof Error ? parseError.message : String(parseError)
             }
-          })
+          });
         }
-        
-        throw error
       }
 
-      // STEP 2.5: Validate response structure
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid workplan response: not an object', {
-          cause: { code: 'INVALID_RESPONSE', response: data }
-        })
-      }
-      
-      if (!data.storyBlocks || !Array.isArray(data.storyBlocks)) {
-        throw new Error('Invalid workplan response: missing storyBlocks array', {
-          cause: { code: 'MISSING_STORY_BLOCKS', response: data }
-        })
-      }
-      
-      for (const block of data.storyBlocks) {
-        if (!block.title || !block.timeBoxes || !Array.isArray(block.timeBoxes)) {
-          throw new Error('Invalid story block structure', {
-            cause: { code: 'INVALID_BLOCK_STRUCTURE', block }
-          })
-        }
-      }
-      
-      // STEP 2.6: Validate total duration
-      if (typeof data.totalDuration !== 'number' || data.totalDuration <= 0) {
-        console.warn('Workplan response missing valid totalDuration, calculating from story blocks')
-        // Calculate total duration from story blocks if not provided
-        const calculatedTotalDuration = data.storyBlocks.reduce(
-          (sum: number, block: any) => sum + (block.totalDuration || 0), 
-          0
-        )
-        if (calculatedTotalDuration <= 0) {
-          throw new Error('Cannot calculate valid workplan duration from story blocks', {
-            cause: { code: 'INVALID_DURATION', response: data }
-          })
-        }
-        data.totalDuration = calculatedTotalDuration
-        console.log(`Set totalDuration to calculated value: ${calculatedTotalDuration} minutes`)
-      }
-
-      // STEP 3: Save the workplan
+      // STEP 2.2: Parse response as JSON
+      let data;
       try {
-        const today = new Date(startTime).toISOString().split('T')[0]
-        console.log(`Saving workplan for date: ${today} with data:`, {
-          summary: {
-            totalDuration: data.totalDuration,
-            storyBlocksCount: data.storyBlocks.length,
-            startTime
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error('Failed to parse response as JSON', {
+          cause: {
+            code: 'PARSE_ERROR',
+            error: parseError,
+            status: response.status
           }
-        })
-        
-        // STEP 3.1: Prepare workplan object for storage
-        const workplanToSave = {
-          ...data,
-          id: today,  // Use date as ID
-          status: "planned",  // Initial status
-          totalDuration: data.totalDuration,
-          lastUpdated: new Date().toISOString(),
-          totalSessions: 1,  // First session
-          startTime: startTime,
-          // Calculate end time based on total duration
-          endTime: new Date(new Date(startTime).getTime() + (data.totalDuration * 60 * 1000)).toISOString(),
-          // Ensure all story blocks have IDs and initial status values
-          storyBlocks: data.storyBlocks.map((block: any, index: number) => ({
-            ...block,
-            id: block.id || `story-${index}-${Date.now()}`,
-            progress: 0,  // Initial progress
-            timeBoxes: (block.timeBoxes || []).map((timeBox: any, boxIndex: number) => ({
-              ...timeBox,
-              status: timeBox.status || 'todo',  // Default status
-              tasks: (timeBox.tasks || []).map((task: any) => ({
-                ...task,
-                status: task.status || 'todo'  // Default status
-              }))
-            }))
-          }))
-        }
-        
-        // STEP 3.2: Save the workplan using storage service
-        await workplanStorage.saveWorkPlan(workplanToSave)
-        console.log(`WorkPlan saved using WorkPlanStorageService for date: ${today}`)
-        
-        // STEP 3.3: Verify that the workplan was saved
-        const savedWorkPlan = await workplanStorage.getWorkPlan(today)
-        if (!savedWorkPlan) {
-          console.error('Failed to verify saved workplan - not found in workplan storage')
-          throw new Error('WorkPlan was not properly saved to storage')
-        } else {
-          console.log(`WorkPlan successfully saved and verified with ${savedWorkPlan.storyBlocks?.length || 0} story blocks`)
-        }
-        
-        // STEP 3.4: Return the created workplan
-        return workplanToSave
-      } catch (error) {
-        console.error('Failed to save workplan:', error)
-        throw new Error('Failed to save workplan to storage')
+        });
       }
+
+      // STEP 2.3: Handle API error responses
+      if (!response.ok || !data.success) {
+        const errorMessage = data.error || 'Unknown API error';
+        const errorCode = data.code || 'UNKNOWN_ERROR';
+        const errorDetails = data.details || {};
+
+        throw new Error(errorMessage, {
+          cause: {
+            code: errorCode,
+            details: errorDetails,
+            status: response.status
+          }
+        });
+      }
+
+      // STEP 2.4: Validate successful response structure
+      if (!data.data || !data.data.storyBlocks || !Array.isArray(data.data.storyBlocks)) {
+        throw new Error('Invalid API response structure', {
+          cause: {
+            code: 'INVALID_RESPONSE',
+            response: data
+          }
+        });
+      }
+
+      // STEP 2.5: Process and return the data
+      return data.data;
+
     } catch (error) {
-      console.error(`Workplan creation attempt ${retryCount + 1} failed:`, error)
-      lastError = error
+      console.error(`Workplan creation attempt ${retryCount + 1} failed:`, error);
+      lastError = error;
       
-      // STEP 4: Determine if error is retryable
+      // STEP 3: Determine if error is retryable
+      const errorCause = error instanceof Error ? (error.cause as any) : {};
       const isRetryableError = 
-        error instanceof Error && (
-          // Parse errors
-          error.message.includes('parse') || 
-          error.message.includes('JSON') ||
-          // Rate limit errors
-          error.message.includes('429') ||
-          error.message.includes('529') ||
+        // Content type errors (likely temporary server issues)
+        errorCause.code === 'INVALID_CONTENT_TYPE' ||
+        errorCause.code === 'PARSE_ERROR' ||
+        // Rate limit errors
+        errorCause.status === 429 ||
+        errorCause.status === 529 ||
+        // Server errors
+        errorCause.status >= 500 ||
+        // Check error message for other indicators
+        (error instanceof Error && (
           error.message.includes('rate limit') ||
-          error.message.includes('overloaded') ||
-          // Server errors
-          error.message.includes('Server error') ||
-          // Non-JSON responses
-          error.message.includes('non-JSON response') ||
-          error.message.includes('HTML instead of JSON')
-        )
-      
-      // Check if we've hit max retries or error isn't retryable
-      if (retryCount >= maxRetries - 1 || !isRetryableError) {
-        console.error(`Maximum retry limit (${maxRetries}) reached or non-retryable error. Giving up.`)
-        break
+          error.message.includes('overloaded')
+        ));
+
+      // Check if we should retry
+      if (!isRetryableError || retryCount >= maxRetries - 1) {
+        break;
       }
-      
-      // STEP 5: Retry with exponential backoff
-      retryCount++
-      
-      // Calculate backoff delay - longer for server errors
-      const baseDelay = isRetryableError ? 2000 : 1000
-      const backoffDelay = baseDelay * Math.pow(2, retryCount)
-      
-      console.log(`Waiting ${backoffDelay}ms before retry ${retryCount + 1}`)
-      await new Promise(resolve => setTimeout(resolve, backoffDelay))
+
+      // STEP 4: Implement exponential backoff
+      retryCount++;
+      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+      console.log(`Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
+
+  // STEP 5: Handle final error
+  const finalError = lastError instanceof Error ? lastError : new Error('Failed to create workplan');
+  const errorCause = finalError.cause as any || {};
   
-  // If we get here, all retries failed
-  if (lastError) {
-    throw lastError
-  }
-  
-  throw new Error('Failed to create workplan due to unknown error')
-}
+  throw new Error(finalError.message, {
+    cause: {
+      code: errorCause.code || 'WORKPLAN_CREATION_FAILED',
+      details: {
+        ...errorCause.details || {},
+        status: errorCause.status,
+        contentType: errorCause.contentType,
+        responseText: errorCause.responseText
+      },
+      status: errorCause.status || 500
+    }
+  });
+};
 
 /**
  * Exported service object with public API methods

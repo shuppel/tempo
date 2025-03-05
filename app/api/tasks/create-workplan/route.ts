@@ -470,27 +470,59 @@ function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask
 }
 
 export async function POST(req: Request) {
+  // Set JSON content type header immediately
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
   try {
-    const body = await req.json()
-    const parsedBody = RequestSchema.parse(body)
-    
-    const { stories: inputStories, startTime: inputStartTime, storyMapping } = parsedBody
-    
-    console.log(`Received ${inputStories.length} stories for workplan creation`)
-    if (storyMapping) {
-      console.log(`Received mapping data for ${storyMapping.length} possible story titles`)
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid JSON in request body',
+        code: 'INVALID_JSON',
+        details: error instanceof Error ? error.message : String(error)
+      }), { 
+        status: 400, 
+        headers 
+      });
+    }
+
+    if (!body) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Empty request body',
+        code: 'EMPTY_REQUEST',
+      }), { 
+        status: 400, 
+        headers 
+      });
     }
     
-    const startDateTime = new Date(inputStartTime)
+    // Validate request data against schema
+    const validatedData = RequestSchema.parse(body);
+    
+    const { stories: inputStories, startTime: inputStartTime, storyMapping } = validatedData;
+    
+    console.log(`Received ${inputStories.length} stories for workplan creation`);
+    if (storyMapping) {
+      console.log(`Received mapping data for ${storyMapping.length} possible story titles`);
+    }
+    
+    const startDateTime = new Date(inputStartTime);
     
     // Validate that total duration is a reasonable value
-    const totalDuration = inputStories.reduce((sum, story) => sum + story.estimatedDuration, 0)
+    const totalDuration = inputStories.reduce((sum, story) => sum + story.estimatedDuration, 0);
     if (totalDuration > 24 * 60) { // More than 24 hours
       throw new WorkPlanCreationError(
         'Total workplan duration exceeds maximum limit',
         'DURATION_EXCEEDED',
         { totalDuration, maxDuration: 24 * 60 }
-      )
+      );
     }
 
     // Create a map of original tasks for validation
@@ -918,7 +950,7 @@ Return JSON with this structure:
         await workplanStorage.saveWorkPlan(workplan)
         console.log(`Successfully saved workplan for date: ${workplan.id}`)
 
-        return NextResponse.json(workplan)
+        return new Response(JSON.stringify({ success: true, data: workplan }), { headers });
       } catch (error) {
         console.error('Workplan creation error:', error);
         
@@ -966,69 +998,69 @@ Return JSON with this structure:
           error.message.includes('rate limit') ||
           error.message.includes('overloaded'))) {
         console.warn('Rate limit error from Anthropic API detected');
-        return NextResponse.json({
+        return new Response(JSON.stringify({
           error: 'Service temporarily overloaded. Please try again in a few moments.',
           code: 'RATE_LIMITED',
           details: error.message
-        }, { status: 429 });
+        }), { status: 429 });
       }
       
       if (error instanceof WorkPlanCreationError) {
-        return NextResponse.json({
+        return new Response(JSON.stringify({
           error: error.message,
           code: error.code,
           details: error.details
-        }, { status: 400 })
+        }), { status: 400 });
       }
 
-      return NextResponse.json({
+      return new Response(JSON.stringify({
         error: 'Internal server error',
         code: 'INTERNAL_ERROR',
         details: error instanceof Error ? error.message : 'Unknown error'
-      }, { status: 500 })
+      }), { status: 500 });
     }
   } catch (error) {
     console.error('Workplan creation error:', error);
     
-    // Handle max_tokens errors
-    if (error instanceof Error && 
-        error.message.includes('invalid_request_error') && 
-        error.message.includes('max_tokens')) {
-      return NextResponse.json({
-        error: 'Invalid token limit configuration in API request',
-        code: 'TOKEN_LIMIT_ERROR',
-        details: error.message
-      }, { status: 400 });
+    // Handle different types of errors
+    if (error instanceof z.ZodError) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid request data format',
+        code: 'VALIDATION_ERROR',
+        details: error.errors
+      }), { status: 400, headers });
     }
     
-    // Handle rate limiting errors
+    if (error instanceof WorkPlanCreationError) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message,
+        code: error.code,
+        details: error.details
+      }), { status: 400, headers });
+    }
+
+    // Handle rate limiting errors from Anthropic
     if (error instanceof Error && 
         (error.message.includes('429') || 
          error.message.includes('529') || 
          error.message.includes('rate limit') ||
          error.message.includes('overloaded'))) {
-      console.warn('Rate limit error from Anthropic API detected');
-      return NextResponse.json({
+      return new Response(JSON.stringify({
+        success: false,
         error: 'Service temporarily overloaded. Please try again in a few moments.',
         code: 'RATE_LIMITED',
         details: error.message
-      }, { status: 429 });
+      }), { status: 429, headers });
     }
     
-    // Handle session creation errors
-    if (error instanceof WorkPlanCreationError) {
-      return NextResponse.json({
-        error: error.message,
-        code: error.code,
-        details: error.details
-      }, { status: 400 });
-    }
-    
-    // Handle all other errors
-    return NextResponse.json({
+    // Generic error handler
+    return new Response(JSON.stringify({
+      success: false,
       error: 'Internal server error',
       code: 'INTERNAL_ERROR',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+      details: error instanceof Error ? error.message : String(error)
+    }), { status: 500, headers });
   }
 } 

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"],
+    "paths": {
+      "@/*": ["./app/*"],
+      "@lib/*": ["./lib/*"]
+    }
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+} 
