@@ -1,0 +1,16 @@
+{
+  "name": "Torodoro",
+  "short_name": "Torodoro",
+  "description": "Plan your day by dumping your tasks and letting AI organize them into focused work sessions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "hsl(215 50% 95%)",
+  "icons": [
+    {
+      "src": "/assets/logo/torodoro_logo.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+} 

@@ -13,7 +13,10 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
         <Link href="/" className="flex items-center space-x-2">
-          <span className="font-bold">Home</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-lg">Torodoro</span>
+            <span className="text-xs text-muted-foreground">Task Pomodoro</span>
+          </div>
         </Link>
         
         <div className="flex items-center space-x-6">

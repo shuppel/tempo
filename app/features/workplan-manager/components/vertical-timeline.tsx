@@ -60,7 +60,20 @@ export interface VerticalTimelineProps {
   isCompactView?: boolean
 }
 
-export const VerticalTimeline = ({
+// Interface for next action
+interface NextAction {
+  storyId: string;
+  timeBoxIndex: number;
+  type: string;
+}
+
+// Interface for time estimates
+interface TimeEstimate {
+  start: string;
+  end: string;
+}
+
+export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
   storyBlocks,
   activeTimeBoxId,
   activeStoryId,
@@ -264,7 +277,7 @@ export const VerticalTimeline = ({
   }, [storyBlocks])
   
   // Calculate accumulated duration up to a specific timeBox
-  const calculateAccumulatedDuration = (targetStoryIndex: number, targetTimeBoxIndex: number) => {
+  const calculateAccumulatedDuration = (targetStoryIndex: number, targetTimeBoxIndex: number): number => {
     let totalMinutes = 0
     
     for (let si = 0; si <= targetStoryIndex; si++) {
@@ -290,7 +303,7 @@ export const VerticalTimeline = ({
   }
   
   // Function to calculate estimated time for timeboxes
-  const calculateTimeEstimates = (storyIndex: number, timeBoxIndex: number) => {
+  const calculateTimeEstimates = (storyIndex: number, timeBoxIndex: number): TimeEstimate => {
     if (!startTime) return { start: "", end: "" }
 
     try {
@@ -318,7 +331,7 @@ export const VerticalTimeline = ({
   }
   
   // Helper function to get button classes for different break types
-  const getBreakButtonClasses = (color: string) => {
+  const getBreakButtonClasses = (color: string): string => {
     switch(color) {
       case 'teal':
         return "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-900/50"
@@ -333,32 +346,28 @@ export const VerticalTimeline = ({
     }
   }
   
-  const determineNextAction = () => {
+  const determineNextAction = (): NextAction | null => {
     // If there's any active timebox, we shouldn't show the "Next Up" badge
-    const hasActiveTimebox = storyBlocks.some(story => 
-      story.timeBoxes.some(box => box.status === "in-progress")
-    );
+    const hasActiveTimebox = storyBlocks?.some(story => 
+      story.timeBoxes?.some(box => box.status === "in-progress")
+    ) || false;
     
-    // If there's an active timebox, don't show "Next Up" badge
     if (hasActiveTimebox) {
       return null;
     }
     
-    // Go through story blocks to find the next action when no timebox is active
-    for (let si = 0; si < storyBlocks.length; si++) {
-      const story = storyBlocks[si];
-      if (!story) continue;
+    // Find the first incomplete timebox
+    for (let i = 0; i < (storyBlocks?.length || 0); i++) {
+      const story = storyBlocks?.[i];
+      if (!story?.timeBoxes) continue;
       
-      for (let ti = 0; ti < story.timeBoxes.length; ti++) {
-        const timeBox = story.timeBoxes[ti];
-        if (!timeBox) continue;
-        
-        // If timebox is not completed and not in progress, this is the next action
-        if (timeBox.status !== "completed" && timeBox.status !== "in-progress") {
+      for (let j = 0; j < story.timeBoxes.length; j++) {
+        const box = story.timeBoxes[j];
+        if (box.status === "todo") {
           return {
-            storyId: story.id || `story-${si}`,
-            timeBoxIndex: ti,
-            isBreak: timeBox.type === "short-break" || timeBox.type === "long-break"
+            storyId: story.id,
+            timeBoxIndex: j,
+            type: box.type
           };
         }
       }
@@ -386,9 +395,9 @@ export const VerticalTimeline = ({
   }, [nextAction, lastNextActionId]);
   
   // Check if there's any active timebox
-  const hasActiveTimebox = storyBlocks.some(story => 
-    story.timeBoxes.some(box => box.status === "in-progress")
-  );
+  const hasActiveTimebox = storyBlocks?.some(story => 
+    story.timeBoxes?.some(box => box.status === "in-progress")
+  ) || false;
   
   // When active timebox status changes, reset popup state
   useEffect(() => {
@@ -552,7 +561,14 @@ export const VerticalTimeline = ({
                   <>
                     <p className="mb-4">Are you sure you want to mark the following task as complete?</p>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
-                      <p className="font-medium">"{confirmTaskComplete.task.title}"</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">"{confirmTaskComplete.task.title}"</span>
+                        {confirmTaskComplete.task.isFrog && (
+                          <Badge variant="secondary" className="bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800 font-medium text-xs px-1.5 py-0">
+                            🐸 FROG
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -659,17 +675,17 @@ export const VerticalTimeline = ({
           
           {/* Timeline content */}
           <div className="space-y-10">
-            {storyBlocks.map((story, storyIndex) => {
+            {storyBlocks?.map((story, storyIndex) => {
               const storyId = story.id || `story-${storyIndex}`
               const isActiveStory = storyId === activeStoryId
               
               // Calculate story progress
-              const totalTasks = story.timeBoxes.reduce(
+              const totalTasks = story.timeBoxes?.reduce(
                 (sum, box) => sum + (box.tasks?.length || 0), 0
-              );
-              const completedTasks = story.timeBoxes.reduce(
+              ) || 0;
+              const completedTasks = story.timeBoxes?.reduce(
                 (sum, box) => sum + (box.tasks?.filter(t => t.status === "completed").length || 0), 0
-              );
+              ) || 0;
               const storyProgress = totalTasks > 0 
                 ? Math.round((completedTasks / totalTasks) * 100) 
                 : 0;
@@ -701,7 +717,7 @@ export const VerticalTimeline = ({
                   
                   {/* Timeboxes for this story */}
                   <div className="space-y-4 ml-8 pl-14 relative">
-                    {story.timeBoxes.map((timeBox, timeBoxIndex) => {
+                    {story.timeBoxes?.map((timeBox, timeBoxIndex) => {
                       // Generate a unique ID for this timeBox
                       const timeBoxId = `${storyId}-box-${timeBoxIndex}`
                       const isActive = timeBoxId === activeTimeBoxId
@@ -773,7 +789,7 @@ export const VerticalTimeline = ({
                           variants={boxAnimation}
                         >
                           {/* Vertical connecting line to next item */}
-                          {timeBoxIndex < story.timeBoxes.length - 1 && (
+                          {timeBoxIndex < (story.timeBoxes?.length || 0) - 1 && (
                             <motion.div 
                               className={cn(
                                 "absolute left-[-36px] top-7 w-[0.125rem] z-0 opacity-60",
@@ -974,7 +990,14 @@ export const VerticalTimeline = ({
                                           e.preventDefault();
                                         }}
                                       >
-                                        {task.title}
+                                        <div className="flex items-center gap-2">
+                                          <span>{task.title}</span>
+                                          {task.isFrog && (
+                                            <Badge variant="secondary" className="bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800 font-medium text-xs px-1.5 py-0">
+                                              🐸 FROG
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </span>
                                     </div>
                                   )
@@ -1020,9 +1043,8 @@ export const VerticalTimeline = ({
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
-                              
-                                {/* Start button - show for todo work boxes */}
-                                {!isCompleted && !isInProgress && onStartTimeBox && (
+{/* Start button - show for todo work boxes */}
+{!isCompleted && !isInProgress && onStartTimeBox && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
@@ -1586,4 +1608,4 @@ export const VerticalTimeline = ({
       </div>
     </TooltipProvider>
   )
-} 
+}

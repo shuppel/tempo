@@ -7,15 +7,14 @@ import {
   isTaskDurationAppropriate,
   TaskContextType,
   TASK_CONTEXT_RECOMMENDATIONS
-} from "@/lib/taskContextAnalyzer";
-import type { Task } from "@/lib/types";
+} from "@/lib/feature/brain-dump/taskContextAnalyzer";
+import type { ProcessedTask } from "@/app/features/brain-dump/types";
 import { 
   Clock, 
   AlertCircle, 
   Info,
   Brain,
   Timer,
-  ArrowRight,
   Book, 
   Palette, 
   ClipboardList, 
@@ -64,8 +63,8 @@ const TASK_CONTEXT_ICONS: Record<TaskContextType, React.ReactNode> = {
 };
 
 interface TaskDurationAdvisorProps {
-  task: Partial<Task>;
-  onChange?: (updatedTask: Partial<Task>) => void;
+  task: Partial<ProcessedTask>;
+  onChange?: (updatedTask: Partial<ProcessedTask>) => void;
 }
 
 export function TaskDurationAdvisor({ task, onChange }: TaskDurationAdvisorProps) {
@@ -79,8 +78,8 @@ export function TaskDurationAdvisor({ task, onChange }: TaskDurationAdvisorProps
   useEffect(() => {
     if (!task || !task.title) return;
     
-    // Need to cast to Task since we're using a partial
-    const taskForAnalysis = task as Task;
+    // Cast to ProcessedTask since we're using a partial
+    const taskForAnalysis = task as ProcessedTask;
     
     // Only run if we have enough information
     if (taskForAnalysis.title && taskForAnalysis.taskCategory) {

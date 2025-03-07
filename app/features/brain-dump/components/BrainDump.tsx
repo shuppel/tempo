@@ -42,6 +42,10 @@ import {
  AccordionTrigger,
 } from "@/components/ui/accordion"
 import { TaskRollover } from "@/app/features/task-rollover"
+import { TimePreferencesDialog } from "./TimePreferencesDialog"
+import { DynamicBreakSuggestions } from "./DynamicBreakSuggestions"
+import { TaskDurationAdvisor } from "./TaskDurationAdvisor"
+import { useToast } from "@/components/ui/use-toast"
 
 /**
 * BrainDumpProps - Configuration properties for the BrainDump component
@@ -87,6 +91,8 @@ Finalize product feature specifications - due tomorrow`
 * @returns React component
 */
 export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
+ const { toast } = useToast();
+ 
  // Get today's date in YYYY-MM-DD format for workplan identification
  const today = new Date().toISOString().split('T')[0]
  
@@ -210,20 +216,60 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
    }
  }
 
+ // Calculate current work duration in minutes
+ const calculateCurrentWorkDuration = (): number => {
+   // If we have processed stories, calculate total work time
+   if (processedStories.length > 0) {
+     return processedStories.reduce((sum, story) => {
+       const duration = editedDurations[story.title] || story.estimatedDuration || 0;
+       return sum + (typeof duration === 'number' ? duration : 0);
+     }, 0);
+   }
+   return 0;
+ };
+
+ // Get the current focus type based on processed stories
+ const getActiveFocusType = (): string => {
+   // Return the most common task type from processed stories
+   if (processedStories.length > 0) {
+     const taskTypes = processedStories.flatMap(story => 
+       story.tasks.map(task => task.taskCategory)
+     );
+     
+     const counts: Record<string, number> = {};
+     let maxType = "focus";
+     let maxCount = 0;
+     
+     taskTypes.forEach(type => {
+       counts[type] = (counts[type] || 0) + 1;
+       if (counts[type] > maxCount) {
+         maxCount = counts[type];
+         maxType = type;
+       }
+     });
+     
+     return maxType;
+   }
+   return "focus";
+ };
+
+ // Handle taking a break
+ const handleTakeBreak = (duration: number) => {
+   // You could implement break timer functionality here
+   // For now, just show a toast message
+   toast({
+     title: `Taking a ${duration} minute break`,
+     description: "Step away from your screen and refresh.",
+   });
+ };
+
  return (
    <>
-     {/* 
-      * Task Rollover Component - Handles presentation and selection of
-      * incomplete tasks from previous work plans.
-      */}
+     {/* Task Rollover Component */}
      <TaskRollover onCompletedTasksAdded={handleRolledOverTasks} />
 
      {/* Main task input container with blocking overlay when needed */}
      <div className="relative">
-       {/* 
-        * Semi-transparent overlay that blocks input when there are pending tasks.
-        * This ensures the user addresses previous tasks before creating new ones.
-        */}
        {isInputBlocked && (
          <div className="absolute inset-0 bg-gray-900/10 dark:bg-gray-900/40 backdrop-blur-[2px] z-10 rounded-lg flex flex-col items-center justify-center">
            <div className="bg-white/90 dark:bg-gray-800/90 p-6 rounded-lg shadow-lg max-w-md text-center space-y-4 border border-gray-200 dark:border-gray-700">
@@ -243,7 +289,18 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
        {/* Main card container for task input and processing */}
        <Card className="border-2">
          <CardHeader className="space-y-3">
-           <CardTitle className="text-3xl">Task Input</CardTitle>
+           <div className="flex items-center justify-between">
+             <CardTitle className="text-3xl">Task Input</CardTitle>
+             <div className="flex items-center gap-3">
+               <TimePreferencesDialog />
+               <DynamicBreakSuggestions 
+                 workDuration={calculateCurrentWorkDuration()}
+                 isInFlow={isInputLocked && !error}
+                 taskType={getActiveFocusType()}
+                 onTakeBreak={handleTakeBreak}
+               />
+             </div>
+           </div>
            <CardDescription className="text-body text-muted-foreground">
              Enter your tasks below, one per line. Our AI analyzes patterns and context to create optimized focus sessions tailored to your workflow.
            </CardDescription>

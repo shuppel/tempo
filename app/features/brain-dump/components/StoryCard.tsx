@@ -14,6 +14,7 @@ import { Clock, Info } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import type { ProcessedStory, ProcessedTask } from "../types"
 import { DifficultyBadge } from "./DifficultyBadge"
+import { TaskDurationAdvisor } from './TaskDurationAdvisor'
 
 /**
 * StoryCardProps - Configuration properties for the StoryCard component
@@ -164,6 +165,41 @@ export const StoryCard = ({ story, editedDuration, onDurationChange }: StoryCard
                      
                      {/* Break recommendations if applicable */}
                      {renderTaskBreaks(task)}
+
+                     {/* Add TaskDurationAdvisor */}
+                     <TaskDurationAdvisor 
+                       task={{
+                         title: task.title,
+                         duration: task.duration,
+                         taskCategory: task.taskCategory,
+                         priority: task.difficulty // Map difficulty to priority
+                       }}
+                       onChange={(updatedTask) => {
+                         // Handle duration changes from the advisor
+                         if (updatedTask.duration !== task.duration && updatedTask.duration) {
+                           // Create updated task with new duration
+                           const updatedTaskWithDuration = {
+                             ...task,
+                             duration: updatedTask.duration
+                           };
+                           
+                           // Find task index in the story
+                           const taskIndex = story.tasks.findIndex(t => t.title === task.title);
+                           
+                           // Create updated tasks array
+                           const updatedTasks = [...story.tasks];
+                           updatedTasks[taskIndex] = updatedTaskWithDuration;
+                           
+                           // Calculate new total duration
+                           const newStoryDuration = updatedTasks.reduce(
+                             (sum, t) => sum + t.duration, 0
+                           );
+                           
+                           // Call the parent's onDurationChange with new calculated duration
+                           onDurationChange(story.title, newStoryDuration);
+                         }
+                       }}
+                     />
                    </div>
                    
                    {/* Difficulty indicator - visual representation of task complexity */}

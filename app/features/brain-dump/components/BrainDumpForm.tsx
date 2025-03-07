@@ -12,6 +12,8 @@ import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
 import { ProcessedStories } from "@/app/features/brain-dump"
 import { useBrainDump } from "../hooks/useBrainDump"
 import type { ProcessedStory } from "@/lib/types"
+import { TaskDurationAdvisor } from "./TaskDurationAdvisor"
+import { useUserPreferences } from "@/lib/userPreferences"
 
 interface BrainDumpFormProps {
   // Optional callback that will be called when tasks are processed

@@ -11,6 +11,12 @@ import { usePathname } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
@@ -32,8 +38,8 @@ export function Header() {
           >
             <div className="relative w-20 h-20">
               <Image
-                src="/assets/logo/toro_logo.png"
-                alt="Toro Logo"
+                src="/assets/logo/torodoro_logo.png"
+                alt="Torodoro Logo"
                 fill
                 className="object-contain drop-shadow-[0_0_25px_rgba(56,189,248,0.2)]"
                 priority
@@ -41,7 +47,7 @@ export function Header() {
             </div>
             <div className="flex flex-col justify-center h-20">
               <span className="text-2xl font-heading leading-none bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                Toro
+                Torodoro
               </span>
               <span className="text-xs font-accent tracking-[0.2em] text-muted-foreground/80 uppercase">
                 Task Pomodoro

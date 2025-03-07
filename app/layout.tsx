@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Toro - Task Management",
+  title: "Torodoro - Task Management",
   description: "Plan your day by dumping your tasks and letting AI organize them into focused work sessions.",
   icons: {
     icon: [
@@ -24,20 +24,20 @@ export const metadata: Metadata = {
         sizes: "any",
       },
       {
-        url: "/assets/logo/toro_logo.png",
+        url: "/assets/logo/torodoro_logo.png",
         type: "image/png",
         sizes: "32x32",
       },
     ],
     apple: {
-      url: "/assets/logo/toro_logo.png",
+      url: "/assets/logo/torodoro_logo.png",
       type: "image/png",
     },
   },
   manifest: "/manifest.json",
-  applicationName: "Toro",
+  applicationName: "Torodoro",
   keywords: ["task management", "pomodoro", "productivity", "AI", "planning"],
-  authors: [{ name: "Toro Team" }],
+  authors: [{ name: "Torodoro Team" }],
   viewport: "width=device-width, initial-scale=1.0",
 }
 

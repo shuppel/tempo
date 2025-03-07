@@ -20,7 +20,16 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import type { StoryBlock, TimeBox, TimeBoxTask, TodoWorkPlan } from '@/lib/types'
+import type { 
+  StoryBlock, 
+  TimeBox, 
+  TimeBoxTask, 
+  TodoWorkPlan, 
+  TimerState,
+  TaskCategory,
+  TimeBoxStatus,
+  BaseStatus
+} from '@/lib/types'
 import { WorkPlanStorageService } from '../services/workplan-storage.service'
 
 // Minimal toast implementation as a fallback. Replace with your actual toast component when available.
@@ -95,36 +104,78 @@ export const useWorkPlan = ({
   }, [workplan])
 
   const completedPercentage = useMemo(() => {
-    if (!workplan) return 0
+    if (!workplan?.storyBlocks?.length) return 0;
+    
     const totalWorkBoxes = workplan.storyBlocks.reduce((sum, story) => 
-      sum + story.timeBoxes.filter(box => box.type === 'work').length, 0)
+      sum + (story.timeBoxes?.filter(box => box.type === 'work')?.length || 0), 0);
+      
     const completedWorkBoxes = workplan.storyBlocks.reduce((sum, story) => 
-      sum + story.timeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length, 0)
-    return totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
-  }, [workplan])
+      sum + (story.timeBoxes?.filter(box => box.type === 'work' && box.status === 'completed')?.length || 0), 0);
+      
+    return totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0;
+  }, [workplan]);
 
   const hasIncompleteTasks = useMemo(() => {
-    if (!workplan) return false
+    if (!workplan?.storyBlocks?.length) return false;
+    
     return workplan.storyBlocks.some(story => 
-      story.timeBoxes.some(box => 
+      story.timeBoxes?.some(box => 
         box.type === 'work' && box.status !== 'completed'
-      )
-    )
-  }, [workplan])
+      ) ?? false
+    );
+  }, [workplan]);
 
   // Timer management
-  const saveTimerState = useCallback(() => {
-    if (!id || !workplan) return
+  const saveTimerState = useCallback(async () => {
+    if (!id || !workplan) return;
 
-    storageService.updateTimerState(id, activeTimeBox, timeRemaining, isTimerRunning)
-      .catch(error => {
-        console.error('[useWorkPlan] Error saving timer state:', error)
-        toast({
-          title: 'Error',
-          description: 'Failed to save timer state. Please try again.',
-          variant: 'destructive'
+    try {
+      // Ensure all required fields are present and properly typed
+      const updatedWorkplan: TodoWorkPlan = {
+        ...workplan,
+        id: workplan.id,
+        status: workplan.status || 'planned',
+        startTime: workplan.startTime || new Date().toISOString(),
+        endTime: workplan.endTime || new Date().toISOString(),
+        totalDuration: workplan.totalDuration || 0,
+        lastUpdated: new Date().toISOString(),
+        activeTimeBox,
+        timeRemaining,
+        isTimerRunning,
+        storyBlocks: (workplan.storyBlocks || []).map(block => {
+          const timeBoxes = block.timeBoxes || [];
+          return {
+            ...block,
+            id: block.id || `story-${Date.now()}`,
+            title: block.title || 'Untitled Story',
+            timeBoxes: timeBoxes.map(timeBox => ({
+              ...timeBox,
+              type: timeBox.type || 'work',
+              duration: timeBox.duration || 25,
+              status: timeBox.status || 'todo',
+              tasks: (timeBox.tasks || []).map(task => ({
+                ...task,
+                title: task.title || 'Untitled Task',
+                duration: task.duration || timeBox.duration || 25,
+                status: task.status || 'todo'
+              }))
+            })),
+            progress: typeof block.progress === 'number' ? block.progress : 0,
+            totalDuration: timeBoxes.reduce((sum, box) => sum + (box.duration || 0), 0),
+            taskIds: block.taskIds || timeBoxes.flatMap(box => (box.tasks || []).map(task => task.title))
+          };
         })
+      };
+      
+      await storageService.saveWorkPlan(updatedWorkplan);
+    } catch (error) {
+      console.error('[useWorkPlan] Error saving timer state:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to save timer state. Please try again.',
+        variant: 'destructive'
       })
+    }
   }, [id, workplan, activeTimeBox, timeRemaining, isTimerRunning, storageService, toast])
 
   // Load workplan data
@@ -146,10 +197,10 @@ export const useWorkPlan = ({
       setWorkPlan(loadedWorkPlan)
       
       // Restore timer state if it exists
-      if (loadedWorkPlan.activeTimeBox) {
-        setActiveTimeBox(loadedWorkPlan.activeTimeBox)
-        setTimeRemaining(loadedWorkPlan.timeRemaining || null)
-        setIsTimerRunning(loadedWorkPlan.isTimerRunning || false)
+      if (loadedWorkPlan.activeTimeBox !== null) {
+        setActiveTimeBox(loadedWorkPlan.activeTimeBox);
+        setTimeRemaining(loadedWorkPlan.timeRemaining);
+        setIsTimerRunning(loadedWorkPlan.isTimerRunning);
       }
       
       setError(null)

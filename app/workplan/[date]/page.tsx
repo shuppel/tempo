@@ -50,13 +50,15 @@ interface WorkPlanPageProps {
   params: { date: string } | Promise<{ date: string }>
 }
 
+// Create a singleton instance outside of component
+const storageService = new WorkPlanStorageService();
+
 export default function WorkPlanPage({ params }: WorkPlanPageProps) {
   // Unwrap params using React.use() as recommended by Next.js
   const unwrappedParams = params instanceof Promise ? use(params) : params
   const { date } = unwrappedParams
   const router = useRouter()
   
-  const storageService = new WorkPlanStorageService()
   const [isLoading, setIsLoading] = useState(true)
   const [hasWorkPlan, setHasWorkPlan] = useState(false)
   const [workplanData, setWorkPlanData] = useState<TodoWorkPlan | null>(null)
@@ -107,7 +109,7 @@ export default function WorkPlanPage({ params }: WorkPlanPageProps) {
         clearInterval(intervalId);
       }
     };
-  }, [date, showStartModal])
+  }, [date, showStartModal]) // Removed storageService from dependencies since it's now a singleton
 
   // Get time estimates using the utility function
   const { totalTime, estimatedEnd } = workplanData ? 
@@ -152,7 +154,7 @@ export default function WorkPlanPage({ params }: WorkPlanPageProps) {
       <main className="flex-1 container py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-4">WorkPlan Not Found</h1>
-          <p>No workplan was found for the date: {date}</p>
+          <p>No workplan was found for the date: {formattedDate}</p>
           <p className="mt-4">
             <a href="/workplans" className="text-blue-500 hover:underline">
               Return to WorkPlans List

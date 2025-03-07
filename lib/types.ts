@@ -411,3 +411,14 @@ export interface SplitInfo {
     originalTitle: string;   // Original title from the request
   }>;
  }
+
+/**
+ * TimerState - Tracks the current state of the timer
+ * 
+ * Used to manage the active time box and timer state across components.
+ */
+export interface TimerState {
+  activeTimeBox: { storyId: string; timeBoxIndex: number } | null;
+  timeRemaining: number | null;
+  isTimerRunning: boolean;
+}

@@ -106,9 +106,12 @@ export function TimePreferencesDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Settings className="h-[1.2rem] w-[1.2rem]" />
-          <span className="sr-only">Time Preferences</span>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2 px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          <Settings className="h-4 w-4" />
+          <span className="font-medium">Time Settings</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">

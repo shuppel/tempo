@@ -6,6 +6,7 @@
  */
 
 import type { Task, TaskCategory, DifficultyLevel } from '@/lib/types';
+import type { ProcessedTask } from '@/app/features/brain-dump/types';
 
 // Define the extended task context types
 export type TaskContextType = 
@@ -156,12 +157,12 @@ export const TASK_CONTEXT_RECOMMENDATIONS: Record<TaskContextType, TaskContextRe
 /**
  * Analyze task context based on title, description, and metadata
  */
-export function analyzeTaskContext(task: Task): TaskContextType {
+export function analyzeTaskContext(task: ProcessedTask): TaskContextType {
   // Start with the task category if it's one of our context types
   let context: TaskContextType = task.taskCategory as TaskContextType;
   
-  // Look for more specific context clues in the title and description
-  const text = `${task.title.toLowerCase()} ${task.description?.toLowerCase() || ''}`;
+  // Look for context clues in the title
+  const text = task.title.toLowerCase();
   
   // Check for meeting indicators
   if (
@@ -245,7 +246,7 @@ export function analyzeTaskContext(task: Task): TaskContextType {
 /**
  * Get recommended duration and break schedule for a task
  */
-export function getContextRecommendations(task: Task): TaskContextRecommendation {
+export function getContextRecommendations(task: ProcessedTask): TaskContextRecommendation {
   const context = analyzeTaskContext(task);
   const recommendations = TASK_CONTEXT_RECOMMENDATIONS[context];
   
@@ -284,14 +285,15 @@ export function getContextRecommendations(task: Task): TaskContextRecommendation
 /**
  * Determine if a task duration is appropriate for its context
  */
-export function isTaskDurationAppropriate(task: Task): {
+export function isTaskDurationAppropriate(task: ProcessedTask): {
   appropriate: boolean;
   recommendation?: Partial<TaskContextRecommendation>;
   message?: string;
 } {
   const recommendations = getContextRecommendations(task);
+  const duration = task.duration ?? recommendations.minDuration;
   
-  if (task.duration < recommendations.minDuration) {
+  if (duration < recommendations.minDuration) {
     return {
       appropriate: false,
       recommendation: {
@@ -301,7 +303,7 @@ export function isTaskDurationAppropriate(task: Task): {
     };
   }
   
-  if (task.duration > recommendations.maxDuration) {
+  if (duration > recommendations.maxDuration) {
     return {
       appropriate: false,
       recommendation: {
@@ -318,22 +320,23 @@ export function isTaskDurationAppropriate(task: Task): {
 /**
  * Suggest break schedule for a task based on its context and duration
  */
-export function suggestBreakSchedule(task: Task): {
+export function suggestBreakSchedule(task: ProcessedTask): {
   breakPoints: number[]; // Minutes into the task when breaks should occur
   breakDurations: number[]; // Duration of each break in minutes
 } {
   const recommendations = getContextRecommendations(task);
+  const duration = task.duration ?? recommendations.minDuration;
   const breakPoints: number[] = [];
   const breakDurations: number[] = [];
   
   // No breaks needed for short tasks
-  if (task.duration <= recommendations.idealBreakInterval) {
+  if (duration <= recommendations.idealBreakInterval) {
     return { breakPoints, breakDurations };
   }
   
   // Calculate break points
   let timeElapsed = recommendations.idealBreakInterval;
-  while (timeElapsed < task.duration) {
+  while (timeElapsed < duration) {
     breakPoints.push(timeElapsed);
     
     // Alternate between short and long breaks
