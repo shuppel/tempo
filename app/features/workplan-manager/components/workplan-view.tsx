@@ -29,7 +29,18 @@ import {
 } from "lucide-react"
 import { useWorkPlan, type UseWorkPlanReturn } from "../hooks/useWorkPlan"
 import { WorkPlanStorageService } from "../services/workplan-storage.service"
-import type { TimeBox, TimeBoxTask, StoryBlock, TodoWorkPlan } from "@/lib/types"
+import { 
+  StoryBlock, 
+  TimeBox, 
+  TimeBoxTask, 
+  TodoWorkPlan,
+  TimeBoxType,
+  TaskCategory,
+  TaskType,
+  TimeBoxStatus,
+  BaseStatus,
+  TimerState
+} from '@/lib/types'
 import { format } from "date-fns"
 import { VerticalTimeline } from './vertical-timeline'
 import { 
@@ -57,10 +68,16 @@ interface StoryBlockWithTimeBoxes extends StoryBlock {
 }
 
 interface WorkPlanViewProps {
-  id?: string;
-  date?: string;
+  id: string;
   storageService?: WorkPlanStorageService;
 }
+
+// Create a singleton instance outside of component
+const storageService = new WorkPlanStorageService();
+
+// Add type assertion helper
+const assertStoryBlock = (story: StoryBlock): StoryBlock => story;
+const assertTimeBox = (box: TimeBox): TimeBox => box;
 
 // Separate timer display component to prevent re-animations
 const TimerDisplay = React.memo(({ 
@@ -508,14 +525,10 @@ const FloatingTimerWrapper = React.memo(({
 
 FloatingTimerWrapper.displayName = 'FloatingTimerWrapper';
 
-export const WorkPlanView: React.FC<WorkPlanViewProps> = ({ 
-  id, 
-  date = format(new Date(), 'yyyy-MM-dd'),
-  storageService = new WorkPlanStorageService()
-}) => {
-  // Use date as id if provided (for backward compatibility)
-  const workPlanId = id || date;
-  
+export const WorkPlanView = ({ id: workPlanId, storageService = new WorkPlanStorageService() }: WorkPlanViewProps) => {
+  // Use the provided service or singleton
+  const workplanService = storageService;
+
   // Ref for timer section to detect when it's out of viewport
   const timerCardRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -567,7 +580,7 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
     findNextTimeBox,
     isCurrentTimeBox,
     updateTimeRemaining
-  }: UseWorkPlanReturn = useWorkPlan({ id: workPlanId, storageService });
+  }: UseWorkPlanReturn = useWorkPlan({ id: workPlanId, storageService: workplanService });
 
   // State for active time update
   const [currentFormattedTime, setCurrentFormattedTime] = useState('00:00');
@@ -636,18 +649,20 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
   const getActiveTimeBoxDetails = useCallback(() => {
     if (!workPlan || !activeTimeBox) return null;
     
-    const storyIndex = workPlan.storyBlocks.findIndex(story => story.id === activeTimeBox.storyId);
-    if (storyIndex === -1) return null;
+    const storyIndex = workPlan?.storyBlocks?.findIndex(story => story.id === activeTimeBox?.storyId) ?? -1;
+    const timeBox = storyIndex >= 0 && activeTimeBox?.timeBoxIndex !== undefined ? 
+      workPlan?.storyBlocks?.[storyIndex]?.timeBoxes?.[activeTimeBox.timeBoxIndex] : undefined;
+    const storyTitle = storyIndex >= 0 ? workPlan?.storyBlocks?.[storyIndex]?.title : '';
     
-    const timeBox = workPlan.storyBlocks[storyIndex].timeBoxes[activeTimeBox.timeBoxIndex];
-    const storyTitle = workPlan.storyBlocks[storyIndex].title;
+    const duration = timeBox?.duration || 0;
     
     return {
       title: storyTitle,
       timeBox,
-      totalDuration: timeBox.duration * 60,
-      type: timeBox.type,
-      progress: timeRemaining !== null ? 100 - Math.round((timeRemaining / (timeBox.duration * 60)) * 100) : 0
+      totalDuration: duration * 60,
+      type: timeBox?.type || 'break',
+      progress: timeRemaining !== null ? 
+        100 - Math.round((timeRemaining / (duration * 60 || 1)) * 100) : 0
     };
   }, [workPlan, activeTimeBox, timeRemaining]);
   
@@ -773,18 +788,23 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
     </Badge>;
   };
 
-  // Calculate work and break durations
-  const workDuration = workPlan ? workPlan.storyBlocks.reduce(
-    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.type === 'work').reduce(
-      (sum: number, box: TimeBox) => sum + box.duration, 0
-    ), 0
-  ) : 0;
+  // Helper function to calculate duration for a specific type of time box
+  const calculateDuration = (workPlan: TodoWorkPlan | null, boxType: TimeBoxType | 'break'): number => {
+    if (!workPlan?.storyBlocks?.length) return 0;
 
-  const breakDuration = workPlan ? workPlan.storyBlocks.reduce(
-    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.type !== 'work').reduce(
-      (sum: number, box: TimeBox) => sum + box.duration, 0
-    ), 0
-  ) : 0;
+    return workPlan.storyBlocks.reduce((total: number, story) => {
+      const timeBoxes = story.timeBoxes || [];
+      const filteredBoxes = boxType === 'break' 
+        ? timeBoxes.filter(box => box.type === 'short-break' || box.type === 'long-break')
+        : timeBoxes.filter(box => box.type === boxType);
+      
+      return total + filteredBoxes.reduce((sum, box) => sum + (box.duration || 0), 0);
+    }, 0) || 0;
+  };
+
+  // Calculate work and break durations
+  const workDuration = calculateDuration(workPlan, 'work');
+  const breakDuration = calculateDuration(workPlan, 'break');
 
   // Handle complete action for floating timer
   const handleFloatingComplete = useCallback(() => {
@@ -851,6 +871,65 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
     startTimeBox(storyId, timeBoxIndex, timeBox.duration);
   };
 
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (workplanService !== storageService) { // Only destroy if it's not the singleton
+        workplanService.destroy();
+      }
+    };
+  }, [workplanService]);
+
+  // Helper functions for type-safe calculations
+  const calculateCompletedTasks = (storyBlocks: StoryBlock[] | undefined): number => {
+    if (!storyBlocks || !Array.isArray(storyBlocks)) return 0;
+    
+    return storyBlocks.reduce((total, story) => {
+      if (!story.timeBoxes || !Array.isArray(story.timeBoxes)) return total;
+      
+      return total + story.timeBoxes.reduce((boxTotal, timeBox) => {
+        return boxTotal + (timeBox.tasks?.filter(task => task.status === 'completed')?.length || 0);
+      }, 0);
+    }, 0);
+  };
+
+  const calculateTotalTasks = (storyBlocks: StoryBlock[] | undefined): number => {
+    if (!storyBlocks || !Array.isArray(storyBlocks)) return 0;
+    
+    return storyBlocks.reduce((total, story) => {
+      return total + story.timeBoxes.reduce((boxTotal, timeBox) => {
+        return boxTotal + (timeBox.tasks?.length || 0);
+      }, 0);
+    }, 0);
+  };
+
+  const calculateCompletedMinutes = (storyBlocks: StoryBlock[] | undefined): number => {
+    if (!storyBlocks || !Array.isArray(storyBlocks)) return 0;
+    
+    return storyBlocks.reduce((total, story) => {
+      if (!story.timeBoxes || !Array.isArray(story.timeBoxes)) return total;
+      
+      return total + story.timeBoxes.reduce((boxTotal, timeBox) => {
+        if (timeBox.status === 'completed') {
+          return boxTotal + (timeBox.duration || 0);
+        }
+        return boxTotal;
+      }, 0);
+    }, 0);
+  };
+
+  const calculateTotalMinutes = (storyBlocks: StoryBlock[] | undefined): number => {
+    if (!storyBlocks || !Array.isArray(storyBlocks)) return 0;
+    
+    return storyBlocks.reduce((total, story) => {
+      if (!story.timeBoxes || !Array.isArray(story.timeBoxes)) return total;
+      
+      return total + story.timeBoxes.reduce((boxTotal, timeBox) => {
+        return boxTotal + (timeBox.duration || 0);
+      }, 0);
+    }, 0);
+  };
+
   if (loading) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -905,7 +984,7 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
           onResume={resumeTimer}
           onComplete={handleFloatingComplete}
           showRed={timeRemaining !== null && timeRemaining < 60}
-          timeBoxType={activeTimeBoxDetails?.timeBox.type}
+          timeBoxType={activeTimeBoxDetails?.timeBox?.type}
           onAdjustTime={adjustTimer}
           onGoToTimeline={scrollToActiveTimeBox}
         />
@@ -947,10 +1026,10 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
                 </div>
                 <span className="text-xs font-medium text-violet-600 dark:text-violet-400 mb-1">Frogs Completed</span>
                 <span className="text-lg font-bold">
-                  {workPlan.storyBlocks.filter(story => 
-                    story.timeBoxes.every(box => box.type === 'work' ? box.status === 'completed' : true)
-                  ).length}
-                  <span className="text-sm font-medium text-violet-500/70 dark:text-violet-400/70"> / {workPlan.storyBlocks.length}</span>
+                  {workPlan?.storyBlocks?.filter(story => 
+                    story.timeBoxes?.every(box => box.type === 'work' ? box.status === 'completed' : true)
+                  )?.length || 0}
+                  <span className="text-sm font-medium text-violet-500/70 dark:text-violet-400/70"> / {workPlan?.storyBlocks?.length || 0}</span>
                 </span>
               </div>
               
@@ -961,18 +1040,10 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
                 </div>
                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Tasks Completed</span>
                 <span className="text-lg font-bold">
-                  {workPlan.storyBlocks.reduce(
-                    (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.reduce(
-                      (sum: number, box: TimeBox) => sum + (box.tasks?.filter(t => t.status === 'completed').length || 0), 0
-                    ), 0
-                  )}
+                  {calculateCompletedTasks(workPlan?.storyBlocks)}
                   <span className="text-sm font-medium text-emerald-500/70 dark:text-emerald-400/70">
                     {' '}/{' '}
-                    {workPlan.storyBlocks.reduce(
-                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.reduce(
-                        (sum: number, box: TimeBox) => sum + (box.tasks?.length || 0), 0
-                      ), 0
-                    )}
+                    {calculateTotalTasks(workPlan?.storyBlocks)}
                   </span>
                 </span>
               </div>
@@ -985,11 +1056,7 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Time Worked</span>
                 <span className="text-lg font-bold">
                   {(() => {
-                    const completedMinutes = workPlan.storyBlocks.reduce(
-                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
-                        (sum: number, box: TimeBox) => sum + box.duration, 0
-                      ), 0
-                    );
+                    const completedMinutes = calculateCompletedMinutes(workPlan?.storyBlocks);
                     const hours = Math.floor(completedMinutes / 60);
                     const minutes = completedMinutes % 60;
                     return `${hours}h ${minutes}m`;
@@ -1005,12 +1072,8 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
                 <span className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Time Remaining</span>
                 <span className="text-lg font-bold">
                   {(() => {
-                    const totalMinutes = workPlan.totalDuration;
-                    const completedMinutes = workPlan.storyBlocks.reduce(
-                      (total: number, story: StoryBlockWithTimeBoxes) => total + story.timeBoxes.filter(box => box.status === 'completed').reduce(
-                        (sum: number, box: TimeBox) => sum + box.duration, 0
-                      ), 0
-                    );
+                    const totalMinutes = calculateTotalMinutes(workPlan?.storyBlocks);
+                    const completedMinutes = calculateCompletedMinutes(workPlan?.storyBlocks);
                     const remainingMinutes = totalMinutes - completedMinutes;
                     const hours = Math.floor(remainingMinutes / 60);
                     const minutes = remainingMinutes % 60;
@@ -1097,13 +1160,13 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
                 <span className="font-medium text-sm">{activeTimeBoxDetails?.title || 'Loading...'}</span>
                 <Badge variant="outline" className={cn(
                   "font-normal",
-                  activeTimeBoxDetails?.timeBox.type === 'work' 
+                  activeTimeBoxDetails?.timeBox?.type === 'work' 
                     ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400"
-                    : activeTimeBoxDetails?.timeBox.type === 'short-break' || activeTimeBoxDetails?.timeBox.type === 'long-break'
+                    : activeTimeBoxDetails?.timeBox?.type === 'short-break' || activeTimeBoxDetails?.timeBox?.type === 'long-break'
                       ? "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-400"
                       : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400"
                 )}>
-                  {activeTimeBoxDetails?.timeBox.type === 'work' ? 'Focus' : activeTimeBoxDetails?.timeBox.type === 'short-break' ? 'Short Break' : activeTimeBoxDetails?.timeBox.type === 'long-break' ? 'Long Break' : 'Break'}
+                  {activeTimeBoxDetails?.timeBox?.type === 'work' ? 'Focus' : activeTimeBoxDetails?.timeBox?.type === 'short-break' ? 'Short Break' : activeTimeBoxDetails?.timeBox?.type === 'long-break' ? 'Long Break' : 'Break'}
                 </Badge>
               </CardDescription>
             </CardHeader>
@@ -1265,7 +1328,7 @@ export const WorkPlanView: React.FC<WorkPlanViewProps> = ({
           </CardHeader>
           <CardContent className="pt-6">
             <VerticalTimeline 
-              storyBlocks={workPlan.storyBlocks}
+              storyBlocks={workPlan?.storyBlocks}
               activeTimeBoxId={activeTimeBox ? `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}` : undefined}
               activeStoryId={activeTimeBox?.storyId}
               activeTimeBoxIndex={activeTimeBox?.timeBoxIndex}
