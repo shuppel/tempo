@@ -80,6 +80,18 @@ export class WorkPlanStorageService implements IWorkPlanStorage {
   private db: TodoWorkPlanDB;
   private isDestroyed = false;
 
+  // Add a cache property to the class
+  private workplansCache: {
+    data: TodoWorkPlan[] | null;
+    timestamp: number;
+  } = {
+    data: null,
+    timestamp: 0
+  };
+
+  // Cache expiration time in milliseconds (5 seconds)
+  private readonly CACHE_EXPIRATION = 5000;
+
   constructor() {
     this.db = new TodoWorkPlanDB();
   }
@@ -368,6 +380,14 @@ export class WorkPlanStorageService implements IWorkPlanStorage {
 
   async getAllWorkPlans(): Promise<TodoWorkPlan[]> {
     this.checkDestroyed();
+    
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (this.workplansCache.data && (now - this.workplansCache.timestamp) < this.CACHE_EXPIRATION) {
+      console.log('[WorkPlanStorageService] Returning cached workplans');
+      return this.workplansCache.data;
+    }
+    
     try {
       console.log('[WorkPlanStorageService] Starting getAllWorkPlans...');
       
@@ -407,6 +427,12 @@ export class WorkPlanStorageService implements IWorkPlanStorage {
           }))
         });
       });
+
+      // Update the cache
+      this.workplansCache = {
+        data: uniqueWorkplans,
+        timestamp: now
+      };
 
       return uniqueWorkplans;
     } catch (error) {

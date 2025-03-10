@@ -629,19 +629,30 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   }, [serviceEnabled, hasIncompleteTasks, getCompletedTransfers, workplan]);
 
   useEffect(() => {
+    // Add a ref to track the last redirected workplan ID
+    const lastRedirectedWorkplanRef = useRef<string | null>(null);
+    
     const checkForIncompleteWorkPlan = async () => {
       try {
         const recentWorkPlan = await rolloverService.getMostRecentWorkPlanWithIncompleteTasks();
-        if (recentWorkPlan) {
+        if (recentWorkPlan && recentWorkPlan.id !== lastRedirectedWorkplanRef.current) {
+          // Update the ref with the current workplan ID before redirecting
+          lastRedirectedWorkplanRef.current = recentWorkPlan.id;
+          console.log(`[useTaskRollover] Redirecting to workplan ${recentWorkPlan.id}`);
           router.push(`/workplan/${recentWorkPlan.id}`);
+        } else if (recentWorkPlan) {
+          console.log(`[useTaskRollover] Preventing redirect loop to workplan ${recentWorkPlan.id}`);
         }
       } catch (error) {
         console.error("Error checking for incomplete tasks:", error);
       }
     };
     
-    if (shouldCheckToday()) {
+    if (shouldCheckToday() && !hasCheckedToday.current) {
+      console.log("[useTaskRollover] Checking for incomplete workplan");
       checkForIncompleteWorkPlan();
+      // Mark as checked to prevent repeated checks
+      hasCheckedToday.current = true;
     }
   }, [rolloverService, router, shouldCheckToday]);
 

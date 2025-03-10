@@ -35,6 +35,18 @@ export interface IncompleteTasks {
 export class TaskRolloverService {
   private workplanStorage: WorkPlanStorageService;
 
+  // Add cache properties to the class
+  private recentWorkplanCache: {
+    workplan: TodoWorkPlan | null;
+    timestamp: number;
+  } = {
+    workplan: null,
+    timestamp: 0
+  };
+
+  // Cache expiration time in milliseconds (10 seconds)
+  private readonly CACHE_EXPIRATION = 10000;
+
   constructor() {
     this.workplanStorage = new WorkPlanStorageService();
   }
@@ -64,6 +76,14 @@ export class TaskRolloverService {
    */
   async getMostRecentWorkPlanWithIncompleteTasks(): Promise<TodoWorkPlan | null> {
     console.log("[TaskRolloverService] Finding most recent workplan with incomplete tasks");
+    
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (this.recentWorkplanCache.workplan && (now - this.recentWorkplanCache.timestamp) < this.CACHE_EXPIRATION) {
+      console.log("[TaskRolloverService] Returning cached recent workplan with incomplete tasks");
+      return this.recentWorkplanCache.workplan;
+    }
+    
     const allWorkPlans = await this.workplanStorage.getAllWorkPlans() as TodoWorkPlan[];
     
     // Debug log of all workplans found
@@ -88,11 +108,21 @@ export class TaskRolloverService {
       console.log(`[TaskRolloverService] WorkPlan ${workplan.date} has incomplete tasks: ${hasIncompleteTasks}`);
       
       if (hasIncompleteTasks) {
+        // Update the cache
+        this.recentWorkplanCache = {
+          workplan,
+          timestamp: now
+        };
         return workplan;
       }
     }
     
     console.log("[TaskRolloverService] No workplan with incomplete tasks found");
+    // Update the cache with null result
+    this.recentWorkplanCache = {
+      workplan: null,
+      timestamp: now
+    };
     return null;
   }
   
