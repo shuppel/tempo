@@ -137,9 +137,29 @@ const formatDuration = (minutes: number): string => {
  * Displayed when work plans are being loaded
  */
 const LoadingFallback = () => (
-  <div className="flex flex-col items-center justify-center py-12 space-y-4">
-    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-    <p className="text-muted-foreground">Loading work plans...</p>
+  <div className="command-center min-h-[400px] flex flex-col items-center justify-center p-8">
+    <div className="crt-screen p-8 max-w-lg w-full text-center">
+      <div className="command-panel-header text-center">SYSTEM STATUS</div>
+      <div className="space-y-6">
+        <div className="data-readout p-4">
+          <p className="blinking-cursor">LOADING MISSION DATA...</p>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-panel-fg opacity-80 text-xs">ACCESSING DATA STORAGE</span>
+            <div className="led led-green"></div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-panel-fg opacity-80 text-xs">VERIFYING MISSION LOGS</span>
+            <div className="led led-green"></div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-panel-fg opacity-80 text-xs">PREPARING WORK PLANS</span>
+            <div className="led led-yellow"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 )
 
@@ -148,26 +168,29 @@ const LoadingFallback = () => (
  * Displayed when an error occurs during loading
  */
 const ErrorFallback = ({ error }: { error: StorageError | Error }) => (
-  <div className="flex flex-col items-center justify-center py-12 space-y-4">
-    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-destructive/10">
-      <AlertCircle className="h-6 w-6 text-destructive" />
+  <div className="command-center min-h-[400px] flex flex-col items-center justify-center p-8">
+    <div className="crt-screen p-8 max-w-lg w-full text-center">
+      <div className="command-panel-header text-center">SYSTEM ALERT</div>
+      <div className="space-y-6">
+        <div className="data-readout p-4">
+          <p className="text-destructive">ERROR CODE: {error instanceof Error ? "ERR-DATA" : error.code}</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-panel-fg opacity-80 text-sm">
+            {error instanceof Error
+              ? error.message
+              : `${error.message} (Code: ${error.code})`}
+          </p>
+          <div className="led led-red mx-auto my-6"></div>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="command-button mx-auto"
+        >
+          SYSTEM RESTART
+        </button>
+      </div>
     </div>
-    <div className="text-center space-y-2">
-      <h3 className="text-xl font-semibold">Failed to load work plans</h3>
-      <p className="text-muted-foreground">
-        {error instanceof Error
-          ? error.message
-          : `${error.message} (Code: ${error.code})`}
-      </p>
-    </div>
-    <Button
-      variant="outline"
-      onClick={() => window.location.reload()}
-      className="gap-2"
-    >
-      <XCircle className="h-4 w-4" />
-      Reload page
-    </Button>
   </div>
 )
 
@@ -217,174 +240,104 @@ const WorkPlanCard = ({
   };
 
   return (
-    <Card key={workplan.id} className="transition-colors hover:bg-muted/50">
-      {/* Card Header: Date, Status, and Actions */}
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          {/* Left side: Date, Status, and Time Range */}
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-xl">
-              {format(parseISO(workplan.id), 'EEEE, MMMM d, yyyy')}
-            </CardTitle>
-            {/* Status Badge with color coding */}
-            <Badge variant="secondary" className={cn(
-              "capitalize",
-              workplan.status === 'completed' && "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
-              workplan.status === 'in-progress' && "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
-              workplan.status === 'planned' && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-              workplan.status === 'archived' && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-            )}>
-              {workplan.status}
-            </Badge>
-            
-            {/* Time Range */}
-            <div className="text-sm text-muted-foreground">
-              <Clock className="h-4 w-4 inline-block mr-1" />
-              {format(parseISO(workplan.startTime), 'h:mm a')} - {format(parseISO(workplan.endTime), 'h:mm a')}
-            </div>
-          </div>
-          
-          {/* Right side: Action buttons */}
-          <div className="flex items-center gap-2">
-            {/* Archive button - only shown if not already archived */}
-            {workplan.status !== 'archived' && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onArchive(workplan.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      <Archive className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Archive workplan</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+    <div className="paper-card">
+      <div className="command-panel-header flex justify-between items-center">
+        <Link href={`/workplan/${workplan.id}`} className="hover:underline flex-1">
+          {format(parseISO(workplan.id), 'MMMM d, yyyy')}
+        </Link>
+        <div className="flex items-center gap-2">
+          <div 
+            className={cn("led", 
+              workplan.status === 'planned' || workplan.status === 'in-progress' ? "led-green" : 
+              workplan.status === 'archived' ? "led-yellow" : "led-blue"
             )}
-            
-            {/* Delete button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(workplan.id)}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete workplan</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          ></div>
+          <span className="text-xs uppercase">
+            {workplan.status === 'planned' || workplan.status === 'in-progress' ? 'ACTIVE' : workplan.status.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      {/* Time Range */}
+      <div className="data-readout mt-2 mb-4 px-2 py-1 text-center">
+        <div className="flex justify-around">
+          <div>
+            <span className="block text-xs opacity-80">START</span>
+            <span className="font-mono">{workplan.startTime || 'N/A'}</span>
+          </div>
+          <div>
+            <span className="block text-xs opacity-80">END</span>
+            <span className="font-mono">{workplan.endTime || 'N/A'}</span>
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      {/* Card Content: Story Blocks and Tasks */}
-      <CardContent>
-        <div className="grid gap-4">
-          {/* Check if there are story blocks to display */}
-          {workplan.storyBlocks?.length > 0 ? (
-            workplan.storyBlocks.map((story) => {
-              // Calculate task statistics for this story
+      {/* Story Blocks */}
+      <div className="space-y-4 mt-4">
+        {workplan.storyBlocks.map((story, storyIndex) => (
+          <div key={storyIndex} className="p-3 border-l-2 border-panel-highlight bg-panel-bg/30">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-base font-medium text-panel-fg">
+                {story.title}
+              </h3>
+              <span className="text-xs">
+                {formatDuration(story.totalDuration)}
+              </span>
+            </div>
+            
+            {/* Task statistics */}
+            {story.timeBoxes.length > 0 && (() => {
               const stats = calculateTaskStats(story.timeBoxes);
-              
+              const progressPercentage = stats.total > 0 
+                ? Math.round((stats.completed / stats.total) * 100) 
+                : 0;
+                
               return (
-                <div key={story.id} className="space-y-3">
-                  {/* Story Header: Title, Icon, and Duration */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {/* Show story icon if available */}
-                      {story.icon && (
-                        <span className="text-muted-foreground">{story.icon}</span>
-                      )}
-                      <div>
-                        <h3 className="font-medium">{story.title}</h3>
-                        {/* Show original title if different from current title */}
-                        {story.originalTitle && story.originalTitle !== story.title && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">Originally: {story.originalTitle}</p>
-                        )}
-                        {/* Task completion statistics */}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {stats.completed}/{stats.total} tasks completed • {formatDuration(stats.duration)}
-                        </p>
-                      </div>
-                    </div>
+                <>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-xs text-panel-fg/80">
+                      {stats.completed}/{stats.total} tasks
+                    </span>
+                    <span className="text-xs text-panel-fg/80">
+                      {progressPercentage}% complete
+                    </span>
                   </div>
                   
-                  {/* Task List: Show sample tasks from each work time box */}
-                  <div className="grid gap-2">
-                    {story.timeBoxes
-                      .filter(box => box.type === 'work') // Only show work time boxes
-                      .map((box, boxIndex) => {
-                        const tasks = box.tasks || [];
-                        if (tasks.length === 0) return null; // Skip empty time boxes
-                        
-                        return (
-                          <div key={boxIndex} className="text-sm">
-                            <div className="flex items-center gap-2">
-                              {/* Show up to 2 tasks from this time box */}
-                              {tasks.slice(0, 2).map((task, taskIndex) => (
-                                <Badge 
-                                  key={taskIndex} 
-                                  variant={task.status === 'completed' ? 'default' : 'secondary'}
-                                  className={cn(
-                                    "text-xs",
-                                    task.taskCategory && "capitalize", // Capitalize task categories
-                                    task.isFrog && "border-2 border-green-500" // Highlight high-priority tasks
-                                  )}
-                                >
-                                  {task.taskCategory && `${task.taskCategory}: `}{task.title}
-                                </Badge>
-                              ))}
-                              {/* Show count of additional tasks if more than 2 */}
-                              {tasks.length > 2 && (
-                                <span className="text-xs text-muted-foreground">
-                                  +{tasks.length - 2} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                  {/* Progress bar */}
+                  <div className="w-full h-1 mt-2 bg-panel-light">
+                    <div
+                      className="h-full bg-panel-highlight"
+                      style={{ width: `${progressPercentage}%` }}
+                    ></div>
                   </div>
-
-                  {/* Progress Bar: Shows completion percentage based on tasks */}
-                  <Progress 
-                    value={stats.total > 0 ? (stats.completed / stats.total) * 100 : 0} 
-                    className="h-2" 
-                  />
-                </div>
+                </>
               );
-            })
-          ) : (
-            // No story blocks fallback message
-            <p className="text-muted-foreground text-center py-4">
-              No stories available for this work plan.
-            </p>
-          )}
-          
-          {/* View Details Link */}
-          <div className="flex justify-end">
-            <Link href={`/workplan/${workplan.id}`}>
-              <Button variant="ghost" className="gap-2">
-                View Details
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            })()}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+
+      {/* Card footer with actions */}
+      <div className="flex justify-end gap-2 mt-6">
+        <button
+          onClick={() => onArchive(workplan.id)}
+          className="command-button text-xs"
+        >
+          {workplan.status === "planned" || workplan.status === "in-progress" ? "ARCHIVE" : "UNARCHIVE"}
+        </button>
+        <button
+          onClick={() => onDelete(workplan.id)}
+          className="command-button text-xs text-destructive"
+        >
+          DELETE
+        </button>
+        <Link href={`/workplan/${workplan.id}`}>
+          <button className="command-button text-xs">
+            VIEW
+          </button>
+        </Link>
+      </div>
+    </div>
   );
 };
 
@@ -399,16 +352,26 @@ const WorkPlanList = ({
   formatDuration
 }: WorkPlanListProps) => {
   return (
-    <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-      {workplans.map((workplan) => (
-        <WorkPlanCard
-          key={workplan.id}
-          workplan={workplan}
-          onDelete={onDelete}
-          onArchive={onArchive}
-          formatDuration={formatDuration}
-        />
-      ))}
+    <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+      {workplans.length === 0 ? (
+        <div className="col-span-full flex flex-col items-center justify-center text-center p-8 crt-screen">
+          <div className="data-readout p-4 w-full max-w-md text-center">
+            <p className="blinking-cursor">
+              NO WORK PLANS FOUND. INITIALIZE NEW OPERATION.
+            </p>
+          </div>
+        </div>
+      ) : (
+        workplans.map((workplan) => (
+          <WorkPlanCard
+            key={workplan.id}
+            workplan={workplan}
+            onDelete={onDelete}
+            onArchive={onArchive}
+            formatDuration={formatDuration}
+          />
+        ))
+      )}
     </div>
   )
 }
@@ -581,18 +544,20 @@ function WorkPlansContent(): JSX.Element {
 
       {/* Empty state message if no work plans */}
       {workplans.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted">
-            <Clock className="h-6 w-6 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center min-h-[50vh] py-16 px-4 space-y-8 bg-muted/10 rounded-lg border border-muted/20">
+          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-muted">
+            <Clock className="h-10 w-10 text-muted-foreground" />
           </div>
-          <div className="text-center space-y-2">
-            <h3 className="text-xl font-semibold">No work plans found</h3>
-            <p className="text-muted-foreground">
+          <div className="text-center space-y-4 max-w-md">
+            <h3 className="text-2xl font-semibold">No work plans found</h3>
+            <p className="text-muted-foreground text-lg">
               Start by creating a new work plan for today.
             </p>
           </div>
-          <Link href="/create">
-            <Button>Create Work Plan</Button>
+          <Link href="/">
+            <Button size="lg" className="px-8 py-6 text-lg font-medium shadow-md hover:shadow-lg transition-all">
+              Create Work Plan
+            </Button>
           </Link>
         </div>
       ) : (
@@ -614,17 +579,30 @@ function WorkPlansContent(): JSX.Element {
  */
 export default function WorkPlansPage() {
   return (
-    <div className="container py-8 space-y-8">
-      {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Work Plans</h1>
-        <p className="text-muted-foreground">
-          View, manage, and track all your work plans
-        </p>
+    <div className="container max-w-7xl mx-auto py-8 space-y-8">
+      {/* Page Header with Action Button */}
+      <div className="command-panel mb-8">
+        <div className="command-panel-header">MISSION CONTROL: WORK PLANS</div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-2">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-panel-fg">Active Operation Plans</h2>
+            <p className="text-panel-fg opacity-80">
+              Monitor, manage, and track all mission-critical work plans
+            </p>
+          </div>
+          
+          <Link href="/">
+            <button className="command-button">
+              INITIALIZE NEW PLAN
+            </button>
+          </Link>
+        </div>
       </div>
       
       {/* Main Content */}
-      <WorkPlansContent />
+      <div className="crt-screen p-6">
+        <WorkPlansContent />
+      </div>
     </div>
   )
 } 

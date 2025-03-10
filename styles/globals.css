@@ -54,6 +54,20 @@
     --chart-3: 120 85% 40%;         /* Green */
     --chart-4: 40 100% 60%;         /* Orange */
     --chart-5: 200 90% 60%;         /* Sky blue */
+    
+    /* Papermorphic variables */
+    --paper-shadow-light: 0 2px 6px rgba(0, 0, 0, 0.1);
+    --paper-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --paper-shadow-deep: 0 8px 20px rgba(0, 0, 0, 0.2);
+    --paper-texture: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c8TV1mAAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvEOwtAAAFVklEQVR4XpWWB67c2BUFb3g557T/hRo9/WUMZHlgr4Bg8Z4qQgQJlHI4A8SzFVrapvmTF9O7dmYRFZ60YiBhJRCgh1FYhiLAmdvX0CzTOpNE77ME0Zty/nWWzchDtiqPJr0r9N8SvLT1tLLeI+3R6fPPrkqMPlXkTC61Xm0y7/SxbHkJGR4ymEWVpgoAgCYFqVnjN6MxU4KhQPWwCh3yg+UO4V1ORJDYXmY1JKz2A2C7lxIgFN2xF5wDvrzDxGx/TfGZwwbgDQD1F1U8QL8u5o4GoGYYIaGLkRQ5jR+JSF5/9S6Hk0HBzdrNLGuAGYBkAa74EJ6IskttDG2ZVbn5/MTUTOb43+23OMqk4ZMUlUvnk+30pUH/ppJELdH+eVPYLSJ1QQS4UdjoeBfOXM5YvnBqIELqIYQrVIPgnb9Z/aoWeiBigJrADb4IR+O85F90HEHnwzeDUwiLBTl/FQ9IQXKxlsg4AG1BCoATJGMTEpbmKMykURZUDdiHQiT2SCD0J4pgOJOPrACUEHALgBOCJOgHPTUUJKQiEA5EaXUVFJAsOHUuJxJpOgYsQQrACsCG4EOQOkkQRNANJGKRPXkjUcOzIPmUKi4oYhqgGfEA0CAskI0CAATqRpSiDT0I4skQRA0QRAEASRRAkQRJEECRAEASRBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEE8n38EGABuzez5MX5l/QAAAABJRU5ErkJggg==");
+    --panel-bg: hsla(220, 13%, 18%, 1);
+    --panel-fg: hsla(220, 14%, 71%, 1);
+    --panel-light: hsla(220, 13%, 25%, 1);
+    --panel-highlight: hsla(219, 56%, 55%, 1);
+    --crt-lines: hsla(240, 100%, 14%, 0.15);
+    --screen-glow: 0 0 8px hsla(160, 100%, 50%, 0.2);
+    --motion-blur-strength: 4px;
+    --motion-blur-direction: 45deg;
   }
 
   /* Apply default font family */
@@ -159,6 +173,18 @@
     --chart-3: 120 70% 35%;
     --chart-4: 40 70% 45%;
     --chart-5: 200 80% 45%;
+    
+    /* Papermorphic dark mode variables */
+    --paper-shadow-light: 0 2px 6px rgba(0, 0, 0, 0.3);
+    --paper-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --paper-shadow-deep: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --panel-bg: hsla(220, 13%, 14%, 1);
+    --panel-fg: hsla(220, 14%, 75%, 1);
+    --panel-light: hsla(220, 13%, 20%, 1);
+    --panel-highlight: hsla(219, 56%, 60%, 1);
+    --panel-shadow: hsla(220, 13%, 8%, 1);
+    --crt-lines: hsla(240, 100%, 94%, 0.08);
+    --screen-glow: 0 0 12px hsla(160, 100%, 50%, 0.3);
   }
 
   /* Add styles for placeholder text */
@@ -191,6 +217,12 @@
     @apply bg-background text-foreground;
     /* Add pixel grid alignment for improved retro feel */
     image-rendering: pixelated;
+    /* Add subtle paper texture to backgrounds */
+    background-image: var(--paper-texture);
+    background-repeat: repeat;
+    background-size: 100px 100px;
+    background-blend-mode: overlay;
+    background-attachment: fixed;
   }
 
   /* Add pixel-like borders to UI elements */
@@ -310,4 +342,329 @@
 
 .slide-out-to-right-5 {
   animation-name: slide-out-to-right;
+} 
+
+/* ------------- PAPERMORPHIC & 80s COMMAND CENTER STYLES ------------- */
+
+/* Paper Panels - Base style for command center panels */
+.paper-panel {
+  background-color: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 1px solid var(--panel-light);
+  border-radius: 2px;
+  box-shadow: 
+    inset 0 1px 0 var(--panel-light),
+    0 2px 4px var(--panel-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Enhanced panel with inner glow and CRT effect */
+.command-panel {
+  @apply paper-panel;
+  padding: 1rem;
+  border-top: 2px solid var(--panel-highlight);
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.3),
+    var(--screen-glow);
+}
+
+/* Command panel heading */
+.command-panel-header {
+  font-family: var(--font-text-me-one);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-light);
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.command-panel-header::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--panel-highlight);
+  margin-right: 8px;
+  box-shadow: 0 0 4px var(--panel-highlight);
+}
+
+/* Retro monitor/screen effect */
+.crt-screen {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--panel-bg);
+  color: var(--panel-fg);
+  border: 2px solid var(--panel-shadow);
+  box-shadow: 
+    inset 0 0 15px rgba(0, 0, 0, 0.75),
+    var(--screen-glow);
+  padding: 1.5rem;
+}
+
+.crt-screen::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    var(--crt-lines) 50%, 
+    transparent 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.crt-screen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at center,
+    transparent 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Paper card with fold effect */
+.paper-card {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: var(--paper-shadow-medium);
+  border-radius: 2px;
+  padding: 1rem;
+  position: relative;
+  transition: all 0.3s ease;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.paper-card:hover {
+  transform: rotateX(3deg) rotateY(3deg);
+  box-shadow: var(--paper-shadow-deep);
+}
+
+/* Motion blur effect for turning animations */
+@keyframes turn-with-blur {
+  0% {
+    transform: rotateY(0deg);
+    filter: blur(0);
+  }
+  50% {
+    filter: blur(var(--motion-blur-strength));
+  }
+  100% {
+    transform: rotateY(180deg);
+    filter: blur(0);
+  }
+}
+
+.turn-effect {
+  animation: turn-with-blur 0.8s ease-in-out;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  backface-visibility: hidden;
+}
+
+/* Horizontal motion blur animation */
+@keyframes motion-blur-h {
+  0% {
+    transform: translateX(-20px);
+    filter: blur(var(--motion-blur-strength));
+  }
+  100% {
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+/* Vertical motion blur animation */
+@keyframes motion-blur-v {
+  0% {
+    transform: translateY(-20px);
+    filter: blur(var(--motion-blur-strength));
+  }
+  100% {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.blur-in-h {
+  animation: motion-blur-h 0.3s ease-out forwards;
+}
+
+.blur-in-v {
+  animation: motion-blur-v 0.3s ease-out forwards;
+}
+
+/* 80s style buttons with backlight effect */
+.command-button {
+  background-color: var(--panel-light);
+  color: var(--panel-fg);
+  border: 1px solid var(--panel-highlight);
+  border-radius: 2px;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-text-me-one);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  position: relative;
+  box-shadow: 
+    0 2px 4px var(--panel-shadow),
+    0 0 6px var(--panel-highlight);
+  transition: all 0.15s ease;
+}
+
+.command-button:hover {
+  background-color: var(--panel-highlight);
+  box-shadow: 
+    0 2px 8px var(--panel-shadow),
+    0 0 12px var(--panel-highlight);
+}
+
+.command-button:active {
+  transform: translateY(1px);
+  box-shadow: 
+    0 1px 2px var(--panel-shadow),
+    0 0 4px var(--panel-highlight);
+}
+
+/* LED status indicators */
+.led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  position: relative;
+}
+
+.led.led-green {
+  background-color: hsl(var(--success));
+  box-shadow: 0 0 6px hsl(var(--success));
+}
+
+.led.led-red {
+  background-color: hsl(var(--destructive));
+  box-shadow: 0 0 6px hsl(var(--destructive));
+}
+
+.led.led-yellow {
+  background-color: hsl(var(--warning));
+  box-shadow: 0 0 6px hsl(var(--warning));
+}
+
+.led.led-blue {
+  background-color: hsl(var(--info));
+  box-shadow: 0 0 6px hsl(var(--info));
+}
+
+/* Command center card/container */
+.command-center {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--panel-bg);
+  border: 2px solid var(--panel-shadow);
+  border-radius: 4px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Data readout display */
+.data-readout {
+  font-family: var(--font-text-me-one);
+  letter-spacing: 1px;
+  background-color: var(--panel-shadow);
+  color: hsl(var(--info));
+  padding: 0.5rem;
+  border: 1px solid var(--panel-light);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  font-size: 0.8rem;
+}
+
+/* Flipping card effect with motion blur */
+.flip-card {
+  perspective: 1000px;
+  height: 200px;
+  width: 100%;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+}
+
+.flip-card:hover .flip-card-inner {
+  transform: rotateY(180deg);
+  filter: blur(var(--motion-blur-strength));
+  transition: transform 0.8s, filter 0.4s;
+}
+
+.flip-card:hover .flip-card-inner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    var(--motion-blur-direction),
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  z-index: 10;
+  pointer-events: none;
+}
+
+.flip-card-front, .flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flip-card-front {
+  background-color: var(--panel-bg);
+  color: var(--panel-fg);
+}
+
+.flip-card-back {
+  background-color: var(--panel-light);
+  color: var(--panel-fg);
+  transform: rotateY(180deg);
+}
+
+/* Blinking cursor */
+.blinking-cursor::after {
+  content: "|";
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 } 

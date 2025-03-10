@@ -3,6 +3,7 @@ import { textMeOne, happyMonkey, nunitoSans } from "@/app/styles/fonts"
 import "@/styles/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Header } from "@/components/header"
+import { Footer } from "@/app/components/footer"
 import { Toaster } from "@/components/ui/use-toast"
 
 export const viewport: Viewport = {
@@ -57,7 +58,10 @@ export default function RootLayout({
         >
           <div className="min-h-screen flex flex-col">
             <Header />
-            {children}
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
           </div>
           <Toaster />
         </ThemeProvider>

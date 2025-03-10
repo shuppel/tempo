@@ -444,10 +444,10 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
               <TooltipTrigger asChild>
                 <Button 
                   size="icon"
-                  className="h-12 w-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg transition-transform hover:scale-110"
+                  className="h-14 w-14 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xl transition-all hover:scale-110 hover:shadow-purple-500/20 dark:hover:shadow-purple-800/30 border border-purple-400/20 dark:border-purple-700/30"
                   onClick={() => setReadyToStartPopupOpen(true)}
                 >
-                  <Play className="h-5 w-5" />
+                  <Play className="h-6 w-6" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -462,7 +462,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
           open={readyToStartPopupOpen} 
           onOpenChange={setReadyToStartPopupOpen}
         >
-          <AlertDialogContent className="max-w-md">
+          <AlertDialogContent className="max-w-md bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm shadow-xl border border-indigo-100 dark:border-indigo-900/50">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-xl bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-700 dark:from-purple-400 dark:to-indigo-400">
                 Ready to get started?
@@ -471,14 +471,14 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                 Your next task is ready and waiting for you. Let's go there now!
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <div className="flex items-center justify-center my-2">
-              <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                <Play className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            <div className="flex items-center justify-center my-3">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/50 dark:to-indigo-900/50 flex items-center justify-center shadow-inner border border-purple-200 dark:border-purple-800/50">
+                <Play className="h-10 w-10 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
-            <AlertDialogFooter className="mt-4">
+            <AlertDialogFooter className="mt-5">
               <AlertDialogCancel 
-                className="min-w-[100px] h-10"
+                className="min-w-[100px] h-10 border-gray-200 dark:border-gray-800"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -488,7 +488,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                 Later
               </AlertDialogCancel>
               <AlertDialogAction 
-                className="min-w-[140px] h-10 bg-purple-600 hover:bg-purple-700 text-white"
+                className="min-w-[140px] h-10 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -612,22 +612,23 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
         </AlertDialog>
         
         {/* Enhanced timeline header with overall progress */}
-        <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/30 shadow-sm">
+        <div className="mb-8 p-5 bg-gradient-to-r from-indigo-50/80 to-violet-50/80 dark:from-indigo-950/40 dark:to-violet-950/40 rounded-xl border border-indigo-100/80 dark:border-indigo-800/30 shadow-md backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">Session Progress</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Track your progress through the work plan</p>
             </div>
-            <Badge variant="outline" className="px-3 py-1 border-indigo-200 dark:border-indigo-700/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-indigo-700 dark:text-indigo-300">
+            <Badge variant="outline" className="px-3 py-1.5 border-indigo-200 dark:border-indigo-700/60 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-indigo-700 dark:text-indigo-300 shadow-sm">
               <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400 mt-0.5" />
-                <span>{completedPercentage}% Complete</span>
+                <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <span className="font-medium">{completedPercentage}% Complete</span>
               </div>
             </Badge>
           </div>
           
           <div className="relative">
             {/* Progress bar with gradient background and position indicator */}
-            <div className="h-5 w-full rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-inner relative">
+            <div className="h-6 w-full rounded-full overflow-hidden bg-gray-100/80 dark:bg-gray-800/80 shadow-inner relative">
               <div 
                 className="h-full transition-all duration-500 ease-in-out rounded-full progress-gradient"
                 style={{ width: `${completedPercentage}%` }}
@@ -697,20 +698,24 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                     <div className={cn(
                       "w-14 h-14 rounded-full flex items-center justify-center z-10",
                       "bg-gradient-to-br from-indigo-100 to-violet-50 dark:from-indigo-950 dark:to-violet-900",
-                      "border-2 border-indigo-200 dark:border-indigo-700 shadow-sm",
-                      isActiveStory && "ring-4 ring-indigo-200 dark:ring-indigo-700 ring-opacity-50"
+                      "border-2 border-indigo-200 dark:border-indigo-700 shadow-md",
+                      isActiveStory && "ring-4 ring-indigo-200 dark:ring-indigo-700 ring-opacity-50 animate-pulse-subtle"
                     )}>
                       <span className="text-xl">{story.icon || "📝"}</span>
                     </div>
                     <div className="ml-4 flex-1">
-                      <h3 className="font-bold text-lg">{story.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700 dark:from-indigo-400 dark:to-purple-400">{story.title}</h3>
+                        <Badge variant="outline" className="ml-2 px-2 py-0.5 text-xs font-medium bg-white/80 dark:bg-gray-900/80 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-sm">
+                          {storyProgress}% Complete
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
                         <Progress 
                           value={storyProgress} 
-                          className="flex-1 h-2 bg-gray-100 dark:bg-gray-800" 
+                          className="flex-1 h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden" 
                           indicatorClassName="story-progress-gradient"
                         />
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{storyProgress}%</span>
                       </div>
                     </div>
                   </div>
@@ -832,24 +837,22 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                           <div 
                             className={cn(
                               "rounded-xl p-4 border-l-4 mb-2 transition-all overflow-hidden relative",
-                              isActive ? "bg-indigo-50 dark:bg-indigo-950/40 shadow-md border-indigo-400 dark:border-indigo-600" : 
+                              isActive ? "bg-indigo-50/90 dark:bg-indigo-950/50 shadow-lg border-indigo-400 dark:border-indigo-600" : 
                                 isInProgress ? statusColors.bg + " shadow-md " + statusColors.border : 
-                                "bg-white hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-800",
+                                "bg-white/90 hover:bg-gray-50/90 dark:bg-gray-950/90 dark:hover:bg-gray-900/90 border-gray-200 dark:border-gray-800",
                               isCompleted && statusColors.bg + " " + statusColors.border,
-                              isActive && "transform-gpu shadow-lg",
+                              isActive && "transform-gpu shadow-xl",
                               nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && "next-action-card",
-                              "hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200"
+                              "hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200 backdrop-blur-sm"
                             )}
                           >
-                            {/* Indicator for next action */}
-                            
                             {/* Glow effect for active task */}
                             {isActive && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-indigo-500/5 animate-glow"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 animate-glow"></div>
                             )}
                             
                             <div className="flex items-center justify-between mb-2 relative">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className={cn(
                                   "text-sm font-medium",
                                   `text-${config.color}-700 dark:text-${config.color}-400`,
@@ -864,17 +867,17 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                   )}
                                 </span>
                                 {isActive && (
-                                  <Badge className="bg-indigo-500 text-xs dark:bg-indigo-700/70 dark:text-indigo-100">Active</Badge>
+                                  <Badge className="bg-indigo-500 text-xs dark:bg-indigo-700/70 dark:text-indigo-100 shadow-sm">Active</Badge>
                                 )}
                                 {isCompleted && (
-                                  <Badge className="bg-green-500 text-xs dark:bg-green-700/70 dark:text-green-100">Completed</Badge>
+                                  <Badge className="bg-green-500 text-xs dark:bg-green-700/70 dark:text-green-100 shadow-sm">Completed</Badge>
                                 )}
                                 {isInProgress && !isActive && (
-                                  <Badge className="bg-blue-500 text-xs dark:bg-blue-700/70 dark:text-blue-100">In Progress</Badge>
+                                  <Badge className="bg-blue-500 text-xs dark:bg-blue-700/70 dark:text-blue-100 shadow-sm">In Progress</Badge>
                                 )}
                                 {nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && (
                                   <Badge 
-                                    className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-800 ml-1 animate-pulse-scale shadow-md px-3 py-1.5 font-medium tracking-wide"
+                                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white dark:from-purple-700 dark:to-indigo-700 dark:hover:from-purple-800 dark:hover:to-indigo-800 ml-1 animate-pulse-scale shadow-md px-3 py-1.5 font-medium tracking-wide"
                                   >
                                     <span className="inline-flex items-center justify-center mr-1.5 text-xs">
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-pulse animate-play-icon">
@@ -888,9 +891,9 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                               
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                    <span className="text-sm">{timeBox.duration}m</span>
+                                  <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900/50 px-2 py-1 rounded-full shadow-sm">
+                                    <Clock className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-sm font-medium">{timeBox.duration}m</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -921,13 +924,13 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                     <div 
                                       key={`task-${taskIndex}`}
                                       className={cn(
-                                        "flex items-start gap-2 py-1 px-2 rounded transition-all",
+                                        "flex items-start gap-2 py-1.5 px-2.5 rounded-lg transition-all",
                                         isTaskCompleted 
-                                          ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800" 
+                                          ? "text-gray-500 dark:text-gray-400 hover:bg-gray-100/70 dark:hover:bg-gray-800/70" 
                                           : isNextTask
-                                            ? "bg-indigo-50/70 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border-l-2 border-indigo-300 dark:border-indigo-600 pl-1.5" 
-                                            : "hover:bg-gray-50 dark:hover:bg-gray-900/50",
-                                        "cursor-pointer"
+                                            ? "bg-indigo-50/70 dark:bg-indigo-900/30 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 border-l-2 border-indigo-300 dark:border-indigo-600 pl-2 shadow-sm" 
+                                            : "hover:bg-gray-50/70 dark:hover:bg-gray-900/50",
+                                        "cursor-pointer group"
                                       )}
                                       onClick={(e) => {
                                         // Prevent any click event from reaching parent components
@@ -943,9 +946,9 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                     >
                                       <div 
                                         className={cn(
-                                          "mt-0.5 w-5 h-5 border rounded flex items-center justify-center cursor-pointer",
+                                          "mt-0.5 w-5 h-5 border rounded-md flex items-center justify-center cursor-pointer transition-all",
                                           isTaskCompleted ? statusColorConfig.completed.bg + " " + statusColorConfig.completed.border :
-                                            "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 group-hover:border-indigo-400 dark:group-hover:border-indigo-500"
                                         )}
                                         onClick={(e) => {
                                           // Prevent event bubbling and default
@@ -971,7 +974,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                       <span 
                                         className={cn(
                                           "text-sm flex-1",
-                                          isTaskCompleted && "line-through"
+                                          isTaskCompleted ? "line-through text-gray-500 dark:text-gray-400" : "text-gray-800 dark:text-gray-200"
                                         )}
                                         onClick={(e) => {
                                           // Prevent event bubbling and default
@@ -1010,12 +1013,12 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                               {/* Progress display */}
                               <div className="flex-1 mr-3">
                                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                                  <span>{timeEstimates.start || "—"}</span>
-                                  <span>{timeEstimates.end || "—"}</span>
+                                  <span className="font-medium">{timeEstimates.start || "—"}</span>
+                                  <span className="font-medium">{timeEstimates.end || "—"}</span>
                                 </div>
                                 <Progress 
                                   value={boxProgress} 
-                                  className="h-1.5 bg-gray-100 dark:bg-gray-800" 
+                                  className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden" 
                                   indicatorClassName="timebox-progress-gradient"
                                 />
                               </div>
@@ -1029,13 +1032,13 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-7 w-7 rounded-full hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-400"
+                                        className="h-8 w-8 rounded-full hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 shadow-sm"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onUndoCompleteTimeBox(storyId, timeBoxIndex);
                                         }}
                                       >
-                                        <Undo2 className="h-3.5 w-3.5" />
+                                        <Undo2 className="h-4 w-4" />
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -1043,8 +1046,8 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
-{/* Start button - show for todo work boxes */}
-{!isCompleted && !isInProgress && onStartTimeBox && (
+                                {/* Start button - show for todo work boxes */}
+                                {!isCompleted && !isInProgress && onStartTimeBox && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
@@ -1052,7 +1055,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                         variant="outline"
                                         className={cn(
                                           "h-9 px-4 rounded-xl shadow-sm",
-                                          "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/50",
+                                          "bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border-indigo-200 hover:from-indigo-100 hover:to-indigo-200 dark:from-indigo-950/30 dark:to-indigo-900/40 dark:border-indigo-800 dark:text-indigo-400 dark:hover:from-indigo-900/50 dark:hover:to-indigo-800/60",
                                           "hover:scale-105 transition-transform duration-200 hover:shadow-md",
                                           nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && "relative z-20 hover:ring-2 hover:ring-purple-300 dark:hover:ring-purple-700"
                                         )}
@@ -1078,7 +1081,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50"
+                                        className="h-9 px-4 rounded-xl shadow-sm bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 hover:from-green-100 hover:to-green-200 dark:from-green-950/30 dark:to-green-900/40 dark:border-green-800 dark:text-green-400 dark:hover:from-green-900/50 dark:hover:to-green-800/60"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           
@@ -1114,13 +1117,13 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                                     <Button
                                       size="icon"
                                       variant="ghost"
-                                      className="h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                                      className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 shadow-sm"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onTimeBoxClick?.(storyId, timeBoxIndex);
                                       }}
                                     >
-                                      <ChevronRight className="h-3.5 w-3.5" />
+                                      <ChevronRight className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -1151,31 +1154,31 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
               
               {/* Timeline node */}
               <div className="absolute left-[-40px] top-0 flex items-center justify-center z-10">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 border-2">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-900 border-2">
                   <FileText className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </div>
               </div>
               
               {/* Main content box */}
-              <div className="rounded-xl p-4 border-l-4 mb-2 transition-all overflow-hidden relative bg-white hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900 border-rose-200 dark:border-rose-800 hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200 ml-8 pl-6">
-                <div className="flex items-center justify-between mb-2 relative">
+              <div className="rounded-xl p-5 border-l-4 mb-2 transition-all overflow-hidden relative bg-white/90 hover:bg-gray-50/90 dark:bg-gray-950/90 dark:hover:bg-gray-900/90 border-rose-200 dark:border-rose-800 hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200 ml-8 pl-6 shadow-sm backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-3 relative">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-rose-700 dark:text-rose-400">
+                    <span className="text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600 dark:from-rose-400 dark:to-pink-400">
                       Session Debrief
                     </span>
-                    <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-1.5 py-0.5 text-xs">
+                    <Badge className="bg-gradient-to-r from-rose-100 to-pink-100 text-rose-800 dark:from-rose-900/40 dark:to-pink-900/40 dark:text-rose-300 px-2 py-0.5 text-xs shadow-sm">
                       5-15 min
                     </Badge>
                   </div>
                 </div>
                 
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-3">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4 pl-1">
                   <p>Reflect on your completed session and capture any important insights.</p>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Suggested questions:</div>
-                  <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 pl-4 list-disc">
+                <div className="space-y-2 bg-gray-50/80 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Suggested questions:</div>
+                  <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2 pl-4 list-disc">
                     <li>What went well in this session?</li>
                     <li>What challenges did you encounter?</li>
                     <li>What can you improve for next time?</li>
@@ -1183,10 +1186,10 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                 </div>
                 
                 {/* Session Debrief Button */}
-                <div className="mt-3.5 flex justify-between items-center">
+                <div className="mt-4 flex justify-between items-center">
                   <div className="flex-1 mr-3">
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Session completed</span>
+                      <span className="font-medium">Session completed</span>
                     </div>
                   </div>
                   
@@ -1196,7 +1199,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+                          className="h-9 px-4 rounded-xl shadow-sm bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 hover:from-green-100 hover:to-green-200 dark:from-green-950/30 dark:to-green-900/40 dark:border-green-800 dark:text-green-400 dark:hover:from-green-900/50 dark:hover:to-green-800/60 hover:scale-105 transition-transform duration-200 hover:shadow-md"
                           onClick={() => {
                             setWorkPlanDebriefCompleted(true);
                             setWorkPlanDebriefActive(false);
@@ -1218,7 +1221,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+                          className="h-9 px-4 rounded-xl shadow-sm bg-gradient-to-r from-rose-50 to-pink-100 text-rose-700 border-rose-200 hover:from-rose-100 hover:to-pink-200 dark:from-rose-950/30 dark:to-pink-900/40 dark:border-rose-800 dark:text-rose-400 dark:hover:from-rose-900/50 dark:hover:to-pink-800/60 hover:scale-105 transition-transform duration-200 hover:shadow-md"
                           onClick={() => {
                             // 10 minutes for the debrief by default
                             onStartSessionDebrief(10);
@@ -1236,7 +1239,7 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
                   )}
                   
                   {workPlanDebriefCompleted && (
-                    <Badge className="bg-green-500 text-white dark:bg-green-700 dark:text-white px-2.5 py-1.5">
+                    <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white dark:from-green-700 dark:to-emerald-700 dark:text-white px-2.5 py-1.5 shadow-sm">
                       <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                       <span>Completed</span>
                     </Badge>
@@ -1246,366 +1249,366 @@ export const VerticalTimeline: React.FC<VerticalTimelineProps> = ({
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Add some custom CSS for timeline shimmer effect */}
-        <style jsx>{`
-          .timeline-shimmer {
-            position: relative;
-            overflow: hidden;
-          }
-          
-          .timeline-shimmer::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-              to bottom,
-              transparent 0%,
-              rgba(255, 255, 255, 0.4) 50%,
-              transparent 100%
-            );
-            animation: shimmer 3s infinite;
+      {/* Add some custom CSS for timeline shimmer effect */}
+      <style jsx>{`
+        .timeline-shimmer {
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .timeline-shimmer::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            rgba(255, 255, 255, 0.4) 50%,
+            transparent 100%
+          );
+          animation: shimmer 3s infinite;
+          transform: translateY(-100%);
+        }
+        
+        @keyframes shimmer {
+          0% {
             transform: translateY(-100%);
           }
-          
-          @keyframes shimmer {
-            0% {
-              transform: translateY(-100%);
-            }
-            100% {
-              transform: translateY(100%);
-            }
+          100% {
+            transform: translateY(100%);
           }
-          
-          @keyframes glow {
-            0% {
-              opacity: 0.3;
-            }
-            50% {
-              opacity: 0.6;
-            }
-            100% {
-              opacity: 0.3;
-            }
+        }
+        
+        @keyframes glow {
+          0% {
+            opacity: 0.3;
           }
-          
-          @keyframes pulse-scale {
-            0% {
-              transform: scale(1);
-              box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
-            }
-            50% {
-              transform: scale(1.07);
-              box-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
-            }
-            100% {
-              transform: scale(1);
-              box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
-            }
+          50% {
+            opacity: 0.6;
           }
-          
-          @keyframes pulse-border {
-            0% {
-              box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
-            }
-            70% {
-              box-shadow: 0 0 0 10px rgba(139, 92, 246, 0);
-            }
-            100% {
-              box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
-            }
+          100% {
+            opacity: 0.3;
           }
-          
-          @keyframes pulse-subtle {
-            0%, 100% {
-              opacity: 1;
-            }
-            50% {
-              opacity: 0.9;
-              transform: translateY(-1px);
-            }
+        }
+        
+        @keyframes pulse-scale {
+          0% {
+            transform: scale(1);
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
           }
-          
-          @keyframes attention-flash {
-            0%, 100% {
-              opacity: 1;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.85;
-              transform: scale(1.08);
-            }
+          50% {
+            transform: scale(1.07);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
           }
-          
-          @keyframes bounce-gentle {
-            0%, 100% {
-              transform: translateY(-50%) translateX(0);
-            }
-            50% {
-              transform: translateY(-50%) translateX(-5px);
-            }
+          100% {
+            transform: scale(1);
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
           }
-          
-          .animate-glow {
-            animation: glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-border {
+          0% {
+            box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
           }
-          
-          .animate-pulse-scale {
-            animation: pulse-scale 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          70% {
+            box-shadow: 0 0 0 10px rgba(139, 92, 246, 0);
           }
-          
-          .animate-pulse-border {
-            animation: pulse-border 2s infinite;
+          100% {
+            box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
           }
-          
-          .animate-pulse-subtle {
-            animation: pulse-subtle 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-subtle {
+          0%, 100% {
+            opacity: 1;
           }
-          
-          .animate-bounce-gentle {
-            animation: bounce-gentle 1.5s ease-in-out infinite;
-          }
-          
-          /* Timeline card hover effects */
-          .timeline-item > div[class*="rounded-xl"] {
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease-out, background-color 0.2s ease;
-            will-change: transform, box-shadow;
-            transform-origin: left center;
-          }
-          
-          .timeline-item > div[class*="rounded-xl"]:hover {
-            z-index: 10;
-            transform: translateX(12px) scale(1.03);
-            box-shadow: 4px 5px 15px rgba(0, 0, 0, 0.1);
-          }
-          
-          .next-action-card {
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-            position: relative;
-            animation: attention-flash 3s ease-in-out infinite;
-            /* Add a left border highlight */
-            border-left: 4px solid rgba(139, 92, 246, 0.9) !important;
-          }
-          
-          /* Enhance the left border with a glow effect */
-          .next-action-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -2px;
-            height: 100%;
-            width: 6px;
-            background: linear-gradient(to right, 
-              rgba(139, 92, 246, 0.9) 0%, 
-              rgba(168, 85, 247, 0.7) 50%, 
-              rgba(139, 92, 246, 0.1) 100%
-            );
-            border-radius: 4px;
-            filter: blur(3px);
-            animation: purple-flare-pulse 2s ease-in-out infinite;
-            z-index: 1;
-          }
-          
-          /* Stop animations when hovering over the card or start button */
-          .next-action-card:hover,
-          .next-action-card:hover::after,
-          .next-action-card:hover::before {
-            animation-play-state: paused;
-            box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
-          }
-          
-          .next-action-card::after {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            border-radius: inherit;
-            padding: 1px;
-            background: linear-gradient(to right, rgba(139, 92, 246, 0.7), rgba(168, 85, 247, 0.7));
-            -webkit-mask: 
-              linear-gradient(#fff 0 0) content-box, 
-              linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
+          50% {
             opacity: 0.9;
-            z-index: 0;
-            animation: pulse-border 2s infinite;
+            transform: translateY(-1px);
           }
-          
-          /* Add a special animation for the purple flare effect */
-          @keyframes purple-flare-pulse {
-            0% {
-              opacity: 0.6;
-              filter: blur(3px) brightness(1);
-            }
-            50% {
-              opacity: 1;
-              filter: blur(4px) brightness(1.5);
-            }
-            100% {
-              opacity: 0.6;
-              filter: blur(3px) brightness(1);
-            }
+        }
+        
+        @keyframes attention-flash {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
           }
-          
-          /* Ensure tooltips appear above all other elements */
-          [data-radix-tooltip-content] {
-            z-index: 9999 !important;
-            position: fixed !important;
-            pointer-events: none !important;
-            top: 0;
-            left: 0;
-            max-width: 20rem;
-            transform-origin: var(--radix-tooltip-content-transform-origin);
-            animation: tooltipFadeIn 0.2s ease-out;
+          50% {
+            opacity: 0.85;
+            transform: scale(1.08);
           }
-          
-          @keyframes tooltipFadeIn {
-            from {
-              opacity: 0;
-              transform: scale(0.96);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
+        }
+        
+        @keyframes bounce-gentle {
+          0%, 100% {
+            transform: translateY(-50%) translateX(0);
           }
-          
-          /* Add a portal class to ensure tooltips render at the root level */
-          .radix-tooltip-portal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 0;
-            overflow: visible;
-            z-index: 9999;
+          50% {
+            transform: translateY(-50%) translateX(-5px);
           }
-          
-          /* Dark mode adjustments for the next-action-card */
-          .dark .next-action-card {
-            border-left: 4px solid rgba(168, 85, 247, 0.9) !important;
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+        
+        .animate-glow {
+          animation: glow 2s ease-in-out infinite;
+        }
+        
+        .animate-pulse-scale {
+          animation: pulse-scale 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .animate-pulse-border {
+          animation: pulse-border 2s infinite;
+        }
+        
+        .animate-pulse-subtle {
+          animation: pulse-subtle 3s ease-in-out infinite;
+        }
+        
+        .animate-bounce-gentle {
+          animation: bounce-gentle 1.5s ease-in-out infinite;
+        }
+        
+        /* Timeline card hover effects */
+        .timeline-item > div[class*="rounded-xl"] {
+          transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease-out, background-color 0.2s ease;
+          will-change: transform, box-shadow;
+          transform-origin: left center;
+        }
+        
+        .timeline-item > div[class*="rounded-xl"]:hover {
+          z-index: 10;
+          transform: translateX(12px) scale(1.03);
+          box-shadow: 4px 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .next-action-card {
+          box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+          position: relative;
+          animation: attention-flash 3s ease-in-out infinite;
+          /* Add a left border highlight */
+          border-left: 4px solid rgba(139, 92, 246, 0.9) !important;
+        }
+        
+        /* Enhance the left border with a glow effect */
+        .next-action-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -2px;
+          height: 100%;
+          width: 6px;
+          background: linear-gradient(to right, 
+            rgba(139, 92, 246, 0.9) 0%, 
+            rgba(168, 85, 247, 0.7) 50%, 
+            rgba(139, 92, 246, 0.1) 100%
+          );
+          border-radius: 4px;
+          filter: blur(3px);
+          animation: purple-flare-pulse 2s ease-in-out infinite;
+          z-index: 1;
+        }
+        
+        /* Stop animations when hovering over the card or start button */
+        .next-action-card:hover,
+        .next-action-card:hover::after,
+        .next-action-card:hover::before {
+          animation-play-state: paused;
+          box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+        }
+        
+        .next-action-card::after {
+          content: '';
+          position: absolute;
+          inset: -1px;
+          border-radius: inherit;
+          padding: 1px;
+          background: linear-gradient(to right, rgba(139, 92, 246, 0.7), rgba(168, 85, 247, 0.7));
+          -webkit-mask: 
+            linear-gradient(#fff 0 0) content-box, 
+            linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          opacity: 0.9;
+          z-index: 0;
+          animation: pulse-border 2s infinite;
+        }
+        
+        /* Add a special animation for the purple flare effect */
+        @keyframes purple-flare-pulse {
+          0% {
+            opacity: 0.6;
+            filter: blur(3px) brightness(1);
           }
-          
-          .dark .next-action-card::before {
-            background: linear-gradient(to right, 
-              rgba(168, 85, 247, 0.9) 0%, 
-              rgba(192, 132, 252, 0.7) 50%, 
-              rgba(168, 85, 247, 0.1) 100%
-            );
-            filter: blur(4px);
+          50% {
+            opacity: 1;
+            filter: blur(4px) brightness(1.5);
           }
-          
-          .dark .next-action-card:hover {
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+          100% {
+            opacity: 0.6;
+            filter: blur(3px) brightness(1);
           }
-          
-          .dark .next-action-card::after {
-            background: linear-gradient(to right, rgba(168, 85, 247, 0.7), rgba(192, 132, 252, 0.7));
+        }
+        
+        /* Ensure tooltips appear above all other elements */
+        [data-radix-tooltip-content] {
+          z-index: 9999 !important;
+          position: fixed !important;
+          pointer-events: none !important;
+          top: 0;
+          left: 0;
+          max-width: 20rem;
+          transform-origin: var(--radix-tooltip-content-transform-origin);
+          animation: tooltipFadeIn 0.2s ease-out;
+        }
+        
+        @keyframes tooltipFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.96);
           }
-          
-          @keyframes play-icon-pulse {
-            0% {
-              transform: scale(1) translateX(0);
-              opacity: 0.9;
-            }
-            50% {
-              transform: scale(1.1) translateX(1px);
-              opacity: 1;
-            }
-            100% {
-              transform: scale(1) translateX(0);
-              opacity: 0.9;
-            }
+          to {
+            opacity: 1;
+            transform: scale(1);
           }
-          
-          .animate-play-icon {
-            animation: play-icon-pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Add a portal class to ensure tooltips render at the root level */
+        .radix-tooltip-portal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 0;
+          overflow: visible;
+          z-index: 9999;
+        }
+        
+        /* Dark mode adjustments for the next-action-card */
+        .dark .next-action-card {
+          border-left: 4px solid rgba(168, 85, 247, 0.9) !important;
+          box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+        }
+        
+        .dark .next-action-card::before {
+          background: linear-gradient(to right, 
+            rgba(168, 85, 247, 0.9) 0%, 
+            rgba(192, 132, 252, 0.7) 50%, 
+            rgba(168, 85, 247, 0.1) 100%
+          );
+          filter: blur(4px);
+        }
+        
+        .dark .next-action-card:hover {
+          box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+        }
+        
+        .dark .next-action-card::after {
+          background: linear-gradient(to right, rgba(168, 85, 247, 0.7), rgba(192, 132, 252, 0.7));
+        }
+        
+        @keyframes play-icon-pulse {
+          0% {
+            transform: scale(1) translateX(0);
+            opacity: 0.9;
           }
-          
-          /* Progress gradient styling */
-          .progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #f472b6, /* Pink */
-              #fb923c, /* Orange */
-              #a78bfa, /* Light purple */
-              #4ade80  /* Green */
-            );
-            background-size: 300% 100%;
-            animation: progress-gradient-shift 3s ease infinite;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          50% {
+            transform: scale(1.1) translateX(1px);
+            opacity: 1;
           }
-          
-          .dark .progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #db2777, /* Darker pink for dark mode */
-              #ea580c, /* Darker orange for dark mode */
-              #8b5cf6, /* Darker purple for dark mode */
-              #22c55e  /* Darker green for dark mode */
-            );
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          100% {
+            transform: scale(1) translateX(0);
+            opacity: 0.9;
           }
-          
-          @keyframes progress-gradient-shift {
-            0% {
-              background-position: 0% 50%;
-            }
-            50% {
-              background-position: 100% 50%;
-            }
-            100% {
-              background-position: 0% 50%;
-            }
+        }
+        
+        .animate-play-icon {
+          animation: play-icon-pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Progress gradient styling */
+        .progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #f472b6, /* Pink */
+            #fb923c, /* Orange */
+            #a78bfa, /* Light purple */
+            #4ade80  /* Green */
+          );
+          background-size: 300% 100%;
+          animation: progress-gradient-shift 3s ease infinite;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dark .progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #db2777, /* Darker pink for dark mode */
+            #ea580c, /* Darker orange for dark mode */
+            #8b5cf6, /* Darker purple for dark mode */
+            #22c55e  /* Darker green for dark mode */
+          );
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes progress-gradient-shift {
+          0% {
+            background-position: 0% 50%;
           }
-          
-          /* Story progress bar gradient styling - same colors but no animation */
-          .story-progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #f472b6, /* Pink */
-              #fb923c, /* Orange */
-              #a78bfa, /* Light purple */
-              #4ade80  /* Green */
-            );
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          50% {
+            background-position: 100% 50%;
           }
-          
-          .dark .story-progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #db2777, /* Darker pink for dark mode */
-              #ea580c, /* Darker orange for dark mode */
-              #8b5cf6, /* Darker purple for dark mode */
-              #22c55e  /* Darker green for dark mode */
-            );
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+          100% {
+            background-position: 0% 50%;
           }
+        }
+        
+        /* Story progress bar gradient styling - same colors but no animation */
+        .story-progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #f472b6, /* Pink */
+            #fb923c, /* Orange */
+            #a78bfa, /* Light purple */
+            #4ade80  /* Green */
+          );
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .dark .story-progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #db2777, /* Darker pink for dark mode */
+            #ea580c, /* Darker orange for dark mode */
+            #8b5cf6, /* Darker purple for dark mode */
+            #22c55e  /* Darker green for dark mode */
+          );
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
 
-          /* Timebox progress bar styling - simpler gradient focused on completion color */
-          .timebox-progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #a78bfa, /* Light purple */
-              #34d399  /* Emerald green */
-            );
-            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
-          }
-          
-          .dark .timebox-progress-gradient {
-            background: linear-gradient(
-              to right, 
-              #8b5cf6, /* Darker purple for dark mode */
-              #10b981  /* Darker emerald for dark mode */
-            );
-            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
-          }
-        `}</style>
-      </div>
+        /* Timebox progress bar styling - simpler gradient focused on completion color */
+        .timebox-progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #a78bfa, /* Light purple */
+            #34d399  /* Emerald green */
+          );
+          box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+        }
+        
+        .dark .timebox-progress-gradient {
+          background: linear-gradient(
+            to right, 
+            #8b5cf6, /* Darker purple for dark mode */
+            #10b981  /* Darker emerald for dark mode */
+          );
+          box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+        }
+      `}</style>
     </TooltipProvider>
   )
 }

@@ -36,64 +36,62 @@ export default function Home() {
 
   return (
     <main className="flex-1 container mx-auto p-4 md:p-8 max-w-6xl">
-      <div className="grid gap-12">
+      <div className="command-center grid gap-8 p-4 md:p-6 rounded-lg">
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <Image 
-              src="/assets/features/brain_dump.png" 
-              alt="Brain Dump Logo" 
-              width={80} 
-              height={80} 
-              className="rounded-lg shadow-md"
-            />
-            <h1 className="text-5xl flex items-center">Brain Dump</h1>
+            <div className="crt-screen h-20 w-20 flex items-center justify-center">
+              <Image 
+                src="/assets/features/brain_dump.png" 
+                alt="Brain Dump Logo" 
+                width={60} 
+                height={60} 
+                className="rounded-lg turn-effect"
+              />
+            </div>
+            <h1 className="text-5xl flex items-center text-panel-fg blur-in-h">COMMAND CENTER</h1>
           </div>
-          <p className="text-body-large text-muted-foreground">
+          <p className="text-body-large text-panel-fg">
             Transform scattered thoughts into structured productivity. Simply list your tasks—we'll analyze, organize, and create focused work sessions optimized for your workflow. No more overwhelm, just clarity and progress.
           </p>
         </div>
 
         <div className="grid gap-8 md:grid-cols-[2fr,1fr]">
-          <BrainDump onTasksProcessed={handleTasksProcessed} />
+          <div className="command-panel">
+            <div className="command-panel-header">BRAIN DUMP INTERFACE</div>
+            <BrainDump onTasksProcessed={handleTasksProcessed} />
+          </div>
 
           <div className="space-y-8">
-            <Card className="border-2">
-              <CardHeader className="space-y-3">
-                <CardTitle className="text-2xl">Session Preview</CardTitle>
-                <CardDescription className="text-body text-muted-foreground">
-                  Your productivity metrics at a glance
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <dl className="space-y-6">
-                  <div>
-                    <dt className="ui-label mb-2">Tasks</dt>
-                    <dd className="text-4xl font-heading">{stats.totalTasks}</dd>
+            <div className="crt-screen">
+              <div className="command-panel-header">SESSION PREVIEW</div>
+              <dl className="space-y-6">
+                <div>
+                  <dt className="ui-label mb-2 text-panel-fg">TASKS</dt>
+                  <dd className="data-readout text-center text-4xl">{stats.totalTasks}</dd>
+                </div>
+                <div>
+                  <dt className="ui-label mb-2 text-panel-fg">ESTIMATED TIME</dt>
+                  <dd className="data-readout text-center text-4xl">
+                    {stats.totalDuration > 59 
+                      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
+                      : `${stats.totalDuration}m`}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="ui-label mb-2 text-panel-fg">FOCUS STORIES</dt>
+                  <dd className="data-readout text-center text-4xl">{stats.totalStories}</dd>
+                </div>
+                {stats.totalFrogs > 0 && (
+                  <div className="blur-in-v">
+                    <dt className="ui-label mb-2 flex items-center gap-2 text-panel-fg">
+                      <span>EAT THESE FROGS FIRST</span>
+                      <span className="text-lg">🐸</span>
+                    </dt>
+                    <dd className="data-readout text-center text-4xl">{stats.totalFrogs}</dd>
                   </div>
-                  <div>
-                    <dt className="ui-label mb-2">Estimated Time</dt>
-                    <dd className="text-4xl font-heading">
-                      {stats.totalDuration > 59 
-                        ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
-                        : `${stats.totalDuration}m`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="ui-label mb-2">Focus Stories</dt>
-                    <dd className="text-4xl font-heading">{stats.totalStories}</dd>
-                  </div>
-                  {stats.totalFrogs > 0 && (
-                    <div>
-                      <dt className="ui-label mb-2 flex items-center gap-2">
-                        <span>Eat These Frogs First</span>
-                        <span className="text-lg">🐸</span>
-                      </dt>
-                      <dd className="text-4xl font-heading text-primary">{stats.totalFrogs}</dd>
-                    </div>
-                  )}
-                </dl>
-              </CardContent>
-            </Card>
+                )}
+              </dl>
+            </div>
           </div>
         </div>
       </div>
