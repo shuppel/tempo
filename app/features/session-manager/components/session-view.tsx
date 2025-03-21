@@ -50,6 +50,7 @@ import {
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { LiaFrogSolid } from "react-icons/lia"
+import { Icon } from "@/components/ui/icon"
 
 interface SessionViewProps {
   id?: string;
@@ -744,20 +745,20 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     
     if (isSessionComplete) {
       return <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700/60">
-        <CheckCircle2 className="mr-1 h-3 w-3" />
+        <Icon icon={CheckCircle2} color="default" size="sm" />
         Completed
       </Badge>;
     }
     
     if (activeTimeBox) {
       return <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700/60">
-        <Clock className="mr-1 h-3 w-3 animate-pulse" />
+        <Icon icon={Clock} color="default" size="sm" />
         In Progress
       </Badge>;
     }
     
     return <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700/60">
-      <Calendar className="mr-1 h-3 w-3" />
+      <Icon icon={Calendar} color="default" size="sm" />
       Planned
     </Badge>;
   };
@@ -858,7 +859,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
         <div className="flex items-center">
-          <Calendar className="h-5 w-5 text-yellow-600" />
+          <Icon icon={Calendar} color="default" size="sm" />
           <h3 className="ml-2 text-lg font-medium">No session found</h3>
         </div>
         <p className="mt-2 text-sm">There is no session scheduled for this date.</p>
@@ -899,17 +900,17 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
             </CardTitle>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-white dark:bg-gray-900/80 border-gray-200 dark:border-gray-700/60 text-gray-700 dark:text-gray-300">
-                <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <Icon icon={Clock} color="muted" size="sm" />
                 <span>Total: {Math.floor(session.totalDuration / 60)}h {session.totalDuration % 60}m</span>
               </Badge>
               
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-700/60 text-indigo-700 dark:text-indigo-300">
-                <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-secondary/20 border-secondary/30">
+                <Icon icon={CheckCircle2} color="default" size="sm" />
                 <span>Work: {Math.floor(workDuration / 60)}h {workDuration % 60}m</span>
               </Badge>
               
-              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-700/60 text-teal-700 dark:text-teal-300">
-                <Pause className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <Badge variant="outline" className="px-3 py-1 flex items-center gap-1.5 bg-secondary/20 border-secondary/30">
+                <Icon icon={Pause} color="default" size="sm" />
                 <span>Breaks: {Math.floor(breakDuration / 60)}h {breakDuration % 60}m</span>
               </Badge>
               
