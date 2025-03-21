@@ -72,5 +72,15 @@ export const statusColorConfig = {
     bg: "bg-secondary/20",
     border: "border-secondary/30",
     text: "text-foreground",
+  },
+  "in-progress": {
+    bg: "bg-primary/10",
+    border: "border-primary/30",
+    text: "text-primary",
+  },
+  todo: {
+    bg: "bg-secondary/20",
+    border: "border-secondary/30",
+    text: "text-foreground",
   }
 } as const; 

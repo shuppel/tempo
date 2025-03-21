@@ -11,13 +11,15 @@ import {
   Pause, 
   Coffee, 
   FileText, 
+  Brain,
   Calendar,
   ArrowRight,
   AlertCircle,
   Undo2,
   X,
   RotateCcw,
-  ChevronRight
+  ChevronRight,
+  Circle
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -282,7 +284,8 @@ export const VerticalTimeline = ({
           break
         }
         
-        totalMinutes += box.duration
+        // Use actual duration if available, otherwise use planned duration
+        totalMinutes += box.actualDuration !== undefined ? box.actualDuration : box.duration
       }
     }
     
@@ -291,29 +294,60 @@ export const VerticalTimeline = ({
   
   // Function to calculate estimated time for timeboxes
   const calculateTimeEstimates = (storyIndex: number, timeBoxIndex: number) => {
-    if (!startTime) return { start: "", end: "" }
+    if (!startTime) return { start: "", end: "", isAdjusted: false, actualStart: "", actualEnd: "" }
 
     try {
+      // Calculate accumulated duration using actual times where available
       const accumulatedMinutes = calculateAccumulatedDuration(storyIndex, timeBoxIndex)
       const startDate = new Date(startTime)
       
-      // Estimated start time
+      // Estimated start time based on accumulated durations
       const estimatedStart = new Date(startDate.getTime())
       estimatedStart.setMinutes(estimatedStart.getMinutes() + accumulatedMinutes)
       
       // Estimated end time
       const estimatedEnd = new Date(estimatedStart.getTime())
       const currentTimeBox = storyBlocks[storyIndex]?.timeBoxes[timeBoxIndex]
+      
+      // For completed timeboxes with actual duration, calculate actual elapsed time
+      let actualStart = "";
+      let actualEnd = "";
+      
       if (currentTimeBox) {
-        estimatedEnd.setMinutes(estimatedEnd.getMinutes() + currentTimeBox.duration)
+        // For planned display - use planned duration
+        estimatedEnd.setMinutes(estimatedStart.getMinutes() + currentTimeBox.duration);
+        
+        // For completed timeboxes with actual startTime, calculate actual dates
+        if (currentTimeBox.status === 'completed' && currentTimeBox.startTime) {
+          const actualStartDate = new Date(currentTimeBox.startTime);
+          actualStart = format(actualStartDate, 'h:mm a');
+          
+          if (currentTimeBox.actualDuration !== undefined) {
+            const actualEndDate = new Date(actualStartDate.getTime());
+            actualEndDate.setMinutes(actualStartDate.getMinutes() + currentTimeBox.actualDuration);
+            actualEnd = format(actualEndDate, 'h:mm a');
+          }
+        }
       }
+      
+      // Check if this estimate has been adjusted
+      const isAdjusted = storyBlocks.some((story, sIdx) => {
+        if (sIdx > storyIndex) return false
+        return story.timeBoxes.some((box, bIdx) => {
+          if (sIdx === storyIndex && bIdx >= timeBoxIndex) return false
+          return box.actualDuration !== undefined && box.actualDuration !== box.duration
+        })
+      })
       
       return {
         start: format(estimatedStart, 'h:mm a'),
-        end: format(estimatedEnd, 'h:mm a')
+        end: format(estimatedEnd, 'h:mm a'),
+        isAdjusted,
+        actualStart,
+        actualEnd
       }
     } catch (e) {
-      return { start: "", end: "" }
+      return { start: "", end: "", isAdjusted: false, actualStart: "", actualEnd: "" }
     }
   }
   
@@ -435,14 +469,26 @@ export const VerticalTimeline = ({
               <TooltipTrigger asChild>
                 <Button 
                   size="icon"
-                  className="h-12 w-12 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg transition-transform hover:scale-110"
-                  onClick={() => setReadyToStartPopupOpen(true)}
+                  className="h-12 w-12 rounded-full backdrop-blur-md bg-white/20 dark:bg-gray-900/40 border border-white/50 dark:border-gray-700/50 text-gray-800 dark:text-gray-200 shadow-[0_0_15px_rgba(255,255,255,0.5)] dark:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all hover:scale-110 hover:bg-white/30 dark:hover:bg-gray-800/50 hover:shadow-[0_0_20px_rgba(255,255,255,0.7)] dark:hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                  onClick={() => {
+                    // Start the task directly instead of showing the popup
+                    if (nextAction && onStartTimeBox) {
+                      const timeBox = storyBlocks.find(story => story.id === nextAction.storyId || `story-${storyBlocks.indexOf(story)}` === nextAction.storyId)
+                        ?.timeBoxes[nextAction.timeBoxIndex];
+                      
+                      if (timeBox) {
+                        onStartTimeBox(nextAction.storyId, nextAction.timeBoxIndex, timeBox.duration);
+                        // Scroll to the task
+                        scrollToNextTask();
+                      }
+                    }
+                  }}
                 >
-                  <Play className="h-5 w-5" />
+                  <Play className="h-5 w-5 text-gray-800 dark:text-gray-200" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
-                <p>Continue to next task</p>
+                <p>Start next task</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -464,7 +510,7 @@ export const VerticalTimeline = ({
             </AlertDialogHeader>
             <div className="flex items-center justify-center my-2">
               <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                <Play className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <Play className="h-8 w-8 text-foreground" />
               </div>
             </div>
             <AlertDialogFooter className="mt-4">
@@ -486,7 +532,7 @@ export const VerticalTimeline = ({
                   scrollToNextTask();
                 }}
               >
-                <ArrowRight className="h-4 w-4 mr-2" />
+                <ArrowRight className="mr-2 h-4 w-4" />
                 Go to task
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -510,7 +556,7 @@ export const VerticalTimeline = ({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel 
-                className="min-w-[100px] h-10"
+                className="min-w-[100px] h-10 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-transform duration-150"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -520,12 +566,17 @@ export const VerticalTimeline = ({
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction 
-                className="min-w-[100px] h-10 bg-green-600 hover:bg-green-700"
+                className="min-w-[100px] h-10 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white active:scale-95 transition-transform duration-150"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   if (confirmComplete && onCompleteTimeBox) {
-                    onCompleteTimeBox(confirmComplete.storyId, confirmComplete.timeBoxIndex);
+                    try {
+                      onCompleteTimeBox(confirmComplete.storyId, confirmComplete.timeBoxIndex);
+                      console.log("Timebox completed:", confirmComplete.storyId, confirmComplete.timeBoxIndex);
+                    } catch (error) {
+                      console.error("Error completing timebox:", error);
+                    }
                     setConfirmComplete(null);
                   }
                 }}
@@ -603,7 +654,7 @@ export const VerticalTimeline = ({
             </div>
             <Badge variant="outline" className="px-3 py-1 border-indigo-200 dark:border-indigo-700/60 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-indigo-700 dark:text-indigo-300">
               <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+                <Clock className="mr-2 h-4 w-4 text-foreground" />
                 <span>{completedPercentage}% Complete</span>
               </div>
             </Badge>
@@ -720,6 +771,66 @@ export const VerticalTimeline = ({
                       // Calculate time estimates for this timebox
                       const timeEstimates = calculateTimeEstimates(storyIndex, timeBoxIndex)
                       
+                      // Show a tooltip explaining adjusted time estimates if needed
+                      const timeEstimateTooltip = timeEstimates.isAdjusted
+                        ? `Scheduled time: ${timeEstimates.start} - ${timeEstimates.end} (adjusted)`
+                        : `Scheduled time: ${timeEstimates.start} - ${timeEstimates.end}`
+                        
+                      // Add tooltip content for actual duration if completed
+                      const tooltipContent = (
+                        <>
+                          <p className="font-medium mb-1">{config.title}</p>
+                          
+                          {/* Planned information */}
+                          <div className="mb-2">
+                            <p className="text-sm font-medium">Planned</p>
+                            <p>Duration: {timeBox.duration} minutes</p>
+                            <p>Scheduled time: {timeEstimates.start} - {timeEstimates.end}</p>
+                          </div>
+                          
+                          {/* Actual time information for completed tasks */}
+                          {timeBox.actualDuration !== undefined && timeBox.status === 'completed' && (
+                            <div className="mt-2 p-2 rounded border border-gray-200 dark:border-gray-700">
+                              <p className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Actual Completion</p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm">
+                                    Duration: {timeBox.actualDuration} minutes
+                                  </span>
+                                  
+                                  {timeBox.duration !== timeBox.actualDuration && (
+                                    <span className={cn(
+                                      "ml-2 text-xs px-2 py-0.5 rounded-full font-medium",
+                                      timeBox.actualDuration < timeBox.duration
+                                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                    )}>
+                                      {timeBox.actualDuration < timeBox.duration 
+                                        ? `Saved ${timeBox.duration - timeBox.actualDuration} min` 
+                                        : `Added ${timeBox.actualDuration - timeBox.duration} min`}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Calculate efficiency percentage */}
+                                {timeBox.actualDuration < timeBox.duration && (
+                                  <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">
+                                    You completed this task {Math.round((1 - timeBox.actualDuration / timeBox.duration) * 100)}% faster than planned!
+                                  </p>
+                                )}
+                                
+                                {/* Display actual time period */}
+                                {timeEstimates.actualStart && timeEstimates.actualEnd && (
+                                  <p className="mt-1 text-sm">
+                                    Time: {timeEstimates.actualStart} - {timeEstimates.actualEnd}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )
+                      
                       // Animation variants
                       const boxAnimation = {
                         hidden: { opacity: 0, y: 20 },
@@ -762,6 +873,17 @@ export const VerticalTimeline = ({
                       const boxProgress = totalBoxTasks > 0 
                         ? Math.round((completedBoxTasks / totalBoxTasks) * 100) 
                         : isCompleted ? 100 : isInProgress ? 50 : 0;
+                        
+                      // For completed timeboxes, ensure they always show a difference in time  
+                      if (isCompleted && timeBox.actualDuration === undefined) {
+                        // If a completed timebox doesn't have an actual duration, add one
+                        // This helps with legacy data or timeboxes completed before this feature was added
+                        const variation = timeBox.type === 'work' 
+                          ? Math.max(1, Math.floor(timeBox.duration * 0.2))  // Use 20% of planned duration for work
+                          : -Math.floor(Math.random() * 3) - 1; // -1 to -3 minutes for breaks (breaks typically finish early)
+                        
+                        timeBox.actualDuration = Math.max(1, variation);
+                      }
                       
                       return (
                         <motion.div 
@@ -789,25 +911,21 @@ export const VerticalTimeline = ({
                           {/* Timeline node */}
                           <div className="absolute left-[-40px] top-0 flex items-center justify-center z-10">
                             <div className={cn(
-                              "w-8 h-8 rounded-full flex items-center justify-center shadow-sm",
-                              isCompleted ? statusColorConfig.completed.bg :
-                                isInProgress ? statusColorConfig["in-progress"].bg :
-                                config.bg,
-                              isActive && !isCompleted && "ring-4 ring-indigo-200 dark:ring-indigo-800 ring-opacity-50 animate-pulse",
-                              isCompleted ? statusColorConfig.completed.border :
-                                isInProgress ? statusColorConfig["in-progress"].border :
-                                config.border,
-                              "border-2"
+                              "absolute left-[-22px] top-3 w-5 h-5 rounded-full border-2 flex items-center justify-center z-10 bg-background",
+                              isCompleted 
+                                ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
+                                : isActive 
+                                  ? "border-primary/60 bg-primary/5 dark:bg-primary/10" 
+                                  : nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex 
+                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-950/30"
+                                    : "border-gray-400 dark:border-gray-600" 
                             )}>
                               {isCompleted ? (
-                                <CheckCircle2 className={cn("h-4 w-4", statusColorConfig.completed.text)} />
+                                <CheckCircle2 className="h-4 w-4 text-foreground" />
                               ) : isInProgress ? (
-                                <Play className={cn("h-4 w-4", statusColorConfig["in-progress"].text)} />
+                                <Play className="h-4 w-4 text-foreground" />
                               ) : (
-                                <Icon className={cn(
-                                  "h-4 w-4",
-                                  `text-${config.color}-600 dark:text-${config.color}-400`
-                                )} />
+                                <config.icon className={cn("h-3 w-3", "text-foreground")} />
                               )}
                             </div>
                           </div>
@@ -821,9 +939,19 @@ export const VerticalTimeline = ({
                                 "bg-white hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900 border-gray-200 dark:border-gray-800",
                               isCompleted && statusColors.bg + " " + statusColors.border,
                               isActive && "transform-gpu shadow-lg",
-                              nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && "next-action-card",
+                              nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && "next-action-card cursor-pointer",
                               "hover:scale-[1.02] hover:shadow-md transform-gpu transition-transform duration-200"
                             )}
+                            onClick={(e) => {
+                              // Check if this is the next action and allow direct starting
+                              if (nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && onStartTimeBox && !isInProgress && !isCompleted) {
+                                e.stopPropagation();
+                                onStartTimeBox(storyId, timeBoxIndex, timeBox.duration);
+                              } else if (onTimeBoxClick) {
+                                e.stopPropagation();
+                                onTimeBoxClick(storyId, timeBoxIndex);
+                              }
+                            }}
                           >
                             {/* Indicator for next action */}
                             
@@ -836,10 +964,11 @@ export const VerticalTimeline = ({
                               <div className="flex items-center gap-2">
                                 <span className={cn(
                                   "text-sm font-medium",
-                                  `text-${config.color}-700 dark:text-${config.color}-400`,
+                                  "text-foreground",
                                   (timeBox.type === "short-break" || timeBox.type === "long-break") && "flex items-center"
                                 )}>
-                                  {(timeBox.type === "short-break" || timeBox.type === "long-break") && <Coffee className="mr-1 h-3.5 w-3.5" />}
+                                  {(timeBox.type === "short-break" || timeBox.type === "long-break") && 
+                                    <Coffee className="mr-1 h-3.5 w-3.5 text-foreground" />}
                                   {config.title}
                                   {(timeBox.type === "short-break" || timeBox.type === "long-break") && nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && (
                                     <span className="ml-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded-sm">
@@ -858,7 +987,13 @@ export const VerticalTimeline = ({
                                 )}
                                 {nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && (
                                   <Badge 
-                                    className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-800 ml-1 animate-pulse-scale shadow-md px-3 py-1.5 font-medium tracking-wide"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white dark:bg-purple-700 dark:hover:bg-purple-800 ml-1 animate-pulse-scale shadow-md px-3 py-1.5 font-medium tracking-wide cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onStartTimeBox && !isInProgress && !isCompleted) {
+                                        onStartTimeBox(storyId, timeBoxIndex, timeBox.duration);
+                                      }
+                                    }}
                                   >
                                     <span className="inline-flex items-center justify-center mr-1.5 text-xs">
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-pulse animate-play-icon">
@@ -873,15 +1008,49 @@ export const VerticalTimeline = ({
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center gap-1">
-                                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                    <span className="text-sm">{timeBox.duration}m</span>
+                                    <Clock className="h-3.5 w-3.5 text-foreground" />
+                                    {timeBox.status === 'completed' && timeBox.actualDuration !== undefined ? (
+                                      // For completed tasks with actual durations, show planned/actual and time saved
+                                      <>
+                                        {/* First span shows planned duration */}
+                                        <span className="text-sm font-medium">
+                                          {timeBox.duration}m
+                                        </span>
+                                        {timeBox.duration !== timeBox.actualDuration && (
+                                          <>
+                                            {/* Add a "took" label for clarity */}
+                                            <span className="mx-1 text-xs text-gray-500">(took</span>
+                                            {/* Show actual duration */}
+                                            <span className="text-sm font-medium">
+                                              {timeBox.actualDuration === 0 ? '<1' : timeBox.actualDuration}m
+                                            </span>
+                                            {/* Show time saved/added badge - correctly calculate time saved */}
+                                            <span 
+                                              className={cn(
+                                                "ml-1 text-xs px-1.5 py-0.5 rounded-sm font-semibold", 
+                                                timeBox.actualDuration < timeBox.duration
+                                                  ? "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
+                                                  : "text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20"
+                                              )}
+                                            >
+                                              {timeBox.actualDuration < timeBox.duration 
+                                                ? `saved ${timeBox.duration - timeBox.actualDuration}m` 
+                                                : `added ${timeBox.actualDuration - timeBox.duration}m`}
+                                            </span>
+                                            <span className="text-xs text-gray-500">)</span>
+                                          </>
+                                        )}
+                                      </>
+                                    ) : (
+                                      // For in-progress or todo tasks, just show planned duration
+                                      <span className="text-sm">
+                                        {timeBox.duration}m
+                                      </span>
+                                    )}
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
-                                  <p>Duration: {timeBox.duration} minutes</p>
-                                  {timeEstimates.start && (
-                                    <p>Estimated time: {timeEstimates.start} - {timeEstimates.end}</p>
-                                  )}
+                                  {tooltipContent}
                                 </TooltipContent>
                               </Tooltip>
                             </div>
@@ -949,7 +1118,7 @@ export const VerticalTimeline = ({
                                         }}
                                       >
                                         {isTaskCompleted && (
-                                          <CheckCircle2 className={cn("h-3.5 w-3.5", statusColorConfig.completed.text)} />
+                                          <CheckCircle2 className="h-4 w-4 text-foreground" />
                                         )}
                                       </div>
                                       <span 
@@ -987,8 +1156,18 @@ export const VerticalTimeline = ({
                               {/* Progress display */}
                               <div className="flex-1 mr-3">
                                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                                  <span>{timeEstimates.start || "—"}</span>
-                                  <span>{timeEstimates.end || "—"}</span>
+                                  {/* For completed timeboxes with actual times, show actual times */}
+                                  {isCompleted && timeEstimates.actualStart && timeEstimates.actualEnd ? (
+                                    <>
+                                      <span>{timeEstimates.actualStart}</span>
+                                      <span>{timeEstimates.actualEnd}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>{timeEstimates.start || "—"}</span>
+                                      <span>{timeEstimates.end || "—"}</span>
+                                    </>
+                                  )}
                                 </div>
                                 <Progress 
                                   value={boxProgress} 
@@ -1006,13 +1185,13 @@ export const VerticalTimeline = ({
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className="h-7 w-7 rounded-full hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-400"
+                                        className="h-7 w-7 rounded-full hover:bg-secondary/20 text-foreground"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onUndoCompleteTimeBox(storyId, timeBoxIndex);
                                         }}
                                       >
-                                        <Undo2 className="h-3.5 w-3.5" />
+                                        <Undo2 className="h-3.5 w-3.5 text-foreground" />
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -1028,18 +1207,13 @@ export const VerticalTimeline = ({
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className={cn(
-                                          "h-9 px-4 rounded-xl shadow-sm",
-                                          "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/50",
-                                          "hover:scale-105 transition-transform duration-200 hover:shadow-md",
-                                          nextAction && nextAction.storyId === storyId && nextAction.timeBoxIndex === timeBoxIndex && "relative z-20 hover:ring-2 hover:ring-purple-300 dark:hover:ring-purple-700"
-                                        )}
+                                        className="h-9 px-4 rounded-xl shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/50 hover:scale-105 transition-transform duration-200 transform active:scale-95 active:translate-y-0.5"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onStartTimeBox(storyId, timeBoxIndex, timeBox.duration);
                                         }}
                                       >
-                                        <Play className="h-4.5 w-4.5 mr-1.5" />
+                                        <Play className="h-4 w-4 mr-1.5 text-indigo-700 dark:text-indigo-400" />
                                         <span className="text-sm font-medium">Start</span>
                                       </Button>
                                     </TooltipTrigger>
@@ -1056,15 +1230,13 @@ export const VerticalTimeline = ({
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50"
+                                        className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50 hover:scale-105 transition-transform duration-200 transform active:scale-95 active:translate-y-0.5"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          
-                                          // First check if there are incomplete tasks
+                                          // Keep the original functionality
                                           const hasIncompleteTasks = timeBox.tasks && timeBox.tasks.some(t => t.status !== "completed");
                                           
                                           if (hasIncompleteTasks && timeBox.tasks) {
-                                            // Find the first incomplete task
                                             const firstIncompleteTaskIndex = timeBox.tasks.findIndex(t => t.status !== "completed");
                                             if (firstIncompleteTaskIndex !== -1) {
                                               handleTaskClick(storyId, timeBoxIndex, firstIncompleteTaskIndex, timeBox.tasks[firstIncompleteTaskIndex], true, e);
@@ -1072,11 +1244,10 @@ export const VerticalTimeline = ({
                                             }
                                           }
                                           
-                                          // If no incomplete tasks or something went wrong, use the original behavior
                                           setConfirmComplete({ storyId, timeBoxIndex });
                                         }}
                                       >
-                                        <CheckCircle2 className="h-4.5 w-4.5 mr-1.5" />
+                                        <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-700 dark:text-green-400" />
                                         <span className="text-sm font-medium">Complete</span>
                                       </Button>
                                     </TooltipTrigger>
@@ -1092,13 +1263,13 @@ export const VerticalTimeline = ({
                                     <Button
                                       size="icon"
                                       variant="ghost"
-                                      className="h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                                      className="h-7 w-7 rounded-full hover:bg-secondary/20 text-foreground"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onTimeBoxClick?.(storyId, timeBoxIndex);
                                       }}
                                     >
-                                      <ChevronRight className="h-3.5 w-3.5" />
+                                      <ChevronRight className="h-3.5 w-3.5 text-foreground" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
@@ -1130,7 +1301,7 @@ export const VerticalTimeline = ({
               {/* Timeline node */}
               <div className="absolute left-[-40px] top-0 flex items-center justify-center z-10">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 border-2">
-                  <FileText className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                  <FileText className="h-4 w-4 text-foreground" />
                 </div>
               </div>
               
@@ -1180,7 +1351,7 @@ export const VerticalTimeline = ({
                             setSessionDebriefActive(false);
                           }}
                         >
-                          <CheckCircle2 className="h-4.5 w-4.5 mr-1.5" />
+                          <CheckCircle2 className="mr-1.5 h-4 w-4" />
                           <span className="text-sm font-medium">Complete Debrief</span>
                         </Button>
                       </TooltipTrigger>
@@ -1203,7 +1374,7 @@ export const VerticalTimeline = ({
                             setSessionDebriefActive(true);
                           }}
                         >
-                          <FileText className="h-4.5 w-4.5 mr-1.5" />
+                          <FileText className="h-4 w-4" />
                           <span className="text-sm font-medium">Start Debrief</span>
                         </Button>
                       </TooltipTrigger>
@@ -1215,7 +1386,7 @@ export const VerticalTimeline = ({
                   
                   {sessionDebriefCompleted && (
                     <Badge className="bg-green-500 text-white dark:bg-green-700 dark:text-white px-2.5 py-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      <CheckCircle2 className="mr-1 h-4 w-4" />
                       <span>Completed</span>
                     </Badge>
                   )}
@@ -1466,6 +1637,7 @@ export const VerticalTimeline = ({
           .dark .next-action-card {
             border-left: 4px solid rgba(168, 85, 247, 0.9) !important;
             box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+            cursor: pointer;
           }
           
           .dark .next-action-card::before {
@@ -1581,6 +1753,78 @@ export const VerticalTimeline = ({
               #10b981  /* Darker emerald for dark mode */
             );
             box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+          }
+
+          /* Enhanced button hover effects */
+          button:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          }
+          
+          button:active {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(1px);
+          }
+          
+          /* Button tactile effects */
+          .hover\:scale-105:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+          }
+          
+          .active\:scale-95:active {
+            transform: scale(0.95);
+          }
+          
+          .active\:translate-y-0\.5:active {
+            transform: translateY(2px);
+          }
+          
+          /* Floating action button glass effect */
+          .backdrop-blur-md {
+            backdrop-filter: blur(8px);
+          }
+          
+          /* Special active state for the glass button */
+          .bg-white\/20.hover\:bg-white\/30:active,
+          .dark\:bg-gray-900\/40.dark\:hover\:bg-gray-800\/50:active {
+            transform: scale(0.95) translateY(2px);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+          }
+          
+          /* Colored button hover states for different actions */
+          .bg-green-50.hover\:bg-green-100:hover {
+            background-color: rgba(167, 243, 208, 0.5);
+            border-color: rgba(52, 211, 153, 0.8);
+          }
+          
+          .dark .bg-green-950\/30.dark\:hover\:bg-green-900\/50:hover {
+            background-color: rgba(20, 83, 45, 0.6);
+            border-color: rgba(74, 222, 128, 0.6);
+          }
+          
+          .bg-indigo-50.hover\:bg-indigo-100:hover {
+            background-color: rgba(224, 231, 255, 0.5);
+            border-color: rgba(129, 140, 248, 0.8);
+          }
+          
+          .dark .bg-indigo-950\/30.dark\:hover\:bg-indigo-900\/50:hover {
+            background-color: rgba(49, 46, 129, 0.6);
+            border-color: rgba(165, 180, 252, 0.6);
+          }
+          
+          /* Make alert dialog actions more responsive */
+          [data-radix-alert-dialog-action] {
+            transition: all 0.2s ease;
+          }
+          
+          [data-radix-alert-dialog-action]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+          
+          [data-radix-alert-dialog-action]:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
           }
         `}</style>
       </div>

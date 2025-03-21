@@ -34,57 +34,57 @@ export default function Home() {
   }
 
   return (
-    <main className="flex-1 container mx-auto p-4 md:p-8 max-w-6xl">
-      <div className="grid gap-12">
-        <div className="space-y-4">
-          <h1 className="text-5xl">Brain Dump</h1>
-          <p className="text-body-large text-muted-foreground">
-            Transform scattered thoughts into structured productivity. Simply list your tasks—we'll analyze, organize, and create focused work sessions optimized for your workflow. No more overwhelm, just clarity and progress.
+    <main className="flex-1 container mx-auto p-4 md:p-6 max-w-5xl">
+      <div className="grid gap-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-medium tracking-tight">Brain Dump</h1>
+          <p className="text-muted-foreground text-base">
+            Transform thoughts into structured tasks. Enter your tasks—we'll organize them into focused work sessions.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-[2fr,1fr]">
+        <div className="grid gap-6 md:grid-cols-[1.5fr,1fr]">
           <BrainDump onTasksProcessed={handleTasksProcessed} />
 
-          <div className="space-y-8">
-            <Card className="border-2">
-              <CardHeader className="space-y-3">
-                <CardTitle className="text-2xl">Session Preview</CardTitle>
-                <CardDescription className="text-body text-muted-foreground">
-                  Your productivity metrics at a glance
+          {stats.totalTasks > 0 && (
+            <Card className="border h-fit shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium">Session Preview</CardTitle>
+                <CardDescription className="text-sm">
+                  Productivity metrics
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <dl className="space-y-6">
-                  <div>
-                    <dt className="ui-label mb-2">Tasks</dt>
-                    <dd className="text-4xl font-heading">{stats.totalTasks}</dd>
+                <dl className="space-y-4">
+                  <div className="flex justify-between items-baseline">
+                    <dt className="text-muted-foreground text-sm">Tasks</dt>
+                    <dd className="text-2xl font-medium">{stats.totalTasks}</dd>
                   </div>
-                  <div>
-                    <dt className="ui-label mb-2">Estimated Time</dt>
-                    <dd className="text-4xl font-heading">
+                  <div className="flex justify-between items-baseline">
+                    <dt className="text-muted-foreground text-sm">Estimated Time</dt>
+                    <dd className="text-2xl font-medium">
                       {stats.totalDuration > 59 
                         ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
                         : `${stats.totalDuration}m`}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="ui-label mb-2">Focus Stories</dt>
-                    <dd className="text-4xl font-heading">{stats.totalStories}</dd>
+                  <div className="flex justify-between items-baseline">
+                    <dt className="text-muted-foreground text-sm">Focus Stories</dt>
+                    <dd className="text-2xl font-medium">{stats.totalStories}</dd>
                   </div>
                   {stats.totalFrogs > 0 && (
-                    <div>
-                      <dt className="ui-label mb-2 flex items-center gap-2">
-                        <span>Eat These Frogs First</span>
-                        <span className="text-lg">🐸</span>
+                    <div className="flex justify-between items-baseline">
+                      <dt className="text-muted-foreground text-sm flex items-center gap-1">
+                        <span>Frogs</span>
+                        <span className="text-base">🐸</span>
                       </dt>
-                      <dd className="text-4xl font-heading text-primary">{stats.totalFrogs}</dd>
+                      <dd className="text-2xl font-medium text-primary">{stats.totalFrogs}</dd>
                     </div>
                   )}
                 </dl>
               </CardContent>
             </Card>
-          </div>
+          )}
         </div>
       </div>
     </main>

@@ -118,6 +118,8 @@ export interface TimeBox {
   estimatedEndTime?: string
   icon?: string
   status?: TimeBoxStatus
+  actualDuration?: number
+  startTime?: string
 }
 
 export interface StoryBlock {
