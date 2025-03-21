@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils" // Utility function for merging class names dyn
 
 /**
  * Input Component:
- * - A reusable input field with default styles.
- * - Supports all native `<input>` attributes via `React.ComponentProps<"input">`.
- * - Uses `forwardRef` to allow external refs for accessibility and form handling.
+ * - Linear-inspired input with clean, minimal styling.
+ * - Features subtle borders and transition effects.
  */
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
@@ -14,10 +13,11 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors",
-          "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground",
-          "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          "disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+          "placeholder:text-muted-foreground/60",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "hover:border-muted-foreground/25 transition-colors duration-150",
           className
         )}
         ref={ref}

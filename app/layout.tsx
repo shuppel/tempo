@@ -24,13 +24,13 @@ export const metadata: Metadata = {
         sizes: "any",
       },
       {
-        url: "/assets/logo/toro_logo.png",
+        url: "/assets/logo/tempo_logo.png",
         type: "image/png",
         sizes: "32x32",
       },
     ],
     apple: {
-      url: "/assets/logo/toro_logo.png",
+      url: "/assets/logo/tempo_logo.png",
       type: "image/png",
     },
   },

@@ -32,8 +32,8 @@ export function Header() {
           >
             <div className="relative w-20 h-20">
               <Image
-                src="/assets/logo/toro_logo.png"
-                alt="Toro Logo"
+                src="/assets/logo/tempo_logo.png"
+                alt="Tempo Logo"
                 fill
                 className="object-contain drop-shadow-[0_0_25px_rgba(56,189,248,0.2)]"
                 priority

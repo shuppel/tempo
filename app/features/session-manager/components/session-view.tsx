@@ -9,11 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
   CheckCircle, 
-  Circle, 
   Clock, 
   Play, 
   Pause, 
-  RotateCcw, 
   ChevronRight,
   Calendar,
   CheckCircle2,
@@ -24,7 +22,6 @@ import {
   ChevronLeft,
   MinusCircle,
   PlusCircle,
-  Bug,
   ListChecks,
   Timer,
   Hourglass,
@@ -32,7 +29,6 @@ import {
 } from "lucide-react"
 import { useSession } from "../hooks/useSession"
 import { SessionStorageService } from "../services/session-storage.service"
-import type { Session, TimeBox, TimeBoxTask, StoryBlock } from "@/lib/types"
 import { format } from "date-fns"
 import { VerticalTimeline } from './vertical-timeline'
 import { 
