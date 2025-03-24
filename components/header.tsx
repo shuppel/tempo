@@ -40,7 +40,7 @@ export function Header() {
               />
             </div>
             <div className="flex flex-col justify-center h-20">
-              <span className="text-2xl font-heading leading-none bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              <span className="text-2xl font-heading font-black leading-none bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                 Tempo
               </span>
               <span className="text-xs font-accent tracking-[0.2em] text-muted-foreground/80 uppercase pt-1">

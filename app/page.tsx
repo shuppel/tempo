@@ -19,16 +19,25 @@ export default function Home() {
     totalStories: 0,
     totalFrogs: 0
   })
-
-  const handleTasksProcessed = (stories: any[]) => {
+  const handleTasksProcessed = (stories: {
+    tasks: {
+      duration?: number;
+      isFrog?: boolean;
+    }[];
+    estimatedDuration?: number;
+  }[]) => {
     const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
-    const totalDuration = stories.reduce((acc, story) => acc + story.estimatedDuration, 0)
+    const totalDuration = stories.reduce((acc, story) => {
+      // Ensure we're using the correct duration field and handling potential undefined values
+      const storyDuration = story.estimatedDuration || 
+        (story.tasks.reduce((taskSum: number, task) => taskSum + (task.duration || 0), 0)) || 0
+      return acc + storyDuration
+    }, 0)
     const totalFrogs = stories.reduce((acc, story) => 
-      acc + story.tasks.filter((task: any) => task.isFrog).length, 0)
-    
+      acc + story.tasks.filter((task) => task.isFrog).length, 0)
     setStats({
       totalTasks,
-      totalDuration,
+      totalDuration: Math.round(totalDuration), // Ensure integer duration
       totalStories: stories.length,
       totalFrogs
     })
