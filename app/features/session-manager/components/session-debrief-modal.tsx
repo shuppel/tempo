@@ -391,19 +391,6 @@ export function SessionDebriefModal({
             </div>
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            className="gap-2"
-            onClick={handleNextPage}
-          >
-            View Metrics
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
       </>
     );
   };
