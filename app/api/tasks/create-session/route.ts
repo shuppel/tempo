@@ -465,6 +465,36 @@ function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask
   }
 }
 
+// Add retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffFactor: 2
+}
+
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  retryCount = 0
+): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof Error && 
+        error.message.includes('overloaded') && 
+        retryCount < RETRY_CONFIG.maxRetries) {
+      const delay = Math.min(
+        RETRY_CONFIG.initialDelay * Math.pow(RETRY_CONFIG.backoffFactor, retryCount),
+        RETRY_CONFIG.maxDelay
+      )
+      console.log(`API overloaded, retrying in ${delay}ms (attempt ${retryCount + 1})`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return retryWithBackoff(operation, retryCount + 1)
+    }
+    throw error
+  }
+}
+
 export async function POST(req: Request) {
   const currentTime = new Date()
   let startTime
@@ -473,11 +503,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const parsedBody = RequestSchema.parse(body)
-    
-    stories = parsedBody.stories
-    startTime = parsedBody.startTime
-    storyMapping = parsedBody.storyMapping
+    const { stories, startTime, storyMapping } = RequestSchema.parse(body)
     
     console.log(`Received ${stories.length} stories for session creation`)
     if (storyMapping) {
@@ -513,13 +539,15 @@ export async function POST(req: Request) {
         }))
       }));
 
-      const message = await anthropic.messages.create({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 4000,
-        temperature: 0.7,
-        messages: [{
-          role: "user",
-          content: `Based on these stories, create a detailed session plan with time boxes.
+      // Wrap the Anthropic API call with retry logic
+      const response = await retryWithBackoff(async () => {
+        const result = await anthropic.messages.create({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 4000,
+          temperature: 0.7,
+          messages: [{
+            role: "user",
+            content: `Based on these stories, create a detailed session plan with time boxes.
 
 Rules:
 1. Each story becomes a "story block" containing all its tasks and breaks
@@ -586,15 +614,17 @@ CRITICAL RULES:
 - Include empty tasks array for break time boxes
 - Ensure all durations are in minutes
 - Calculate accurate start and end times for each time box`
-        }]
+          }]
+        })
+        return result
       })
 
-      const messageContent = message.content[0]
+      const messageContent = response.content[0]
       if (!('text' in messageContent)) {
         throw new SessionCreationError(
-          'Invalid API response format',
-          'API_RESPONSE_ERROR',
-          'Response content does not contain text field'
+          'Invalid response format from AI',
+          'INVALID_RESPONSE',
+          messageContent
         )
       }
 
@@ -954,6 +984,19 @@ CRITICAL RULES:
         code: error.code,
         details: error.details
       }, { status: 400 })
+    }
+
+    if (error instanceof Error && error.message.includes('overloaded')) {
+      return NextResponse.json(
+        { 
+          type: 'error',
+          error: {
+            type: 'overloaded_error',
+            message: 'Service is temporarily overloaded, please try again'
+          }
+        },
+        { status: 529 }
+      )
     }
 
     return NextResponse.json({

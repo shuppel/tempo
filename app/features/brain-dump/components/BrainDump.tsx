@@ -47,7 +47,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
   } = useBrainDump(onTasksProcessed)
 
   return (
-    <Card className="border">
+    <Card className="border bg-card">
       <CardContent className="p-4 space-y-4">
         <div className="relative">
           <Textarea

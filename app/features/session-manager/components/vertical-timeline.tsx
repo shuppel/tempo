@@ -601,9 +601,9 @@ export const VerticalTimeline = ({
               <AlertDialogDescription className="mt-2">
                 {confirmTaskComplete && (
                   <>
-                    <p className="mb-4">Are you sure you want to mark the following task as complete?</p>
+                    <span className="mb-4 block">Are you sure you want to mark the following task as complete?</span>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
-                      <p className="font-medium">"{confirmTaskComplete.task.title}"</p>
+                      <span className="font-medium block">"{confirmTaskComplete.task.title}"</span>
                     </div>
                   </>
                 )}
@@ -779,19 +779,19 @@ export const VerticalTimeline = ({
                       // Add tooltip content for actual duration if completed
                       const tooltipContent = (
                         <>
-                          <p className="font-medium mb-1">{config.title}</p>
+                          <div className="font-medium mb-1">{config.title}</div>
                           
                           {/* Planned information */}
                           <div className="mb-2">
-                            <p className="text-sm font-medium">Planned</p>
-                            <p>Duration: {timeBox.duration} minutes</p>
-                            <p>Scheduled time: {timeEstimates.start} - {timeEstimates.end}</p>
+                            <div className="text-sm font-medium">Planned</div>
+                            <div>Duration: {timeBox.duration} minutes</div>
+                            <div>Scheduled time: {timeEstimates.start} - {timeEstimates.end}</div>
                           </div>
                           
                           {/* Actual time information for completed tasks */}
                           {timeBox.actualDuration !== undefined && timeBox.status === 'completed' && (
                             <div className="mt-2 p-2 rounded border border-gray-200 dark:border-gray-700">
-                              <p className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Actual Completion</p>
+                              <div className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Actual Completion</div>
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium text-sm">
@@ -814,16 +814,16 @@ export const VerticalTimeline = ({
                                 
                                 {/* Calculate efficiency percentage */}
                                 {timeBox.actualDuration < timeBox.duration && (
-                                  <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">
+                                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
                                     You completed this task {Math.round((1 - timeBox.actualDuration / timeBox.duration) * 100)}% faster than planned!
-                                  </p>
+                                  </div>
                                 )}
                                 
                                 {/* Display actual time period */}
                                 {timeEstimates.actualStart && timeEstimates.actualEnd && (
-                                  <p className="mt-1 text-sm">
+                                  <div className="mt-1 text-sm">
                                     Time: {timeEstimates.actualStart} - {timeEstimates.actualEnd}
-                                  </p>
+                                  </div>
                                 )}
                               </div>
                             </div>

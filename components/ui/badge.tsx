@@ -30,11 +30,11 @@ const badgeVariants = cva(
 
 /**
  * BadgeProps Interface:
- * - Extends default HTML div attributes.
+ * - Extends default HTML span attributes.
  * - Adds support for `variant` prop using `VariantProps`.
  */
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
 /**
@@ -42,10 +42,11 @@ export interface BadgeProps
  * - A small, stylized label with different variants.
  * - Uses `cva` for flexible styling.
  * - Can be customized with additional classes via `className`.
+ * - Uses span instead of div to prevent DOM nesting issues.
  */
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 

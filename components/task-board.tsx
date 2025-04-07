@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { organizeTasks, createTimeBoxes } from "@/lib/task-manager"
 import type { Task, SessionPlan, StoryBlock } from "@/lib/types"
+import { useTasks } from "@/features/task-persistence/hooks/useTasks"
 
 interface LoadingState {
   organizing: boolean
@@ -27,13 +28,20 @@ interface ErrorState {
 }
 
 export function TaskBoard() {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const {
+    tasks,
+    isLoading: isLoadingTasks,
+    error: tasksError,
+    saveTasks,
+    updateTask,
+    deleteTask
+  } = useTasks()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [currentAction, setCurrentAction] = useState<string>()
   const [actionProgress, setActionProgress] = useState(0)
-  const [sessionPlan, setSessionPlan] = useState<SessionPlan>()
-  const [error, setError] = useState<ErrorState | null>(null)
+  const [sessionPlan, setSessionPlan] = useState<SessionPlan | null>(null)
+  const [error, setError] = useState<{ code: string; message: string; details?: string } | null>(null)
   const [loadingState, setLoadingState] = useState<LoadingState>({
     organizing: false,
     planning: false,
@@ -117,31 +125,59 @@ export function TaskBoard() {
     }
   }
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = async (result: any) => {
     if (!result.destination) return
 
-    const items = Array.from(tasks)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    items.splice(result.destination.index, 0, reorderedItem)
+    const reorderedTasks = Array.from(tasks)
+    const [removed] = reorderedTasks.splice(result.source.index, 1)
+    reorderedTasks.splice(result.destination.index, 0, removed)
 
-    setTasks(items)
+    try {
+      await saveTasks(reorderedTasks)
+    } catch (err) {
+      setError({
+        code: 'REORDER_ERROR',
+        message: 'Failed to reorder tasks',
+        details: err instanceof Error ? err.message : 'Unknown error'
+      })
+    }
   }
 
-  const addTask = (task: Task) => {
-    setTasks([...tasks, task])
-    setIsDialogOpen(false)
+  const handleAddTask = async (newTask: Task) => {
+    try {
+      await saveTasks([...tasks, newTask])
+      setIsDialogOpen(false)
+    } catch (err) {
+      setError({
+        code: 'SAVE_ERROR',
+        message: 'Failed to save task',
+        details: err instanceof Error ? err.message : 'Unknown error'
+      })
+    }
   }
 
-  const deleteTask = (taskId: string) => {
-    setTasks(tasks.filter((task) => task.id !== taskId))
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      await updateTask({ taskId, updates })
+    } catch (err) {
+      setError({
+        code: 'UPDATE_ERROR',
+        message: 'Failed to update task',
+        details: err instanceof Error ? err.message : 'Unknown error'
+      })
+    }
   }
 
-  const toggleComplete = (taskId: string) => {
-    setTasks(tasks.map((task) => 
-      task.id === taskId 
-        ? { ...task, status: task.status === "completed" ? "todo" : "completed" } 
-        : task
-    ))
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      await deleteTask(taskId)
+    } catch (err) {
+      setError({
+        code: 'DELETE_ERROR',
+        message: 'Failed to delete task',
+        details: err instanceof Error ? err.message : 'Unknown error'
+      })
+    }
   }
 
   const LoadingSkeleton = () => (
@@ -189,7 +225,7 @@ export function TaskBoard() {
         </Alert>
       )}
 
-      {isLoading && !sessionPlan && <LoadingSkeleton />}
+      {isLoadingTasks && <LoadingSkeleton />}
 
       {sessionPlan && (
         <div 
@@ -263,7 +299,11 @@ export function TaskBoard() {
                         isLoading && "pointer-events-none"
                       )}
                     >
-                      <TaskCard task={task} onDelete={deleteTask} onToggleComplete={toggleComplete} />
+                      <TaskCard
+                        task={task}
+                        onUpdate={(updates) => handleTaskUpdate(task.id, updates)}
+                        onDelete={() => handleTaskDelete(task.id)}
+                      />
                     </div>
                   )}
                 </Draggable>
@@ -281,7 +321,7 @@ export function TaskBoard() {
         </div>
       )}
 
-      <TaskDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onAddTask={addTask} />
+      <TaskDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onAddTask={handleAddTask} />
       <TaskActionModal 
         open={isActionModalOpen}
         onOpenChange={setIsActionModalOpen}
