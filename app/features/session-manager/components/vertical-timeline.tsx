@@ -484,9 +484,22 @@ export const VerticalTimeline = ({
     let currentFocusStretch = 0;
     let completedFocusSessions = 0;
     let totalFocusSessions = 0;
+    let completedTasks = 0;
+    let totalTasks = 0;
+    let totalFocusTime = 0;
+    let totalTaskCompletionTime = 0;
     
     // Process all timeboxes
     storyBlocks.forEach(story => {
+      // Count story as a task
+      totalTasks++;
+      
+      // Check if story is completed
+      const allTimeboxesCompleted = story.timeBoxes.every(tb => tb.type !== 'work' || tb.status === 'completed');
+      if (allTimeboxesCompleted && story.timeBoxes.some(tb => tb.type === 'work')) {
+        completedTasks++;
+      }
+      
       story.timeBoxes.forEach(timeBox => {
         // Calculate total planned time
         totalPlannedTime += timeBox.duration;
@@ -497,6 +510,8 @@ export const VerticalTimeline = ({
             totalFocusSessions++;
             completedFocusSessions++;
             totalActualTime += timeBox.actualDuration;
+            totalFocusTime += timeBox.actualDuration;
+            totalTaskCompletionTime += timeBox.actualDuration;
             
             // Calculate longest focus stretch
             currentFocusStretch = timeBox.actualDuration;
@@ -512,28 +527,35 @@ export const VerticalTimeline = ({
     });
     
     // Calculate derived metrics
+    const totalSessionTime = totalFocusTime + totalBreakTime;
     const timeSaved = Math.max(0, totalPlannedTime - totalActualTime);
-    const averageBreakTime = breakCount > 0 ? Math.round(totalBreakTime / breakCount) : 0;
-    const focusConsistency = totalFocusSessions > 0 ? Math.round((completedFocusSessions / totalFocusSessions) * 100) : 0;
-    
-    // Calculate task completion speed (higher is better)
-    // This is the ratio of planned time to actual time (adjusted to a 0-100 scale)
-    const taskCompletionSpeed = totalActualTime > 0 
-      ? Math.min(100, Math.round((totalPlannedTime / totalActualTime) * 80))
+    const averageBreakDuration = breakCount > 0 ? Math.round(totalBreakTime / breakCount) : 0;
+    const focusConsistency = totalFocusSessions > 0 
+      ? Math.min(10, Math.round((completedFocusSessions / totalFocusSessions) * 10)) 
       : 0;
     
-    // Estimate focus rating based on completion percentage and efficiency
-    const focusRating = Math.min(10, Math.round((focusConsistency * 0.5 + taskCompletionSpeed * 0.3 + (longestFocusStretch / 60) * 2) / 10));
+    // Calculate task completion rate (higher is better)
+    // This is the ratio of planned time to actual time
+    const taskCompletionRate = totalActualTime > 0 
+      ? Math.round((totalPlannedTime / totalActualTime) * 10) / 10
+      : 0;
+    
+    // Calculate average task completion time
+    const averageTaskCompletionTime = completedTasks > 0 ? Math.round(totalTaskCompletionTime / completedTasks) : 0;
     
     return {
-      totalTimeSpent: totalActualTime,
-      plannedTime: totalPlannedTime,
-      timeSaved,
-      averageBreakTime,
-      focusRating,
-      focusConsistency,
-      longestFocusStretch,
-      taskCompletionSpeed
+      totalFocusTime: totalFocusTime,
+      totalBreakTime: totalBreakTime,
+      totalSessionTime: totalSessionTime,
+      averageBreakDuration: averageBreakDuration,
+      breakCount: breakCount,
+      completedTasks: completedTasks,
+      totalTasks: totalTasks,
+      averageTaskCompletionTime: averageTaskCompletionTime,
+      focusConsistency: focusConsistency,
+      taskCompletionRate: taskCompletionRate,
+      totalActualTime: totalActualTime,
+      totalEstimatedTime: totalPlannedTime
     };
   }, [storyBlocks]);
   

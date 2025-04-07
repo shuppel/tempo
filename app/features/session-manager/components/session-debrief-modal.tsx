@@ -5,7 +5,7 @@ import { useState, useCallback } from "react"
 import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle, Clock, Brain, CheckCircle, Heart, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/app/components/ui/textarea"
-import { Slider } from "@/components/ui/slider"
+import { Slider } from "@/app/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -282,11 +282,11 @@ export function SessionDebriefModal({
                   Focus Consistency
                 </h3>
                 <div className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {session.focusConsistency.toFixed(1)}/10
+                  {session.focusConsistency ? session.focusConsistency.toFixed(1) : '0.0'}/10
                 </div>
               </div>
-              <Badge className={`${getFocusConsistencyColor(session.focusConsistency)}`}>
-                {getFocusConsistencyLabel(session.focusConsistency)}
+              <Badge className={`${getFocusConsistencyColor(session.focusConsistency || 0)}`}>
+                {getFocusConsistencyLabel(session.focusConsistency || 0)}
               </Badge>
             </div>
             <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-2">
@@ -303,11 +303,11 @@ export function SessionDebriefModal({
                   Task Completion Speed
                 </h3>
                 <div className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
-                  {session.taskCompletionRate.toFixed(1)}x
+                  {session.taskCompletionRate ? session.taskCompletionRate.toFixed(1) : '0.0'}x
                 </div>
               </div>
-              <Badge className={`${getCompletionSpeedColor(session.taskCompletionRate)}`}>
-                {getCompletionSpeedLabel(session.taskCompletionRate)}
+              <Badge className={`${getCompletionSpeedColor(session.taskCompletionRate || 0)}`}>
+                {getCompletionSpeedLabel(session.taskCompletionRate || 0)}
               </Badge>
             </div>
             <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-2">
@@ -319,7 +319,7 @@ export function SessionDebriefModal({
                 <span className="text-rose-700 dark:text-rose-300 font-medium">Historical Performance</span>
                 <span className="text-rose-500/70">{formatTime(session.totalActualTime)} vs {formatTime(session.totalEstimatedTime)} estimated</span>
               </div>
-              <Progress value={getProgressValue(session.taskCompletionRate)} className="h-2" />
+              <Progress value={getProgressValue(session.taskCompletionRate || 0)} className="h-2" />
               <div className="flex justify-between text-xs mt-1 text-muted-foreground">
                 <span>Slower</span>
                 <span>On Target</span>

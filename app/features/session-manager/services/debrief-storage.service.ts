@@ -4,14 +4,18 @@ import { useState } from 'react'
 import { useLocalStorage } from '../../../lib/hooks/use-local-storage'
 
 export interface SessionMetrics {
-  totalTimeSpent: number
-  plannedTime: number
-  timeSaved: number
-  averageBreakTime: number
-  focusRating: number
-  focusConsistency: number
-  longestFocusStretch: number
-  taskCompletionSpeed: number
+  totalFocusTime: number; // in seconds
+  totalBreakTime: number; // in seconds
+  totalSessionTime: number; // in seconds
+  averageBreakDuration: number; // in seconds
+  breakCount: number;
+  completedTasks: number;
+  totalTasks: number;
+  averageTaskCompletionTime: number; // in seconds
+  focusConsistency: number; // scale of 0-10
+  taskCompletionRate: number; // ratio > 1 means faster than expected
+  totalActualTime: number; // in seconds
+  totalEstimatedTime: number; // in seconds
 }
 
 export interface SessionDebriefData {
