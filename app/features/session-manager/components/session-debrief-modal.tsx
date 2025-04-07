@@ -2,13 +2,30 @@
 
 import * as React from "react"
 import { useState, useCallback } from "react"
-import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle, Clock, Brain } from "lucide-react"
+import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle, Clock, Brain, CheckCircle, Heart, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/app/components/ui/textarea"
-import { Slider } from "@/app/components/ui/slider"
+import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+
+// Type for session metrics
+interface SessionMetrics {
+  totalFocusTime: number; // in seconds
+  totalBreakTime: number; // in seconds
+  totalSessionTime: number; // in seconds
+  averageBreakDuration: number; // in seconds
+  breakCount: number;
+  completedTasks: number;
+  totalTasks: number;
+  averageTaskCompletionTime: number; // in seconds
+  focusConsistency: number; // scale of 0-10
+  taskCompletionRate: number; // ratio > 1 means faster than expected
+  totalActualTime: number; // in seconds
+  totalEstimatedTime: number; // in seconds
+}
 
 export interface SessionDebriefModalProps {
   isOpen: boolean
@@ -16,17 +33,6 @@ export interface SessionDebriefModalProps {
   onSave: (data: SessionDebriefData) => void
   sessionDate: string
   sessionMetrics: SessionMetrics | null
-}
-
-export interface SessionMetrics {
-  totalTimeSpent: number
-  plannedTime: number
-  timeSaved: number
-  averageBreakTime: number
-  focusRating: number
-  focusConsistency: number
-  longestFocusStretch: number
-  taskCompletionSpeed: number
 }
 
 export interface SessionDebriefData {
@@ -39,30 +45,99 @@ export interface SessionDebriefData {
   metrics?: SessionMetrics
 }
 
-// Rating scale descriptors
+// Helper functions
+const formatTime = (seconds: number): string => {
+  if (!seconds) return '0m';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+};
+
+const calculatePercentage = (part: number, total: number): number => {
+  if (!total) return 0;
+  return Math.round((part / total) * 100);
+};
+
+const getFocusConsistencyLabel = (value: number): string => {
+  if (value >= 8) return 'Excellent';
+  if (value >= 6) return 'Good';
+  if (value >= 4) return 'Average';
+  return 'Needs Improvement';
+};
+
+const getFocusConsistencyColor = (value: number): string => {
+  if (value >= 8) return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+  if (value >= 6) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+  if (value >= 4) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+  return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+};
+
+const getCompletionSpeedLabel = (value: number): string => {
+  if (value >= 1.5) return 'Very Fast';
+  if (value >= 1.1) return 'Fast';
+  if (value >= 0.9) return 'On Target';
+  if (value >= 0.7) return 'Slower';
+  return 'Much Slower';
+};
+
+const getCompletionSpeedColor = (value: number): string => {
+  if (value >= 1.5) return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+  if (value >= 1.1) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
+  if (value >= 0.9) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+  return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+};
+
+const getProgressValue = (value: number): number => {
+  // Convert completion rate to progress value (0-100)
+  // 0.5x = 0%, 1.0x = 50%, 1.5x = 100%
+  return Math.min(Math.max((value - 0.5) * 100, 0), 100);
+};
+
+// Mock data for demonstration
+const mockSession: SessionMetrics = {
+  totalFocusTime: 4500, // 1h 15m
+  totalBreakTime: 900,  // 15m
+  totalSessionTime: 5400, // 1h 30m
+  averageBreakDuration: 300, // 5m
+  breakCount: 3,
+  completedTasks: 4, 
+  totalTasks: 5,
+  averageTaskCompletionTime: 1125, // 18m 45s
+  focusConsistency: 7.8,
+  taskCompletionRate: 1.2, // 20% faster than expected
+  totalActualTime: 4500, // 1h 15m
+  totalEstimatedTime: 5400, // 1h 30m
+};
+
+// Sample descriptors for the sliders
 const productivityDescriptors = [
-  "Stationary", "Sluggish", "Slovenly", "Passive", "Average",
-  "Efficient", "Productive", "Industrious", "High-Performing", "Exceptional"
+  "Very low", "Low", "Below average", "Somewhat low", "Average", 
+  "Somewhat high", "Above average", "High", "Very high", "Exceptional"
 ];
 
 const stressDescriptors = [
-  "Serene", "Calm", "Relaxed", "Easy", "Balanced",
-  "Tense", "Pressured", "Strained", "Overwhelmed", "Burnt-out"
+  "None", "Minimal", "Very low", "Low", "Moderate", 
+  "Somewhat high", "High", "Very high", "Severe", "Extreme"
 ];
 
 const satisfactionDescriptors = [
-  "Disappointed", "Unsatisfied", "Underwhelmed", "Indifferent", "Content",
-  "Pleased", "Satisfied", "Fulfilled", "Delighted", "Ecstatic"
+  "Very dissatisfied", "Dissatisfied", "Somewhat dissatisfied", "Slightly dissatisfied", "Neutral", 
+  "Slightly satisfied", "Somewhat satisfied", "Satisfied", "Very satisfied", "Extremely satisfied"
 ];
 
 const energyDescriptors = [
-  "Depleted", "Exhausted", "Drained", "Tired", "Low",
-  "Adequate", "Energized", "Lively", "Vigorous", "Exuberant"
+  "Completely drained", "Very low", "Low", "Somewhat low", "Moderate", 
+  "Somewhat high", "Good", "Very good", "Excellent", "Boundless"
 ];
 
 const focusDescriptors = [
-  "Scattered", "Distracted", "Unfocused", "Wavering", "Inconsistent",
-  "Attentive", "Concentrated", "Engaged", "Focused", "Deeply immersed"
+  "Completely distracted", "Very distracted", "Distracted", "Somewhat distracted", "Neutral", 
+  "Somewhat focused", "Focused", "Very focused", "Deeply focused", "Flow state"
 ];
 
 export function SessionDebriefModal({
@@ -78,7 +153,7 @@ export function SessionDebriefModal({
   const [satisfactionRating, setSatisfactionRating] = useState(5)
   const [energyLevel, setEnergyLevel] = useState(5)
   const [focusRating, setFocusRating] = useState(5)
-  const [currentPage, setCurrentPage] = useState<'feedback' | 'metrics'>('feedback')
+  const [currentPage, setCurrentPage] = useState<'reflection' | 'feelings' | 'metrics'>('reflection')
 
   React.useEffect(() => {
     console.log("SessionDebriefModal isOpen:", isOpen);
@@ -87,7 +162,7 @@ export function SessionDebriefModal({
   // Reset state when modal is opened
   React.useEffect(() => {
     if (isOpen) {
-      setCurrentPage('feedback');
+      setCurrentPage('reflection');
     }
   }, [isOpen]);
 
@@ -107,20 +182,23 @@ export function SessionDebriefModal({
   }, [productivityRating, stressLevel, satisfactionRating, energyLevel, focusRating, sessionDate, onSave, sessionMetrics]);
 
   const handleNextPage = () => {
-    setCurrentPage('metrics');
-  }
+    if (currentPage === 'reflection') {
+      setCurrentPage('feelings');
+    } else if (currentPage === 'feelings') {
+      setCurrentPage('metrics');
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage === 'metrics') {
+      setCurrentPage('feelings');
+    } else if (currentPage === 'feelings') {
+      setCurrentPage('reflection');
+    }
+  };
 
   // Sample metrics if none provided
-  const metrics = sessionMetrics || {
-    totalTimeSpent: 180, // 3 hours in minutes
-    plannedTime: 210, // 3.5 hours in minutes
-    timeSaved: 30, // 30 minutes saved
-    averageBreakTime: 8, // 8 minutes per break
-    focusRating: 7.5, // 7.5/10
-    focusConsistency: 85, // 85%
-    longestFocusStretch: 45, // 45 minutes
-    taskCompletionSpeed: 90, // 90% is good
-  };
+  const session = sessionMetrics || mockSession;
 
   if (!isOpen) return null
 
@@ -129,269 +207,343 @@ export function SessionDebriefModal({
 
   // Render the metrics view
   const renderMetricsView = () => {
-    if (!sessionMetrics) {
-      return (
-        <div className="flex flex-col items-center justify-center p-8">
-          <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Metrics Available</h3>
-          <p className="text-sm text-muted-foreground text-center">
-            Complete more tasks to generate session metrics
-          </p>
-        </div>
-      );
-    }
-
-    const { totalTimeSpent, plannedTime, timeSaved, averageBreakTime, 
-            focusConsistency, longestFocusStretch, taskCompletionSpeed } = sessionMetrics;
-
     return (
-      <div className="space-y-6 py-4">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Session Performance</h3>
-          <p className="text-sm text-muted-foreground">
-            Here's a detailed breakdown of your productivity metrics
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Time metrics card */}
-          <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg">
-            <h4 className="text-sm font-semibold flex items-center mb-4">
-              <Clock className="mr-2 h-4 w-4 text-blue-500" />
-              Time Management
-            </h4>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <div>
-                  <div className="text-sm font-medium">Planned Time</div>
-                  <div className="text-xs text-muted-foreground">Total scheduled duration</div>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Card 1: Focus Time */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-blue-700 dark:text-blue-300">
+                  <Clock className="h-4 w-4" />
+                  Focus Time
+                </h3>
+                <div className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatTime(session.totalFocusTime)}
                 </div>
-                <div className="text-sm font-medium">{plannedTime} min</div>
               </div>
+              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                {calculatePercentage(session.totalFocusTime, session.totalSessionTime)}% of session
+              </Badge>
+            </div>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-2">
+              You spent {formatTime(session.totalFocusTime)} in focused work out of {formatTime(session.totalSessionTime)} total session time.
+            </p>
+          </div>
 
-              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <div>
-                  <div className="text-sm font-medium">Actual Time</div>
-                  <div className="text-xs text-muted-foreground">Time spent in focused work</div>
+          {/* Card 2: Breaks */}
+          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                  <PauseCircle className="h-4 w-4" />
+                  Break Balance
+                </h3>
+                <div className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                  {formatTime(session.totalBreakTime)}
                 </div>
-                <div className="text-sm font-medium">{totalTimeSpent} min</div>
               </div>
+              <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+                {calculatePercentage(session.totalBreakTime, session.totalSessionTime)}% of session
+              </Badge>
+            </div>
+            <p className="text-xs text-purple-600/80 dark:text-purple-400/80 mt-2">
+              You took {session.breakCount} breaks totaling {formatTime(session.totalBreakTime)}, averaging {formatTime(session.averageBreakDuration)} per break.
+            </p>
+          </div>
 
-              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <div>
-                  <div className="text-sm font-medium">Time Saved</div>
-                  <div className="text-xs text-muted-foreground">Time saved from planned</div>
+          {/* Card 3: Task Completion */}
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-green-700 dark:text-green-300">
+                  <Play className="h-4 w-4" />
+                  Task Completion
+                </h3>
+                <div className="mt-2 text-2xl font-bold text-green-600 dark:text-green-400">
+                  {session.completedTasks} / {session.totalTasks}
                 </div>
-                <div className="text-sm font-medium">{timeSaved} min</div>
               </div>
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                {calculatePercentage(session.completedTasks, session.totalTasks)}% completion
+              </Badge>
+            </div>
+            <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-2">
+              You completed {session.completedTasks} of {session.totalTasks} planned tasks, with an average completion time of {formatTime(session.averageTaskCompletionTime)} per task.
+            </p>
+          </div>
 
-              <div className="flex justify-between py-2">
-                <div>
-                  <div className="text-sm font-medium">Average Break</div>
-                  <div className="text-xs text-muted-foreground">Average break duration</div>
+          {/* Card 4: Focus Consistency */}
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
+                  <Brain className="h-4 w-4" />
+                  Focus Consistency
+                </h3>
+                <div className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {session.focusConsistency.toFixed(1)}/10
                 </div>
-                <div className="text-sm font-medium">{averageBreakTime} min</div>
+              </div>
+              <Badge className={`${getFocusConsistencyColor(session.focusConsistency)}`}>
+                {getFocusConsistencyLabel(session.focusConsistency)}
+              </Badge>
+            </div>
+            <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-2">
+              Your focus consistency score reflects how well you maintained focus without interruptions during work periods.
+            </p>
+          </div>
+
+          {/* Card 5: Task Completion Speed */}
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg p-4 md:col-span-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                  <TrendingUp className="h-4 w-4" />
+                  Task Completion Speed
+                </h3>
+                <div className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
+                  {session.taskCompletionRate.toFixed(1)}x
+                </div>
+              </div>
+              <Badge className={`${getCompletionSpeedColor(session.taskCompletionRate)}`}>
+                {getCompletionSpeedLabel(session.taskCompletionRate)}
+              </Badge>
+            </div>
+            <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-2">
+              Your completion speed compares your actual task completion times against estimated times. Above 1.0x means faster than expected.
+            </p>
+
+            <div className="mt-3">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-rose-700 dark:text-rose-300 font-medium">Historical Performance</span>
+                <span className="text-rose-500/70">{formatTime(session.totalActualTime)} vs {formatTime(session.totalEstimatedTime)} estimated</span>
+              </div>
+              <Progress value={getProgressValue(session.taskCompletionRate)} className="h-2" />
+              <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                <span>Slower</span>
+                <span>On Target</span>
+                <span>Faster</span>
               </div>
             </div>
           </div>
-
-          {/* Focus metrics card */}
-          <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg">
-            <h4 className="text-sm font-semibold flex items-center mb-4">
-              <Brain className="mr-2 h-4 w-4 text-indigo-500" />
-              Focus Quality
-            </h4>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <div className="text-sm font-medium">Focus Consistency</div>
-                  <div className="text-sm font-medium">{focusConsistency}%</div>
-                </div>
-                <Progress value={focusConsistency} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  Percentage of focus sessions completed vs. planned
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <div className="text-sm font-medium">Task Completion Speed</div>
-                  <div className="text-sm font-medium">{taskCompletionSpeed}%</div>
-                </div>
-                <Progress value={taskCompletionSpeed} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  Based on ratio of planned to actual time needed
-                </p>
-              </div>
-
-              <div className="flex justify-between py-2 border-t border-gray-200 dark:border-gray-700">
-                <div>
-                  <div className="text-sm font-medium">Longest Focus</div>
-                  <div className="text-xs text-muted-foreground">Longest uninterrupted focus</div>
-                </div>
-                <div className="text-sm font-medium">{longestFocusStretch} min</div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
-          <h4 className="text-sm font-semibold mb-2 text-blue-700 dark:text-blue-300">How metrics are calculated</h4>
-          <div className="space-y-2 text-xs text-blue-800 dark:text-blue-200">
-            <p><span className="font-medium">Focus Consistency:</span> The percentage of focus sessions that were completed out of the total focus sessions scheduled. Higher percentages indicate better ability to complete planned focus blocks.</p>
-            <p><span className="font-medium">Task Completion Speed:</span> Calculated from the ratio of planned time to actual time spent (adjusted to a 0-100 scale). A higher percentage means you completed tasks faster than scheduled.</p>
+        {/* Session Ratings Summary */}
+        <div className="bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
+          <h3 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">Session Ratings Overview</h3>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Productivity</div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{productivityRating}/10</div>
+              <div className="text-xs text-rose-500 mt-1">{productivityDescriptors[productivityRating-1]}</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Stress</div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{stressLevel}/10</div>
+              <div className="text-xs text-rose-500 mt-1">{stressDescriptors[stressLevel-1]}</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Satisfaction</div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{satisfactionRating}/10</div>
+              <div className="text-xs text-rose-500 mt-1">{satisfactionDescriptors[satisfactionRating-1]}</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Energy</div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{energyLevel}/10</div>
+              <div className="text-xs text-rose-500 mt-1">{energyDescriptors[energyLevel-1]}</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Focus</div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{focusRating}/10</div>
+              <div className="text-xs text-rose-500 mt-1">{focusDescriptors[focusRating-1]}</div>
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
-  // Render the feedback view
-  const renderFeedbackView = () => {
+  // Render the feelings view
+  const renderFeelingsView = () => {
     return (
-      <>
-        <p className="text-sm text-muted-foreground mb-6">
-          Reflect on your completed session and capture your thoughts and feelings.
-        </p>
+      <div className="space-y-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-blue-700 dark:text-blue-300 mb-2">Rate Your Experience</h3>
+          <p className="text-blue-700/80 dark:text-blue-300/80 text-sm mb-3">
+            How did you feel during this work session? Rating your experience helps identify patterns
+            in your productivity and well-being over time.
+          </p>
+        </div>
 
-        <div className="flex flex-col gap-6 py-4">
-          <div>
-            <Label htmlFor="reflections" className="mb-2 block">
-              Reflections
-            </Label>
-            <Textarea
-              id="reflections"
-              className="min-h-[150px]"
-              placeholder="What went well? What challenges did you face? What would you do differently next time?"
-              value={reflections}
-              onChange={(e) => setReflections(e.target.value)}
+        <div className="space-y-6 pt-2">
+          {/* Productivity Rating */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="productivity">Productivity</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">{productivityRating}/10</span>
+                <span className="text-xs font-medium text-blue-500">{productivityDescriptors[productivityRating-1]}</span>
+              </div>
+            </div>
+            <Slider
+              id="productivity"
+              min={1}
+              max={10}
+              step={1}
+              value={[productivityRating]}
+              onValueChange={(value: number[]) => setProductivityRating(value[0])}
             />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Unproductive</span>
+              <span>Very productive</span>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">How do you feel about this session?</h3>
-            
-            <div className="space-y-6">
-              {/* Productivity Rating */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="productivity">Productivity</Label>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">{productivityRating}/10</span>
-                    <span className="text-xs font-medium text-blue-500">{productivityDescriptors[productivityRating-1]}</span>
-                  </div>
-                </div>
-                <Slider
-                  id="productivity"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[productivityRating]}
-                  onValueChange={(value) => setProductivityRating(value[0])}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Unproductive</span>
-                  <span>Very productive</span>
-                </div>
+          {/* Stress Level */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="stress">Stress Level</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">{stressLevel}/10</span>
+                <span className="text-xs font-medium text-blue-500">{stressDescriptors[stressLevel-1]}</span>
               </div>
+            </div>
+            <Slider
+              id="stress"
+              min={1}
+              max={10}
+              step={1}
+              value={[stressLevel]}
+              onValueChange={(value: number[]) => setStressLevel(value[0])}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Relaxed</span>
+              <span>Overwhelmed</span>
+            </div>
+          </div>
 
-              {/* Stress Level */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="stress">Stress Level</Label>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">{stressLevel}/10</span>
-                    <span className="text-xs font-medium text-blue-500">{stressDescriptors[stressLevel-1]}</span>
-                  </div>
-                </div>
-                <Slider
-                  id="stress"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[stressLevel]}
-                  onValueChange={(value) => setStressLevel(value[0])}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Relaxed</span>
-                  <span>Overwhelmed</span>
-                </div>
+          {/* Satisfaction Rating */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="satisfaction">Satisfaction</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">{satisfactionRating}/10</span>
+                <span className="text-xs font-medium text-blue-500">{satisfactionDescriptors[satisfactionRating-1]}</span>
               </div>
+            </div>
+            <Slider
+              id="satisfaction"
+              min={1}
+              max={10}
+              step={1}
+              value={[satisfactionRating]}
+              onValueChange={(value: number[]) => setSatisfactionRating(value[0])}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Unsatisfied</span>
+              <span>Very satisfied</span>
+            </div>
+          </div>
 
-              {/* Satisfaction Rating */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="satisfaction">Satisfaction</Label>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">{satisfactionRating}/10</span>
-                    <span className="text-xs font-medium text-blue-500">{satisfactionDescriptors[satisfactionRating-1]}</span>
-                  </div>
-                </div>
-                <Slider
-                  id="satisfaction"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[satisfactionRating]}
-                  onValueChange={(value) => setSatisfactionRating(value[0])}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Unsatisfied</span>
-                  <span>Very satisfied</span>
-                </div>
+          {/* Energy Level */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="energy">Energy Level</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">{energyLevel}/10</span>
+                <span className="text-xs font-medium text-blue-500">{energyDescriptors[energyLevel-1]}</span>
               </div>
+            </div>
+            <Slider
+              id="energy"
+              min={1}
+              max={10}
+              step={1}
+              value={[energyLevel]}
+              onValueChange={(value: number[]) => setEnergyLevel(value[0])}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Exhausted</span>
+              <span>Energized</span>
+            </div>
+          </div>
 
-              {/* Energy Level */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="energy">Energy Level</Label>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">{energyLevel}/10</span>
-                    <span className="text-xs font-medium text-blue-500">{energyDescriptors[energyLevel-1]}</span>
-                  </div>
-                </div>
-                <Slider
-                  id="energy"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[energyLevel]}
-                  onValueChange={(value) => setEnergyLevel(value[0])}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Exhausted</span>
-                  <span>Energized</span>
-                </div>
+          {/* Focus Rating */}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Label htmlFor="focus">Focus Quality</Label>
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">{focusRating}/10</span>
+                <span className="text-xs font-medium text-blue-500">{focusDescriptors[focusRating-1]}</span>
               </div>
-
-              {/* Focus Rating */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="focus">Focus Quality</Label>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">{focusRating}/10</span>
-                    <span className="text-xs font-medium text-blue-500">{focusDescriptors[focusRating-1]}</span>
-                  </div>
-                </div>
-                <Slider
-                  id="focus"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[focusRating]}
-                  onValueChange={(value) => setFocusRating(value[0])}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Distracted</span>
-                  <span>Deep focus</span>
-                </div>
-              </div>
+            </div>
+            <Slider
+              id="focus"
+              min={1}
+              max={10}
+              step={1}
+              value={[focusRating]}
+              onValueChange={(value: number[]) => setFocusRating(value[0])}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Distracted</span>
+              <span>Deep focus</span>
             </div>
           </div>
         </div>
-      </>
+      </div>
+    );
+  };
+
+  // Render the reflection view
+  const renderReflectionView = () => {
+    return (
+      <div className="space-y-6">
+        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-rose-700 dark:text-rose-300 mb-2">Time for Reflection</h3>
+          <p className="text-rose-700/80 dark:text-rose-300/80 text-sm mb-3">
+            Reflecting on your work session helps strengthen neural pathways and improves future productivity.
+            Take 5-15 minutes to consider these questions:
+          </p>
+          <ul className="space-y-2 text-sm text-rose-600 dark:text-rose-400">
+            <li className="flex gap-2">
+              <CheckCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>What did you accomplish during this session?</span>
+            </li>
+            <li className="flex gap-2">
+              <CheckCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>What worked well and what could be improved?</span>
+            </li>
+            <li className="flex gap-2">
+              <CheckCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>What were your biggest distractions or challenges?</span>
+            </li>
+            <li className="flex gap-2">
+              <CheckCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>How will you approach your next session differently?</span>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <Label htmlFor="reflections" className="mb-2 block">
+            Session Reflection
+          </Label>
+          <Textarea
+            id="reflections"
+            className="min-h-[250px]"
+            placeholder="Write your session reflection here..."
+            value={reflections}
+            onChange={(e) => setReflections(e.target.value)}
+          />
+        </div>
+      </div>
     );
   };
 
@@ -413,14 +565,23 @@ export function SessionDebriefModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            {currentPage === 'feedback' ? (
+            {currentPage === 'reflection' ? (
               <FileText className="h-5 w-5 text-rose-500" />
+            ) : currentPage === 'feelings' ? (
+              <Heart className="h-5 w-5 text-blue-500" />
             ) : (
-              <BarChart3 className="h-5 w-5 text-blue-500" />
+              <BarChart3 className="h-5 w-5 text-green-500" />
             )}
             <h2 className="text-xl font-semibold">
-              {currentPage === 'feedback' ? 'Session Debrief' : 'Productivity Metrics'}
+              {currentPage === 'reflection' ? 'Session Reflection' : 
+               currentPage === 'feelings' ? 'Session Experience' : 
+               'Productivity Metrics'}
             </h2>
+            {currentPage === 'reflection' && (
+              <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-1.5 py-0.5 text-xs ml-2">
+                5-15 min
+              </Badge>
+            )}
           </div>
           <button 
             onClick={(e) => {
@@ -436,47 +597,59 @@ export function SessionDebriefModal({
         {/* Page indicator */}
         <div className="flex items-center justify-center mb-6">
           <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${currentPage === 'feedback' ? 'bg-rose-500' : 'bg-gray-300'}`} />
+            <div className={`w-3 h-3 rounded-full ${currentPage === 'reflection' ? 'bg-rose-500' : 'bg-gray-300'}`} />
             <div className="w-8 h-0.5 bg-gray-300" />
-            <div className={`w-3 h-3 rounded-full ${currentPage === 'metrics' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+            <div className={`w-3 h-3 rounded-full ${currentPage === 'feelings' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+            <div className="w-8 h-0.5 bg-gray-300" />
+            <div className={`w-3 h-3 rounded-full ${currentPage === 'metrics' ? 'bg-green-500' : 'bg-gray-300'}`} />
           </div>
         </div>
 
         {/* Content area */}
-        {currentPage === 'feedback' ? (
-          renderFeedbackView()
+        {currentPage === 'reflection' ? (
+          renderReflectionView()
+        ) : currentPage === 'feelings' ? (
+          renderFeelingsView()
         ) : (
           renderMetricsView()
         )}
 
         {/* Footer with navigation/action buttons */}
-        <div className="flex justify-end gap-2 mt-6">
-          {currentPage === 'feedback' ? (
-            <>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                className="gap-2"
-                onClick={handleNextPage}
-              >
-                View Metrics
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </>
+        <div className="flex justify-between gap-2 mt-6">
+          {currentPage === 'reflection' ? (
+            <div></div>
           ) : (
-            <>
+            <Button 
+              variant="outline" 
+              onClick={handlePreviousPage}
+              className="gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {currentPage === 'feelings' ? 'Back to Reflection' : 'Back to Experience'}
+            </Button>
+          )}
+          
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            {currentPage === 'metrics' ? (
               <Button 
-                variant="outline" 
-                onClick={() => setCurrentPage('feedback')}
+                onClick={handleSave}
+                className="bg-green-500 hover:bg-green-600 text-white"
               >
-                Back to Feedback
-              </Button>
-              <Button onClick={handleSave}>
                 Save Debrief
               </Button>
-            </>
-          )}
+            ) : (
+              <Button 
+                className={`gap-2 ${currentPage === 'reflection' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+                onClick={handleNextPage}
+              >
+                {currentPage === 'reflection' ? 'Rate Experience' : 'View Metrics'}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
