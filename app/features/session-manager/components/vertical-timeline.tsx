@@ -782,63 +782,6 @@ export const VerticalTimeline = ({
               )}>100%</span>
             </div>
           </div>
-          
-          {/* Metrics Cards - Display if session metrics are available */}
-          {sessionMetrics && completedPercentage > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              {/* Focus Consistency Card */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 border border-blue-100 dark:border-blue-800/30 flex items-center">
-                <div className="bg-blue-100 dark:bg-blue-900/40 rounded-full p-3 mr-4">
-                  <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-400">Focus Consistency</h4>
-                    <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{sessionMetrics.focusConsistency}%</span>
-                  </div>
-                  <div className="w-full bg-blue-200/50 dark:bg-blue-800/30 rounded-full h-1.5">
-                    <div 
-                      className="bg-blue-600 dark:bg-blue-500 h-1.5 rounded-full"
-                      style={{ width: `${sessionMetrics.focusConsistency}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-2">
-                    {sessionMetrics.focusConsistency >= 80 
-                      ? 'Excellent focus throughout your session!'
-                      : sessionMetrics.focusConsistency >= 60
-                        ? 'Good consistency in maintaining focus'
-                        : 'Room to improve your focus consistency'}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Task Completion Speed Card */}
-              <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4 border border-green-100 dark:border-green-800/30 flex items-center">
-                <div className="bg-green-100 dark:bg-green-900/40 rounded-full p-3 mr-4">
-                  <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="text-sm font-medium text-green-700 dark:text-green-400">Completion Speed</h4>
-                    <span className="text-lg font-bold text-green-700 dark:text-green-400">{sessionMetrics.taskCompletionSpeed}%</span>
-                  </div>
-                  <div className="w-full bg-green-200/50 dark:bg-green-800/30 rounded-full h-1.5">
-                    <div 
-                      className="bg-green-600 dark:bg-green-500 h-1.5 rounded-full"
-                      style={{ width: `${sessionMetrics.taskCompletionSpeed}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-2">
-                    {sessionMetrics.taskCompletionSpeed >= 90 
-                      ? 'Outstanding efficiency in completing tasks!'
-                      : sessionMetrics.taskCompletionSpeed >= 70
-                        ? 'Good pace of work throughout the session'
-                        : 'Consider breaking tasks into smaller chunks'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         
         {/* Main timeline content */}
