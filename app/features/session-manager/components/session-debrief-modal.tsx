@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useCallback } from "react"
-import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle } from "lucide-react"
+import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle, Clock, Brain } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/app/components/ui/textarea"
 import { Slider } from "@/app/components/ui/slider"
@@ -144,83 +144,104 @@ export function SessionDebriefModal({
     const { totalTimeSpent, plannedTime, timeSaved, averageBreakTime, 
             focusConsistency, longestFocusStretch, taskCompletionSpeed } = sessionMetrics;
 
-    // Convert seconds to minutes
-    const totalTimeInMinutes = Math.round(totalTimeSpent / 60);
-    const plannedTimeInMinutes = Math.round(plannedTime / 60);
-    const timeSavedInMinutes = Math.round(timeSaved / 60);
-    const avgBreakInMinutes = Math.round(averageBreakTime / 60);
-    const longestFocusInMinutes = Math.round(longestFocusStretch / 60);
-
     return (
       <div className="space-y-6 py-4">
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Session Metrics</h3>
+          <h3 className="text-lg font-semibold">Session Performance</h3>
           <p className="text-sm text-muted-foreground">
-            Here's a summary of your productivity metrics for this session
+            Here's a detailed breakdown of your productivity metrics
           </p>
         </div>
 
-        <div className="grid gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Total Time</div>
-              <div className="text-xs text-muted-foreground">Time spent in focused work</div>
-            </div>
-            <div className="text-sm font-medium">{totalTimeInMinutes} min</div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Planned Time</div>
-              <div className="text-xs text-muted-foreground">Total time scheduled</div>
-            </div>
-            <div className="text-sm font-medium">{plannedTimeInMinutes} min</div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Time Saved</div>
-              <div className="text-xs text-muted-foreground">Saved from planned time</div>
-            </div>
-            <div className="text-sm font-medium">{timeSavedInMinutes} min</div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Average Break</div>
-              <div className="text-xs text-muted-foreground">Average time per break</div>
-            </div>
-            <div className="text-sm font-medium">{avgBreakInMinutes} min</div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Longest Focus</div>
-              <div className="text-xs text-muted-foreground">Longest uninterrupted focus</div>
-            </div>
-            <div className="text-sm font-medium">{longestFocusInMinutes} min</div>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Task Completion Speed</div>
-                <div className="text-xs text-muted-foreground">How quickly you completed tasks</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Time metrics card */}
+          <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg">
+            <h4 className="text-sm font-semibold flex items-center mb-4">
+              <Clock className="mr-2 h-4 w-4 text-blue-500" />
+              Time Management
+            </h4>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-medium">Planned Time</div>
+                  <div className="text-xs text-muted-foreground">Total scheduled duration</div>
+                </div>
+                <div className="text-sm font-medium">{plannedTime} min</div>
               </div>
-              <div className="text-sm font-medium">{taskCompletionSpeed}%</div>
+
+              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-medium">Actual Time</div>
+                  <div className="text-xs text-muted-foreground">Time spent in focused work</div>
+                </div>
+                <div className="text-sm font-medium">{totalTimeSpent} min</div>
+              </div>
+
+              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-medium">Time Saved</div>
+                  <div className="text-xs text-muted-foreground">Time saved from planned</div>
+                </div>
+                <div className="text-sm font-medium">{timeSaved} min</div>
+              </div>
+
+              <div className="flex justify-between py-2">
+                <div>
+                  <div className="text-sm font-medium">Average Break</div>
+                  <div className="text-xs text-muted-foreground">Average break duration</div>
+                </div>
+                <div className="text-sm font-medium">{averageBreakTime} min</div>
+              </div>
             </div>
-            <Progress value={taskCompletionSpeed} className="h-2" />
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Focus Consistency</div>
-                <div className="text-xs text-muted-foreground">How consistently you maintained focus</div>
+          {/* Focus metrics card */}
+          <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg">
+            <h4 className="text-sm font-semibold flex items-center mb-4">
+              <Brain className="mr-2 h-4 w-4 text-indigo-500" />
+              Focus Quality
+            </h4>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <div className="text-sm font-medium">Focus Consistency</div>
+                  <div className="text-sm font-medium">{focusConsistency}%</div>
+                </div>
+                <Progress value={focusConsistency} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  Percentage of focus sessions completed vs. planned
+                </p>
               </div>
-              <div className="text-sm font-medium">{focusConsistency}%</div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <div className="text-sm font-medium">Task Completion Speed</div>
+                  <div className="text-sm font-medium">{taskCompletionSpeed}%</div>
+                </div>
+                <Progress value={taskCompletionSpeed} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  Based on ratio of planned to actual time needed
+                </p>
+              </div>
+
+              <div className="flex justify-between py-2 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-medium">Longest Focus</div>
+                  <div className="text-xs text-muted-foreground">Longest uninterrupted focus</div>
+                </div>
+                <div className="text-sm font-medium">{longestFocusStretch} min</div>
+              </div>
             </div>
-            <Progress value={focusConsistency} className="h-2" />
+          </div>
+        </div>
+
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+          <h4 className="text-sm font-semibold mb-2 text-blue-700 dark:text-blue-300">How metrics are calculated</h4>
+          <div className="space-y-2 text-xs text-blue-800 dark:text-blue-200">
+            <p><span className="font-medium">Focus Consistency:</span> The percentage of focus sessions that were completed out of the total focus sessions scheduled. Higher percentages indicate better ability to complete planned focus blocks.</p>
+            <p><span className="font-medium">Task Completion Speed:</span> Calculated from the ratio of planned time to actual time spent (adjusted to a 0-100 scale). A higher percentage means you completed tasks faster than scheduled.</p>
           </div>
         </div>
       </div>
@@ -434,13 +455,10 @@ export function SessionDebriefModal({
           </div>
         </div>
 
-        {/* Feedback page */}
-        {currentPage === 'feedback' && (
+        {/* Content area */}
+        {currentPage === 'feedback' ? (
           renderFeedbackView()
-        )}
-
-        {/* Metrics page */}
-        {currentPage === 'metrics' && (
+        ) : (
           renderMetricsView()
         )}
 

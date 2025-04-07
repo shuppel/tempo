@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { useLocalStorage } from '@/lib/hooks/use-local-storage'
+import { useLocalStorage } from '../../../lib/hooks/use-local-storage'
 
 export interface SessionMetrics {
   totalTimeSpent: number
@@ -136,7 +136,7 @@ export function useDebriefStorage() {
       const currentDebriefs = debriefs || []
       
       // Check if a debrief for this session date already exists
-      const existingIndex = currentDebriefs.findIndex(d => d.sessionDate === data.sessionDate)
+      const existingIndex = currentDebriefs.findIndex((d: SessionDebriefData) => d.sessionDate === data.sessionDate)
       
       if (existingIndex >= 0) {
         // Update existing debrief
