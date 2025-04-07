@@ -44,6 +44,8 @@ import {
 import { format } from "date-fns"
 import type { StoryBlock, TimeBox, TimeBoxTask, TimeBoxStatus } from "@/lib/types"
 import { timeboxTypeConfig, statusColorConfig } from "../config/timeline-config"
+import { SessionDebriefModal, SessionDebriefData } from "./session-debrief-modal"
+import { useDebriefStorage } from "../services/debrief-storage.service"
 
 // Interface for the vertical timeline component
 export interface VerticalTimelineProps {
@@ -90,6 +92,13 @@ export const VerticalTimeline = ({
   // Add state to track if session debrief is active
   const [sessionDebriefActive, setSessionDebriefActive] = useState(false)
   const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
+  const [sessionDebriefModalOpen, setSessionDebriefModalOpen] = useState(false)
+  const { saveDebrief, isSaving } = useDebriefStorage()
+  
+  // Log activeStoryId for debugging
+  React.useEffect(() => {
+    console.log("activeStoryId:", activeStoryId);
+  }, [activeStoryId]);
   
   // Override the default confirm dialog with our own dialogs
   // This prevents the browser's built-in confirm dialog from showing
@@ -1372,6 +1381,8 @@ export const VerticalTimeline = ({
                             // 10 minutes for the debrief by default
                             onStartSessionDebrief(10);
                             setSessionDebriefActive(true);
+                            setSessionDebriefModalOpen(true);
+                            console.log("Opening debrief modal, modal state:", true);
                           }}
                         >
                           <FileText className="h-4 w-4" />
@@ -1395,6 +1406,25 @@ export const VerticalTimeline = ({
             </div>
           </div>
         </div>
+
+        {/* Session Debrief Modal */}
+        <SessionDebriefModal
+          isOpen={sessionDebriefModalOpen}
+          onClose={() => {
+            console.log("Closing debrief modal");
+            setSessionDebriefModalOpen(false);
+          }}
+          onSave={async (data) => {
+            // Save debrief data
+            console.log("Saving debrief data:", data);
+            await saveDebrief(data);
+            setSessionDebriefCompleted(true);
+            setSessionDebriefActive(false);
+            setSessionDebriefModalOpen(false);
+          }}
+          sessionDate={activeStoryId?.split('-')[0] || new Date().toISOString().split('T')[0]}
+        />
+        {console.log("activeStoryId:", activeStoryId)}
 
         {/* Add some custom CSS for timeline shimmer effect */}
         <style jsx>{`

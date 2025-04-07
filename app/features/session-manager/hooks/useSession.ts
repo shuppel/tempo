@@ -380,6 +380,23 @@ export const useSession = ({
     const storyIndex = updatedSession.storyBlocks.findIndex(story => story.id === storyId)
     
     if (storyIndex === -1) {
+      // Handle the special case for session-debrief
+      if (storyId === "session-debrief") {
+        console.log(`Starting debrief timer for ${duration} minutes`);
+        
+        // Set timer state without attempting to update non-existent timeBox
+        setActiveTimeBox({ storyId, timeBoxIndex })
+        setTimeRemaining(duration * 60) // Convert minutes to seconds
+        setIsTimerRunning(true)
+        
+        toast({
+          title: "Debrief Started",
+          description: `Timer set for ${duration} minutes to reflect on your session.`,
+        })
+        
+        return
+      }
+      
       console.error(`Story with ID ${storyId} not found`)
       return
     }
