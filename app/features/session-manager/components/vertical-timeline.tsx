@@ -46,6 +46,7 @@ import type { StoryBlock, TimeBox, TimeBoxTask, TimeBoxStatus } from "@/lib/type
 import { timeboxTypeConfig, statusColorConfig } from "../config/timeline-config"
 import { SessionDebriefModal, SessionDebriefData } from "./session-debrief-modal"
 import { useDebriefStorage } from "../services/debrief-storage.service"
+import { useToast } from "@/components/ui/use-toast"
 
 // Interface for the vertical timeline component
 export interface VerticalTimelineProps {
@@ -94,6 +95,7 @@ export const VerticalTimeline = ({
   const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
   const [sessionDebriefModalOpen, setSessionDebriefModalOpen] = useState(false)
   const { saveDebrief, isSaving } = useDebriefStorage()
+  const { toast } = useToast()
   
   // Log activeStoryId for debugging
   React.useEffect(() => {
@@ -467,6 +469,75 @@ export const VerticalTimeline = ({
       return () => clearTimeout(timer);
     }
   }, [hasActiveTimebox, nextAction, hasShownPopup]);
+  
+  // Calculate session metrics for the debrief
+  const calculateSessionMetrics = React.useCallback(() => {
+    if (!storyBlocks || storyBlocks.length === 0) return null;
+    
+    // Initialize metrics
+    let totalPlannedTime = 0;
+    let totalActualTime = 0;
+    let totalBreakTime = 0;
+    let breakCount = 0;
+    let longestFocusStretch = 0;
+    let currentFocusStretch = 0;
+    let completedFocusSessions = 0;
+    let totalFocusSessions = 0;
+    
+    // Process all timeboxes
+    storyBlocks.forEach(story => {
+      story.timeBoxes.forEach(timeBox => {
+        // Calculate total planned time
+        totalPlannedTime += timeBox.duration;
+        
+        // Calculate actual time spent
+        if (timeBox.status === 'completed' && timeBox.actualDuration !== undefined) {
+          if (timeBox.type === 'work') {
+            totalFocusSessions++;
+            completedFocusSessions++;
+            totalActualTime += timeBox.actualDuration;
+            
+            // Calculate longest focus stretch
+            currentFocusStretch = timeBox.actualDuration;
+            longestFocusStretch = Math.max(longestFocusStretch, currentFocusStretch);
+          } else if (timeBox.type === 'short-break' || timeBox.type === 'long-break') {
+            breakCount++;
+            totalBreakTime += timeBox.actualDuration;
+          }
+        } else if (timeBox.type === 'work') {
+          totalFocusSessions++;
+        }
+      });
+    });
+    
+    // Calculate derived metrics
+    const timeSaved = Math.max(0, totalPlannedTime - totalActualTime);
+    const averageBreakTime = breakCount > 0 ? Math.round(totalBreakTime / breakCount) : 0;
+    const focusConsistency = totalFocusSessions > 0 ? Math.round((completedFocusSessions / totalFocusSessions) * 100) : 0;
+    
+    // Calculate task completion speed (higher is better)
+    // This is the ratio of planned time to actual time (adjusted to a 0-100 scale)
+    const taskCompletionSpeed = totalActualTime > 0 
+      ? Math.min(100, Math.round((totalPlannedTime / totalActualTime) * 80))
+      : 0;
+    
+    // Estimate focus rating based on completion percentage and efficiency
+    const focusRating = Math.min(10, Math.round((focusConsistency * 0.5 + taskCompletionSpeed * 0.3 + (longestFocusStretch / 60) * 2) / 10));
+    
+    return {
+      totalTimeSpent: totalActualTime,
+      plannedTime: totalPlannedTime,
+      timeSaved,
+      averageBreakTime,
+      focusRating,
+      focusConsistency,
+      longestFocusStretch,
+      taskCompletionSpeed
+    };
+  }, [storyBlocks]);
+  
+  // Get the session metrics
+  const sessionMetrics = React.useMemo(() => calculateSessionMetrics(), [calculateSessionMetrics]);
   
   return (
     <TooltipProvider delayDuration={50} skipDelayDuration={0}>
@@ -1376,21 +1447,36 @@ export const VerticalTimeline = ({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
+                          className={`h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md ${completedPercentage < 100 ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => {
-                            // 10 minutes for the debrief by default
-                            onStartSessionDebrief(10);
-                            setSessionDebriefActive(true);
-                            setSessionDebriefModalOpen(true);
-                            console.log("Opening debrief modal, modal state:", true);
+                            // Only allow starting debrief when all tasks are complete
+                            if (completedPercentage === 100) {
+                              // 10 minutes for the debrief by default
+                              onStartSessionDebrief(10);
+                              setSessionDebriefActive(true);
+                              setSessionDebriefModalOpen(true);
+                              console.log("Opening debrief modal, modal state:", true);
+                            } else {
+                              // Show toast explaining why debrief is not available
+                              toast({
+                                title: "Session Incomplete",
+                                description: "You need to complete all tasks before starting the debrief.",
+                                variant: "destructive",
+                              });
+                            }
                           }}
+                          disabled={completedPercentage < 100}
                         >
                           <FileText className="h-4 w-4" />
                           <span className="text-sm font-medium">Start Debrief</span>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
-                        <p>Begin your session reflection</p>
+                        <p>
+                          {completedPercentage < 100 
+                            ? `Complete all tasks (${completedPercentage}% done) before debriefing` 
+                            : "Begin your session reflection"}
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -1423,8 +1509,8 @@ export const VerticalTimeline = ({
             setSessionDebriefModalOpen(false);
           }}
           sessionDate={activeStoryId?.split('-')[0] || new Date().toISOString().split('T')[0]}
+          sessionMetrics={sessionMetrics}
         />
-        {console.log("activeStoryId:", activeStoryId)}
 
         {/* Add some custom CSS for timeline shimmer effect */}
         <style jsx>{`

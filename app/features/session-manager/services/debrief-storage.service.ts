@@ -1,7 +1,29 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { SessionDebriefData } from "../components/session-debrief-modal"
+import { useState } from 'react'
+import { useLocalStorage } from '@/lib/hooks/use-local-storage'
+
+export interface SessionMetrics {
+  totalTimeSpent: number
+  plannedTime: number
+  timeSaved: number
+  averageBreakTime: number
+  focusRating: number
+  focusConsistency: number
+  longestFocusStretch: number
+  taskCompletionSpeed: number
+}
+
+export interface SessionDebriefData {
+  sessionDate: string
+  productivity: number
+  stress: number
+  satisfaction: number
+  energy: number
+  focus: number
+  metrics?: SessionMetrics
+  lastUpdated?: string
+}
 
 /**
  * Service for managing session debrief data storage and retrieval
@@ -103,58 +125,64 @@ export class DebriefStorageService {
  * Hook for interacting with session debrief data using TanStack Query
  */
 export function useDebriefStorage() {
-  const queryClient = useQueryClient()
-  const storageService = new DebriefStorageService()
-  
-  // Query key for all debriefs
-  const allDebriefsKey = ['debriefs'] as const
-  
-  // Query for fetching all debriefs
-  const { data: allDebriefs = [] } = useQuery({
-    queryKey: allDebriefsKey,
-    queryFn: () => storageService.getAllDebriefs(),
-    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-  })
-  
-  // Query for fetching a specific debrief by session date
-  const useDebriefData = (sessionDate: string) => {
-    const queryKey = ['debriefs', sessionDate] as const
+  const [isSaving, setIsSaving] = useState(false)
+  const [debriefs, setDebriefs] = useLocalStorage<SessionDebriefData[]>('session-debriefs', [])
+
+  const saveDebrief = async (data: SessionDebriefData) => {
+    setIsSaving(true)
     
-    return useQuery({
-      queryKey,
-      queryFn: () => storageService.getDebriefData(sessionDate),
-      staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-    })
+    try {
+      // Get current debriefs
+      const currentDebriefs = debriefs || []
+      
+      // Check if a debrief for this session date already exists
+      const existingIndex = currentDebriefs.findIndex(d => d.sessionDate === data.sessionDate)
+      
+      if (existingIndex >= 0) {
+        // Update existing debrief
+        const updatedDebriefs = [...currentDebriefs]
+        updatedDebriefs[existingIndex] = {
+          ...data,
+          // Add a timestamp for when this was last updated
+          lastUpdated: new Date().toISOString()
+        }
+        setDebriefs(updatedDebriefs)
+      } else {
+        // Add new debrief
+        setDebriefs([
+          ...currentDebriefs,
+          {
+            ...data,
+            // Add a timestamp for when this was created/updated
+            lastUpdated: new Date().toISOString()
+          }
+        ])
+      }
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      return true
+    } catch (error) {
+      console.error('Error saving debrief:', error)
+      return false
+    } finally {
+      setIsSaving(false)
+    }
   }
-  
-  // Mutation for saving a debrief
-  const saveDebriefMutation = useMutation({
-    mutationFn: (debriefData: SessionDebriefData) => storageService.saveDebriefData(debriefData),
-    onSuccess: (_, variables) => {
-      // Invalidate specific debrief query
-      queryClient.invalidateQueries({ queryKey: ['debriefs', variables.sessionDate] })
-      // Invalidate all debriefs query
-      queryClient.invalidateQueries({ queryKey: allDebriefsKey })
-    },
-  })
-  
-  // Mutation for deleting a debrief
-  const deleteDebriefMutation = useMutation({
-    mutationFn: (sessionDate: string) => storageService.deleteDebriefData(sessionDate),
-    onSuccess: (_, sessionDate) => {
-      // Invalidate specific debrief query
-      queryClient.invalidateQueries({ queryKey: ['debriefs', sessionDate] })
-      // Invalidate all debriefs query
-      queryClient.invalidateQueries({ queryKey: allDebriefsKey })
-    },
-  })
-  
+
+  const getDebrief = (sessionDate: string): SessionDebriefData | undefined => {
+    return debriefs?.find((d: SessionDebriefData) => d.sessionDate === sessionDate)
+  }
+
+  const getAllDebriefs = (): SessionDebriefData[] => {
+    return debriefs || []
+  }
+
   return {
-    allDebriefs,
-    useDebriefData,
-    saveDebrief: saveDebriefMutation.mutate,
-    deleteDebrief: deleteDebriefMutation.mutate,
-    isSaving: saveDebriefMutation.isPending,
-    isDeleting: deleteDebriefMutation.isPending,
+    saveDebrief,
+    getDebrief,
+    getAllDebriefs,
+    isSaving
   }
 } 
