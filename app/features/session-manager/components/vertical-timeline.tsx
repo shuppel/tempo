@@ -4,6 +4,7 @@ import * as React from "react"
 import { useState, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 import { 
   Clock, 
   CheckCircle2, 
@@ -97,6 +98,7 @@ export const VerticalTimeline = ({
   const [sessionDebriefModalOpen, setSessionDebriefModalOpen] = useState(false)
   const { saveDebrief, isSaving } = useDebriefStorage()
   const { toast } = useToast()
+  const router = useRouter()
   
   // Log activeStoryId for debugging
   React.useEffect(() => {
@@ -1530,6 +1532,18 @@ export const VerticalTimeline = ({
             setSessionDebriefCompleted(true);
             setSessionDebriefActive(false);
             setSessionDebriefModalOpen(false);
+            
+            // Navigate to home page after debrief is completed
+            toast({
+              title: "Session complete!",
+              description: "Your session reflection has been saved. Redirecting to home page.",
+              duration: 3000,
+            });
+            
+            // Add a short delay to allow the toast to be seen
+            setTimeout(() => {
+              router.push('/');
+            }, 1000);
           }}
           sessionDate={activeStoryId?.split('-')[0] || new Date().toISOString().split('T')[0]}
           sessionMetrics={sessionMetrics}
