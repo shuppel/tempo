@@ -96,9 +96,22 @@ export const VerticalTimeline = ({
   const [sessionDebriefActive, setSessionDebriefActive] = useState(false)
   const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
   const [sessionDebriefModalOpen, setSessionDebriefModalOpen] = useState(false)
-  const { saveDebrief, isSaving } = useDebriefStorage()
+  const { saveDebrief, isSaving, getDebrief } = useDebriefStorage()
   const { toast } = useToast()
   const router = useRouter()
+  
+  // Get the current session date
+  const sessionDate = activeStoryId?.split('-')[0] || new Date().toISOString().split('T')[0]
+  
+  // Check if a debrief already exists for this session
+  useEffect(() => {
+    if (sessionDate) {
+      const existingDebrief = getDebrief(sessionDate)
+      if (existingDebrief) {
+        setSessionDebriefCompleted(true)
+      }
+    }
+  }, [sessionDate, getDebrief])
   
   // Log activeStoryId for debugging
   React.useEffect(() => {
@@ -1474,6 +1487,18 @@ export const VerticalTimeline = ({
                           variant="outline"
                           className={`h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md ${completedPercentage < 100 ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => {
+                            // Check if a debrief already exists for this session
+                            const existingDebrief = getDebrief(sessionDate)
+                            if (existingDebrief) {
+                              setSessionDebriefCompleted(true)
+                              toast({
+                                title: "Debrief Already Completed",
+                                description: "You have already completed the debrief for this session.",
+                                variant: "default",
+                              })
+                              return
+                            }
+                            
                             // Only allow starting debrief when all tasks are complete
                             if (completedPercentage === 100) {
                               // 10 minutes for the debrief by default
@@ -1490,7 +1515,7 @@ export const VerticalTimeline = ({
                               });
                             }
                           }}
-                          disabled={completedPercentage < 100}
+                          disabled={completedPercentage < 100 || sessionDebriefCompleted}
                         >
                           <FileText className="h-4 w-4" />
                           <span className="text-sm font-medium">Start Debrief</span>
@@ -1520,7 +1545,7 @@ export const VerticalTimeline = ({
 
         {/* Session Debrief Modal */}
         <SessionDebriefModal
-          isOpen={sessionDebriefModalOpen}
+          isOpen={sessionDebriefModalOpen && !sessionDebriefCompleted}
           onClose={() => {
             console.log("Closing debrief modal");
             setSessionDebriefModalOpen(false);
@@ -1545,7 +1570,7 @@ export const VerticalTimeline = ({
               router.push('/');
             }, 1000);
           }}
-          sessionDate={activeStoryId?.split('-')[0] || new Date().toISOString().split('T')[0]}
+          sessionDate={sessionDate}
           sessionMetrics={sessionMetrics}
         />
 
