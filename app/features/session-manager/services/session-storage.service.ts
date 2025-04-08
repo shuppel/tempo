@@ -567,4 +567,33 @@ export class SessionStorageService {
       return false
     }
   }
+
+  /**
+   * Unarchive a session by setting its status to 'planned'
+   */
+  async unarchiveSession(date: string): Promise<boolean> {
+    console.log(`[SessionStorageService] Unarchiving session for date: ${date}`)
+    
+    try {
+      const session = await this.getSession(date)
+      if (!session) {
+        console.log(`[SessionStorageService] No session found for date: ${date} to unarchive`)
+        return false
+      }
+      
+      // Update the session status to planned
+      const updatedSession: Session = {
+        ...session,
+        status: 'planned' as const
+      }
+      
+      // Save the updated session
+      await this.saveSession(date, updatedSession)
+      console.log(`[SessionStorageService] Successfully unarchived session for date: ${date}`)
+      return true
+    } catch (error) {
+      console.error(`[SessionStorageService] Error unarchiving session for date: ${date}:`, error)
+      return false
+    }
+  }
 }

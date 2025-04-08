@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, ArrowRight, Trash2, Archive, MoreHorizontal } from "lucide-react"
+import { Clock, ArrowRight, Trash2, Archive, MoreHorizontal, ArrowUpFromLine } from "lucide-react"
 import type { Session } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { SessionStorageService } from "@/app/features/session-manager"
+import { TaskRolloverService } from "@/app/features/task-rollover/services/task-rollover.service"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,9 +36,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 const storageService = new SessionStorageService()
+const rolloverService = new TaskRolloverService()
 const DELETE_CONFIRMATION_TEXT = "Delete This Session!"
 
 export default function SessionsPage() {
@@ -46,6 +48,7 @@ export default function SessionsPage() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null)
   const [confirmationText, setConfirmationText] = useState('')
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     loadSessions()
@@ -95,33 +98,55 @@ export default function SessionsPage() {
 
   const handleArchiveSession = async (sessionDate: string) => {
     try {
-      // Get the session
-      const session = sessions.find(s => s.date === sessionDate)
-      if (!session) return
-
-      // Update the session status to 'archived'
-      const updatedSession = {
-        ...session,
-        status: 'archived' as const
+      // Use the TaskRolloverService to archive the session
+      const success = await rolloverService.archiveSession(sessionDate)
+      
+      if (success) {
+        // Update local state
+        setSessions(prevSessions => prevSessions.map(s => 
+          s.date === sessionDate ? {...s, status: 'archived' as const} : s
+        ))
+        
+        toast({
+          title: "Session archived",
+          description: "The session has been successfully archived."
+        })
+      } else {
+        throw new Error("Failed to archive session")
       }
-      
-      // Save the updated session
-      await storageService.saveSession(sessionDate, updatedSession)
-      
-      // Update local state
-      setSessions(sessions.map(s => 
-        s.date === sessionDate ? updatedSession : s
-      ))
-      
-      toast({
-        title: "Session archived",
-        description: "The session has been successfully archived."
-      })
     } catch (error) {
       console.error('Failed to archive session:', error)
       toast({
         title: "Error",
         description: "Failed to archive the session. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleUnarchiveSession = async (sessionDate: string) => {
+    try {
+      // Use the TaskRolloverService to unarchive the session
+      const success = await rolloverService.unarchiveSession(sessionDate)
+      
+      if (success) {
+        // Update local state
+        setSessions(prevSessions => prevSessions.map(s => 
+          s.date === sessionDate ? {...s, status: 'planned' as const} : s
+        ))
+        
+        toast({
+          title: "Session unarchived",
+          description: "The session has been successfully unarchived and moved to active sessions."
+        })
+      } else {
+        throw new Error("Failed to unarchive session")
+      }
+    } catch (error) {
+      console.error('Failed to unarchive session:', error)
+      toast({
+        title: "Error",
+        description: "Failed to unarchive the session. Please try again.",
         variant: "destructive"
       })
     }
@@ -308,10 +333,18 @@ export default function SessionsPage() {
                                   </DropdownMenuTrigger>
                                 </TooltipTrigger>
                                 <TooltipContent side="left">
-                                  <p>Archive actions</p>
+                                  <p>Session actions</p>
                                 </TooltipContent>
                               </Tooltip>
                               <DropdownMenuContent align="end" className="w-[180px]">
+                                <DropdownMenuItem 
+                                  className="flex items-center cursor-pointer text-blue-600 dark:text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                                  onClick={() => handleUnarchiveSession(session.date)}
+                                >
+                                  <ArrowUpFromLine className="mr-2 h-4 w-4" />
+                                  <span>Unarchive</span>
+                                </DropdownMenuItem>
+                                <div className="h-px bg-border mx-1 my-1" />
                                 <DropdownMenuItem 
                                   className="flex items-center cursor-pointer text-destructive"
                                   onClick={() => {
