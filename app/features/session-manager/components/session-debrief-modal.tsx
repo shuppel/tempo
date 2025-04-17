@@ -98,23 +98,32 @@ const getProgressValue = (value: number): number => {
   return Math.min(Math.max((value - 0.5) * 100, 0), 100);
 };
 
-// Mock data for demonstration
-const mockSession: SessionMetrics = {
-  totalFocusTime: 4500, // 1h 15m
-  totalBreakTime: 900,  // 15m
-  totalSessionTime: 5400, // 1h 30m
-  averageBreakDuration: 300, // 5m
-  breakCount: 3,
-  completedTasks: 4, 
-  totalTasks: 5,
-  averageTaskCompletionTime: 1125, // 18m 45s
-  focusConsistency: 7.8,
-  taskCompletionRate: 1.2, // 20% faster than expected
-  totalActualTime: 4500, // 1h 15m
-  totalEstimatedTime: 5400, // 1h 30m
+
+// If mock data is truly necessary, consider a more maintainable approach:
+const generateMockSessionMetrics = (): SessionMetrics => {
+  // Dynamically generate mock data with some randomness
+  return {
+    totalFocusTime: Math.floor(Math.random() * 5400), // Random time up to 1.5 hours
+    totalBreakTime: Math.floor(Math.random() * 1800), // Random break time up to 30 minutes
+    totalSessionTime: Math.floor(Math.random() * 7200), // Random total session time up to 2 hours
+    averageBreakDuration: Math.floor(Math.random() * 600), // Random break duration up to 10 minutes
+    breakCount: Math.floor(Math.random() * 5), // Random break count
+    completedTasks: Math.floor(Math.random() * 6), // Random completed tasks
+    totalTasks: 5, // Keep this consistent
+    averageTaskCompletionTime: Math.floor(Math.random() * 2000), // Random task completion time
+    focusConsistency: Number((Math.random() * 10).toFixed(1)), // Random focus consistency
+    taskCompletionRate: Number((Math.random() * 2).toFixed(1)), // Random completion rate
+    totalActualTime: Math.floor(Math.random() * 5400), // Random actual time
+    totalEstimatedTime: Math.floor(Math.random() * 7200), // Random estimated time
+  };
 };
 
-// Sample descriptors for the sliders
+// Only generate mock data in development environment
+const mockSession: SessionMetrics = process.env.NODE_ENV === 'development' 
+  ? generateMockSessionMetrics() 
+  : {} as SessionMetrics;
+
+// Descriptors for the sliders
 const productivityDescriptors = [
   "Very low", "Low", "Below average", "Somewhat low", "Average", 
   "Somewhat high", "Above average", "High", "Very high", "Exceptional"
@@ -160,6 +169,10 @@ export function SessionDebriefModal({
   }, [isOpen]);
 
   // Reset state when modal is opened
+  // This useEffect ensures that every time the modal is opened, 
+  // the current page is reset to the first page ('reflection')
+  // This prevents the modal from retaining its previous navigation state
+  // and provides a consistent starting point for the user's debrief experience
   React.useEffect(() => {
     if (isOpen) {
       setCurrentPage('reflection');

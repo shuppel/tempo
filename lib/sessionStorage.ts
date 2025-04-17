@@ -1,4 +1,5 @@
 import type { SessionPlan, TimeBox, TimeBoxTask, StoryBlock, SessionStatus, TimeBoxType, BaseStatus } from "./types"
+import { Rep } from "./replicache-client";
 
 export interface StoredSession extends SessionPlan {
   totalSessions: number
@@ -14,293 +15,365 @@ export interface StoredSession extends SessionPlan {
 
 const SESSION_PREFIX = 'session-'
 
+// This will hold our Replicache client after initialization
+let replicacheClient: Rep | null = null;
+
+// Method to set Replicache client that can be called from the provider
+export const setReplicacheClient = (client: Rep) => {
+  replicacheClient = client;
+};
+
+// Check if replicache is available
+const isReplicacheAvailable = () => !!replicacheClient;
+
 export const sessionStorage = {
   /**
-   * Save a session to localStorage
+   * Save a session to localStorage or Replicache if available
    */
-  saveSession(date: string, session: StoredSession): void {
+  async saveSession(date: string, session: StoredSession): Promise<void> {
     try {
       // Always update lastUpdated timestamp when saving
       const updatedSession = {
         ...session,
         lastUpdated: new Date().toISOString()
+      };
+      
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache mutator for synced storage
+        await replicacheClient.mutate.saveSession({ date, session: updatedSession });
+      } else {
+        // Fallback to localStorage
+        localStorage.setItem(`${SESSION_PREFIX}${date}`, JSON.stringify(updatedSession));
       }
-      localStorage.setItem(`${SESSION_PREFIX}${date}`, JSON.stringify(updatedSession))
     } catch (error) {
-      console.error('Failed to save session:', error)
+      console.error('Failed to save session:', error);
     }
   },
 
   /**
-   * Get a specific session from localStorage
+   * Get a specific session from Replicache or localStorage
    */
-  getSession(date: string): StoredSession | null {
+  async getSession(date: string): Promise<StoredSession | null> {
     try {
-      const data = localStorage.getItem(`${SESSION_PREFIX}${date}`)
-      if (!data) return null
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache read for synced storage
+        const data = await replicacheClient.query(async tx => {
+          return await tx.get(`${SESSION_PREFIX}${date}`);
+        });
+        
+        if (!data) return null;
+        
+        if (this.isValidSession(data)) {
+          return this.normalizeSession(data as StoredSession);
+        }
+        return null;
+      } else {
+        // Fallback to localStorage
+        const data = localStorage.getItem(`${SESSION_PREFIX}${date}`);
+        if (!data) return null;
 
-      const session = JSON.parse(data)
-      if (this.isValidSession(session)) {
-        return this.normalizeSession(session)
+        const session = JSON.parse(data);
+        if (this.isValidSession(session)) {
+          return this.normalizeSession(session);
+        }
+        return null;
       }
-      return null
     } catch (error) {
-      console.error('Failed to get session:', error)
-      return null
+      console.error('Failed to get session:', error);
+      return null;
     }
   },
 
   /**
-   * Get all sessions from localStorage
+   * Get all sessions from Replicache or localStorage
    */
-  getAllSessions(): Record<string, StoredSession> {
-    const sessions: Record<string, StoredSession> = {}
+  async getAllSessions(): Promise<Record<string, StoredSession>> {
+    const sessions: Record<string, StoredSession> = {};
     
     try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.startsWith(SESSION_PREFIX)) {
-          const date = key.replace(SESSION_PREFIX, '')
-          const session = this.getSession(date)
-          if (session) {
-            sessions[date] = session
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache scan for synced storage
+        await replicacheClient.query(async tx => {
+          const sessionEntries = await tx.scan({ prefix: SESSION_PREFIX }).entries().toArray();
+          
+          for (const [key, value] of sessionEntries) {
+            const date = key.replace(SESSION_PREFIX, '');
+            if (this.isValidSession(value)) {
+              sessions[date] = this.normalizeSession(value as StoredSession);
+            }
+          }
+        });
+      } else {
+        // Fallback to localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith(SESSION_PREFIX)) {
+            const date = key.replace(SESSION_PREFIX, '');
+            const session = await this.getSession(date);
+            if (session) {
+              sessions[date] = session;
+            }
           }
         }
       }
     } catch (error) {
-      console.error('Failed to get all sessions:', error)
+      console.error('Failed to get all sessions:', error);
     }
 
-    return sessions
+    return sessions;
   },
 
   /**
-   * Delete a session from localStorage
+   * Delete a session from Replicache or localStorage
    */
-  deleteSession(date: string): void {
+  async deleteSession(date: string): Promise<void> {
     try {
-      localStorage.removeItem(`${SESSION_PREFIX}${date}`)
-    } catch (error) {
-      console.error('Failed to delete session:', error)
-    }
-  },
-
-  /**
-   * Clear all sessions from localStorage
-   */
-  clearAllSessions(): void {
-    try {
-      const keys = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.startsWith(SESSION_PREFIX)) {
-          keys.push(key)
-        }
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache mutator for synced deletion
+        await replicacheClient.mutate.deleteSession({ date });
+      } else {
+        // Fallback to localStorage
+        localStorage.removeItem(`${SESSION_PREFIX}${date}`);
       }
-      keys.forEach(key => localStorage.removeItem(key))
     } catch (error) {
-      console.error('Failed to clear sessions:', error)
+      console.error('Failed to delete session:', error);
+    }
+  },
+
+  /**
+   * Clear all sessions from Replicache or localStorage
+   */
+  async clearAllSessions(): Promise<void> {
+    try {
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache mutator for synced clearing
+        await replicacheClient.mutate.clearAllSessions();
+      } else {
+        // Fallback to localStorage
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith(SESSION_PREFIX)) {
+            keys.push(key);
+          }
+        }
+        keys.forEach(key => localStorage.removeItem(key));
+      }
+    } catch (error) {
+      console.error('Failed to clear sessions:', error);
     }
   },
 
   /**
    * Update the completion status of a specific timebox in a session
    */
-  updateTimeBoxStatus(date: string, storyId: string, timeBoxIndex: number, status: "todo" | "completed" | "in-progress"): boolean {
-    const session = this.getSession(date)
-    if (!session) return false
+  async updateTimeBoxStatus(date: string, storyId: string, timeBoxIndex: number, status: "todo" | "completed" | "in-progress"): Promise<boolean> {
+    try {
+      if (isReplicacheAvailable() && replicacheClient) {
+        // Use Replicache mutator for synced updates
+        return await replicacheClient.mutate.updateTimeBoxStatus({ date, storyId, timeBoxIndex, status });
+      } else {
+        // Fallback to localStorage implementation
+        const sessionData = await this.getSession(date);
+        if (!sessionData) return false;
 
-    let updated = false
-    const updatedStoryBlocks = session.storyBlocks.map(story => {
-      if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
-        updated = true
-        const updatedTimeBoxes = [...story.timeBoxes]
-        
-        // Update the timebox status
-        updatedTimeBoxes[timeBoxIndex] = {
-          ...updatedTimeBoxes[timeBoxIndex],
-          status
-        }
-        
-        // If marking as completed, mark all tasks as completed
-        if (status === 'completed' && updatedTimeBoxes[timeBoxIndex].tasks) {
-          updatedTimeBoxes[timeBoxIndex].tasks = updatedTimeBoxes[timeBoxIndex].tasks.map(task => ({
-            ...task,
-            status: 'completed'
-          }))
-        }
-        
-        // If marking as todo, mark all tasks as todo
-        if (status === 'todo' && updatedTimeBoxes[timeBoxIndex].tasks) {
-          updatedTimeBoxes[timeBoxIndex].tasks = updatedTimeBoxes[timeBoxIndex].tasks.map(task => ({
-            ...task,
-            status: 'todo'
-          }))
-        }
-        
-        // Recalculate story progress based on completed work timeboxes
-        const workBoxes = updatedTimeBoxes.filter(box => box.type === 'work')
-        const completedWorkBoxes = workBoxes.filter(box => box.status === 'completed')
-        const progress = workBoxes.length > 0 ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100) : 0
-        
-        return {
-          ...story,
-          timeBoxes: updatedTimeBoxes,
-          progress
-        }
-      }
-      return story
-    })
+        let updated = false;
+        const updatedStoryBlocks = sessionData.storyBlocks.map((story: StoryBlock) => {
+          if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
+            updated = true;
+            const updatedTimeBoxes = [...story.timeBoxes];
+            
+            // Update the timebox status
+            updatedTimeBoxes[timeBoxIndex] = {
+              ...updatedTimeBoxes[timeBoxIndex],
+              status
+            };
+            
+            // If marking as completed, mark all tasks as completed
+            if (status === 'completed' && updatedTimeBoxes[timeBoxIndex].tasks) {
+              updatedTimeBoxes[timeBoxIndex].tasks = updatedTimeBoxes[timeBoxIndex].tasks.map((task: TimeBoxTask) => ({
+                ...task,
+                status: 'completed' as BaseStatus
+              }));
+            }
+            
+            // If marking as todo, mark all tasks as todo
+            if (status === 'todo' && updatedTimeBoxes[timeBoxIndex].tasks) {
+              updatedTimeBoxes[timeBoxIndex].tasks = updatedTimeBoxes[timeBoxIndex].tasks.map((task: TimeBoxTask) => ({
+                ...task,
+                status: 'todo' as BaseStatus
+              }));
+            }
+            
+            // Recalculate story progress based on completed work timeboxes
+            const workBoxes = updatedTimeBoxes.filter((box: TimeBox) => box.type === 'work');
+            const completedWorkBoxes = workBoxes.filter((box: TimeBox) => box.status === 'completed');
+            const progress = workBoxes.length > 0 ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100) : 0;
+            
+            return {
+              ...story,
+              timeBoxes: updatedTimeBoxes,
+              progress
+            };
+          }
+          return story;
+        });
 
-    if (updated) {
-      // Recalculate session status based on all timeboxes
-      const allWorkBoxes = updatedStoryBlocks.flatMap(story => 
-        story.timeBoxes.filter(box => box.type === 'work')
-      )
-      
-      const allCompleted = allWorkBoxes.every(box => box.status === 'completed')
-      const anyInProgress = allWorkBoxes.some(box => box.status === 'in-progress')
-      const anyCompleted = allWorkBoxes.some(box => box.status === 'completed')
-      
-      let sessionStatus = session.status || 'planned'
-      if (allCompleted) {
-        sessionStatus = 'completed'
-      } else if (anyInProgress || anyCompleted) {
-        sessionStatus = 'in-progress'
+        if (updated) {
+          // Recalculate session status based on all timeboxes
+          const allWorkBoxes = updatedStoryBlocks.flatMap((story: StoryBlock) => 
+            story.timeBoxes.filter((box: TimeBox) => box.type === 'work')
+          );
+          
+          const allCompleted = allWorkBoxes.every((box: TimeBox) => box.status === 'completed');
+          const anyInProgress = allWorkBoxes.some((box: TimeBox) => box.status === 'in-progress');
+          const anyCompleted = allWorkBoxes.some((box: TimeBox) => box.status === 'completed');
+          
+          let sessionStatus = sessionData.status || 'planned';
+          if (allCompleted) {
+            sessionStatus = 'completed';
+          } else if (anyInProgress || anyCompleted) {
+            sessionStatus = 'in-progress';
+          }
+          
+          const updatedSession: StoredSession = {
+            ...sessionData,
+            storyBlocks: updatedStoryBlocks,
+            status: sessionStatus
+          };
+          
+          await this.saveSession(date, updatedSession);
+          return updated;
+        }
+        
+        return updated;
       }
-      
-      const updatedSession = {
-        ...session,
-        storyBlocks: updatedStoryBlocks,
-        status: sessionStatus
-      }
-      
-      this.saveSession(date, updatedSession)
+    } catch (error) {
+      console.error('Failed to update time box status:', error);
+      return false;
     }
-    
-    return updated
   },
 
   /**
    * Update task status within a time box
    */
-  updateTaskStatus(date: string, storyId: string, timeBoxIndex: number, taskIndex: number, status: "todo" | "completed"): boolean {
-    const session = this.getSession(date)
-    if (!session) return false
+  async updateTaskStatus(date: string, storyId: string, timeBoxIndex: number, taskIndex: number, status: "todo" | "completed"): Promise<boolean> {
+    const session = await this.getSession(date);
+    if (!session) return false;
 
-    let updated = false
-    const updatedStoryBlocks = session.storyBlocks.map(story => {
+    let updated = false;
+    const updatedStoryBlocks = session.storyBlocks.map((story: StoryBlock) => {
       if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
-        const timeBox = story.timeBoxes[timeBoxIndex]
+        const timeBox = story.timeBoxes[timeBoxIndex];
         if (timeBox.tasks && timeBox.tasks[taskIndex]) {
-          updated = true
-          const updatedTasks = [...timeBox.tasks]
+          updated = true;
+          const updatedTasks = [...timeBox.tasks];
           updatedTasks[taskIndex] = {
             ...updatedTasks[taskIndex],
             status
-          }
-          
+          };
+
           // Update timebox status based on tasks
-          const allTasksCompleted = updatedTasks.every(task => task.status === 'completed')
-          const anyTaskCompleted = updatedTasks.some(task => task.status === 'completed')
-          const timeBoxStatus = allTasksCompleted ? 'completed' : anyTaskCompleted ? 'in-progress' : 'todo'
-          
-          const updatedTimeBoxes = [...story.timeBoxes]
+          const allTasksCompleted = updatedTasks.every((task: TimeBoxTask) => task.status === 'completed');
+          const anyTaskCompleted = updatedTasks.some((task: TimeBoxTask) => task.status === 'completed');
+          const timeBoxStatus: BaseStatus = allTasksCompleted ? 'completed' : anyTaskCompleted ? 'in-progress' : 'todo';
+
+          const updatedTimeBoxes = [...story.timeBoxes];
           updatedTimeBoxes[timeBoxIndex] = {
             ...timeBox,
             tasks: updatedTasks,
             status: timeBoxStatus
-          }
-          
+          };
+
           // Recalculate story progress based on completed work timeboxes
-          const workBoxes = updatedTimeBoxes.filter(box => box.type === 'work')
-          const completedWorkBoxes = workBoxes.filter(box => box.status === 'completed')
-          const progress = workBoxes.length > 0 ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100) : 0
-          
+          const workBoxes = updatedTimeBoxes.filter((box: TimeBox) => box.type === 'work');
+          const completedWorkBoxes = workBoxes.filter((box: TimeBox) => box.status === 'completed');
+          const progress = workBoxes.length > 0 ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100) : 0;
+
           return {
             ...story,
             timeBoxes: updatedTimeBoxes,
             progress
-          }
+          };
         }
       }
-      return story
-    })
+      return story;
+    });
 
     if (updated) {
       // Recalculate session status based on all timeboxes
-      const allWorkBoxes = updatedStoryBlocks.flatMap(story => 
-        story.timeBoxes.filter(box => box.type === 'work')
-      )
-      
-      const allCompleted = allWorkBoxes.every(box => box.status === 'completed')
-      const anyInProgress = allWorkBoxes.some(box => box.status === 'in-progress')
-      const anyCompleted = allWorkBoxes.some(box => box.status === 'completed')
-      
-      let sessionStatus = session.status || 'planned'
+      const allWorkBoxes = updatedStoryBlocks.flatMap((story: StoryBlock) =>
+        story.timeBoxes.filter((box: TimeBox) => box.type === 'work')
+      );
+
+      const allCompleted = allWorkBoxes.every((box: TimeBox) => box.status === 'completed');
+      const anyInProgress = allWorkBoxes.some((box: TimeBox) => box.status === 'in-progress');
+      const anyCompleted = allWorkBoxes.some((box: TimeBox) => box.status === 'completed');
+
+      let sessionStatus: SessionStatus = session.status || 'planned';
       if (allCompleted) {
-        sessionStatus = 'completed'
+        sessionStatus = 'completed';
       } else if (anyInProgress || anyCompleted) {
-        sessionStatus = 'in-progress'
+        sessionStatus = 'in-progress';
       }
-      
-      const updatedSession = {
+
+      const updatedSession: StoredSession = {
         ...session,
         storyBlocks: updatedStoryBlocks,
         status: sessionStatus
-      }
-      
-      this.saveSession(date, updatedSession)
+      };
+
+      await this.saveSession(date, updatedSession);
     }
-    
-    return updated
+
+    return updated;
   },
 
   /**
    * Calculate and update progress for all stories in a session
    */
-  updateSessionProgress(date: string): boolean {
-    const session = this.getSession(date)
-    if (!session) return false
+  async updateSessionProgress(date: string): Promise<boolean> {
+    const session = await this.getSession(date);
+    if (!session) return false;
 
-    const updatedStoryBlocks = session.storyBlocks.map(story => {
-      const totalWorkBoxes = story.timeBoxes.filter(box => box.type === 'work').length
-      const completedWorkBoxes = story.timeBoxes.filter(box => box.type === 'work' && box.status === 'completed').length
-      const progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0
-      
+    const updatedStoryBlocks = session.storyBlocks.map((story: StoryBlock) => {
+      const totalWorkBoxes = story.timeBoxes.filter((box: TimeBox) => box.type === 'work').length;
+      const completedWorkBoxes = story.timeBoxes.filter((box: TimeBox) => box.type === 'work' && box.status === 'completed').length;
+      const progress = totalWorkBoxes > 0 ? Math.round((completedWorkBoxes / totalWorkBoxes) * 100) : 0;
+
       return {
         ...story,
         progress
-      }
-    })
-    
+      };
+    });
+
     // Update session status if needed
-    let sessionStatus = session.status || "planned"
-    
+    let sessionStatus: SessionStatus = session.status || "planned";
+
     // Check if all time boxes are completed
-    const allCompleted = updatedStoryBlocks.every(story => 
-      story.timeBoxes.filter(box => box.type === 'work').every(box => box.status === 'completed')
-    )
-    
+    const allCompleted = updatedStoryBlocks.every((story: StoryBlock) =>
+      story.timeBoxes.filter((box: TimeBox) => box.type === 'work').every((box: TimeBox) => box.status === 'completed')
+    );
+
     // Check if any time box is in progress
-    const anyInProgress = updatedStoryBlocks.some(story => 
-      story.timeBoxes.some(box => box.status === 'in-progress')
-    )
-    
+    const anyInProgress = updatedStoryBlocks.some((story: StoryBlock) =>
+      story.timeBoxes.some((box: TimeBox) => box.status === 'in-progress')
+    );
+
     if (allCompleted) {
-      sessionStatus = "completed"
+      sessionStatus = "completed";
     } else if (anyInProgress) {
-      sessionStatus = "in-progress"
+      sessionStatus = "in-progress";
     }
-    
-    const updatedSession = {
+
+    const updatedSession: StoredSession = {
       ...session,
       storyBlocks: updatedStoryBlocks,
       status: sessionStatus
-    }
-    
-    this.saveSession(date, updatedSession)
-    return true
+    };
+
+    await this.saveSession(date, updatedSession);
+    return true;
   },
 
   /**
@@ -354,14 +427,14 @@ export const sessionStorage = {
   /**
    * Get timer state for a session
    */
-  getTimerState(date: string): { 
+  async getTimerState(date: string): Promise<{
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
-  } | null {
+  } | null> {
     try {
       // First try to get the session
-      const session = this.getSession(date)
+      const session = await this.getSession(date);
       
       if (session && session.activeTimeBox !== undefined) {
         // Session exists with timer state
@@ -369,73 +442,73 @@ export const sessionStorage = {
           activeTimeBox: session.activeTimeBox,
           timeRemaining: session.timeRemaining || null,
           isTimerRunning: session.isTimerRunning || false
-        }
+        };
       }
       
       // If timer state is not in the session, try to get it directly from localStorage
       // This handles the case where timer state might be stored separately
       try {
-        const timerKey = `${SESSION_PREFIX}${date}-timer`
-        const timerData = localStorage.getItem(timerKey)
+        const timerKey = `${SESSION_PREFIX}${date}-timer`;
+        const timerData = localStorage.getItem(timerKey);
         
         if (timerData) {
-          const parsedData = JSON.parse(timerData)
+          const parsedData = JSON.parse(timerData);
           return {
             activeTimeBox: parsedData.activeTimeBox || null,
             timeRemaining: parsedData.timeRemaining || null,
             isTimerRunning: parsedData.isTimerRunning || false
-          }
+          };
         }
       } catch (timerError) {
-        console.error('Failed to get separate timer state:', timerError)
+        console.error('Failed to get separate timer state:', timerError);
       }
       
-      return null
+      return null;
     } catch (error) {
-      console.error('Failed to get timer state:', error)
-      return null
+      console.error('Failed to get timer state:', error);
+      return null;
     }
   },
 
   /**
    * Save timer state for a session
    */
-  saveTimerState(
+  async saveTimerState(
     date: string, 
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
-  ): boolean {
+  ): Promise<boolean> {
     try {
       // Try to get the existing session first
-      const session = this.getSession(date)
+      const session = await this.getSession(date);
       
       if (session) {
         // If session exists, update it with timer state
-        const updatedSession = {
+        const updatedSession: StoredSession = {
           ...session,
           activeTimeBox,
           timeRemaining,
           isTimerRunning,
           lastUpdated: new Date().toISOString()
-        }
+        };
         
-        this.saveSession(date, updatedSession)
+        await this.saveSession(date, updatedSession);
       } else {
         // If no session exists, save timer state separately
-        const timerKey = `${SESSION_PREFIX}${date}-timer`
+        const timerKey = `${SESSION_PREFIX}${date}-timer`;
         localStorage.setItem(timerKey, JSON.stringify({
           activeTimeBox,
           timeRemaining,
           isTimerRunning,
           lastUpdated: new Date().toISOString()
-        }))
+        }));
       }
       
-      return true
+      return true;
     } catch (error) {
-      console.error('Failed to save timer state:', error)
-      return false
+      console.error('Failed to save timer state:', error);
+      return false;
     }
   },
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, isValid } from "date-fns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -21,7 +21,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
@@ -41,6 +40,17 @@ import { useToast } from "@/components/ui/use-toast"
 const storageService = new SessionStorageService()
 const rolloverService = new TaskRolloverService()
 const DELETE_CONFIRMATION_TEXT = "Delete This Session!"
+
+// Helper to safely format a date string
+function safeFormatDate(dateString: string, formatStr: string, fallback = "Invalid date") {
+  try {
+    const parsed = parseISO(dateString)
+    if (!isValid(parsed)) return fallback
+    return format(parsed, formatStr)
+  } catch {
+    return fallback
+  }
+}
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
@@ -208,7 +218,7 @@ export default function SessionsPage() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                       <div className="flex items-center gap-3">
                         <CardTitle className="text-xl">
-                          {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
+                          {safeFormatDate(session.date, 'EEEE, MMMM d, yyyy')}
                         </CardTitle>
                         <Badge variant="secondary" className={cn(
                           "capitalize",
@@ -311,7 +321,7 @@ export default function SessionsPage() {
                         <div className="flex items-center justify-between flex-wrap gap-4">
                           <div className="flex items-center gap-3">
                             <CardTitle className="text-lg text-muted-foreground">
-                              {format(parseISO(session.date), 'EEEE, MMMM d, yyyy')}
+                              {safeFormatDate(session.date, 'EEEE, MMMM d, yyyy')}
                             </CardTitle>
                             <Badge variant="outline" className="text-muted-foreground">
                               Archived
@@ -380,7 +390,7 @@ export default function SessionsPage() {
               <AlertDialogTitle>Delete {sessionToDelete ? 'Session' : ''}</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the session
-                {sessionToDelete && ` for ${format(parseISO(sessionToDelete), 'MMMM d, yyyy')}`}.
+                {sessionToDelete && ` for ${safeFormatDate(sessionToDelete, 'MMMM d, yyyy')}`}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="my-4">

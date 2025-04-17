@@ -1,27 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { 
   Clock, 
   CheckCircle2, 
   Play, 
-  Pause, 
   Coffee, 
   FileText, 
-  Brain,
-  Calendar,
   ArrowRight,
-  AlertCircle,
   Undo2,
-  X,
-  RotateCcw,
   ChevronRight,
-  Circle,
-  TrendingUp
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -1450,36 +1442,8 @@ export const VerticalTimeline = ({
                 </div>
                 
                 {/* Session Debrief Button */}
-                <div className="mt-3.5 flex justify-between items-center">
-                  <div className="flex-1 mr-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Session completed</span>
-                    </div>
-                  </div>
-                  
-                  {sessionDebriefActive && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-9 px-4 rounded-xl shadow-sm bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md"
-                          onClick={() => {
-                            setSessionDebriefCompleted(true);
-                            setSessionDebriefActive(false);
-                          }}
-                        >
-                          <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                          <span className="text-sm font-medium">Complete Debrief</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
-                        <p>Mark your debrief as completed</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  
-                  {!sessionDebriefActive && !sessionDebriefCompleted && onStartSessionDebrief && (
+                <div className="flex items-center gap-2 mt-4">
+                  {!sessionDebriefCompleted ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -1488,19 +1452,21 @@ export const VerticalTimeline = ({
                           className={`h-9 px-4 rounded-xl shadow-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50 hover:scale-105 transition-transform duration-200 hover:shadow-md ${completedPercentage < 100 ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => {
                             // Check if a debrief already exists for this session
-                            const existingDebrief = getDebrief(sessionDate)
-                            if (existingDebrief) {
-                              setSessionDebriefCompleted(true)
-                              toast({
-                                title: "Debrief Already Completed",
-                                description: "You have already completed the debrief for this session.",
-                                variant: "default",
-                              })
-                              return
+                            if (sessionDate && typeof getDebrief === 'function') {
+                              const existingDebrief = getDebrief(sessionDate)
+                              if (existingDebrief) {
+                                setSessionDebriefCompleted(true)
+                                toast({
+                                  title: "Debrief Already Completed",
+                                  description: "You have already completed the debrief for this session.",
+                                  variant: "default",
+                                })
+                                return
+                              }
                             }
                             
                             // Only allow starting debrief when all tasks are complete
-                            if (completedPercentage === 100) {
+                            if (completedPercentage === 100 && typeof onStartSessionDebrief === 'function') {
                               // 10 minutes for the debrief by default
                               onStartSessionDebrief(10);
                               setSessionDebriefActive(true);
@@ -1515,9 +1481,9 @@ export const VerticalTimeline = ({
                               });
                             }
                           }}
-                          disabled={completedPercentage < 100 || sessionDebriefCompleted}
+                          disabled={completedPercentage < 100}
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="mr-1.5 h-4 w-4" />
                           <span className="text-sm font-medium">Start Debrief</span>
                         </Button>
                       </TooltipTrigger>
@@ -1529,9 +1495,7 @@ export const VerticalTimeline = ({
                         </p>
                       </TooltipContent>
                     </Tooltip>
-                  )}
-                  
-                  {sessionDebriefCompleted && (
+                  ) : (
                     <Badge className="bg-green-500 text-white dark:bg-green-700 dark:text-white px-2.5 py-1.5">
                       <CheckCircle2 className="mr-1 h-4 w-4" />
                       <span>Completed</span>
