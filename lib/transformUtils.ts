@@ -15,7 +15,20 @@ import {
  * @param task Any task object that may contain legacy property names
  * @returns A transformed task with consistent property names
  */
-export function transformTaskData(task: any): any {
+interface TaskDataInput {
+  type?: string;
+  taskCategory?: string;
+  project?: string;
+  projectType?: string;
+  [key: string]: unknown;
+}
+
+interface TaskDataOutput extends Record<string, unknown> {
+  taskCategory?: string;
+  projectType?: string;
+}
+
+export function transformTaskData(task: TaskDataInput): TaskDataOutput {
   const transformedTask = { ...task };
 
   // Rename the type field to taskCategory if it exists
@@ -44,7 +57,22 @@ export function transformTaskData(task: any): any {
  * @param story Any story object that may contain legacy property names
  * @returns A transformed story with consistent property names
  */
-export function transformStoryData(story: any): any {
+interface StoryDataInput {
+  type?: string;
+  storyType?: string;
+  project?: string;
+  projectType?: string;
+  tasks?: TaskDataInput[];
+  [key: string]: unknown;
+}
+
+interface StoryDataOutput extends Record<string, unknown> {
+  storyType?: string;
+  projectType?: string;
+  tasks?: TaskDataOutput[];
+}
+
+export function transformStoryData(story: StoryDataInput): StoryDataOutput {
   const transformedStory = { ...story };
 
   // Rename the type property if needed
@@ -108,7 +136,7 @@ export function getBaseStoryTitle(title: string): string {
 /**
  * Type guard for checking if an object implements the ProcessedTask interface
  */
-export function isProcessedTask(obj: any): obj is ProcessedTask {
+export function isProcessedTask(obj: unknown): obj is ProcessedTask {
   return obj && 
     typeof obj === 'object' &&
     typeof obj.title === 'string' &&
@@ -123,7 +151,7 @@ export function isProcessedTask(obj: any): obj is ProcessedTask {
 /**
  * Type guard for checking if an object implements the ProcessedStory interface
  */
-export function isProcessedStory(obj: any): obj is ProcessedStory {
+export function isProcessedStory(obj: unknown): obj is ProcessedStory {
   return obj && 
     typeof obj === 'object' &&
     typeof obj.title === 'string' &&

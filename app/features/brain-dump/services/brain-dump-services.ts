@@ -64,7 +64,7 @@ const processTasks = async (taskList: string[]) => {
 }
 
 // Helper function to modify stories based on error types
-const modifyStoriesForRetry = (stories: ProcessedStory[], error: any): ProcessedStory[] => {
+const modifyStoriesForRetry = (stories: ProcessedStory[], error: { details?: { block?: string; preventiveModification?: boolean } } | unknown): ProcessedStory[] => {
   // Create a deep copy to avoid mutating the original data
   const modifiedStories = JSON.parse(JSON.stringify(stories)) as ProcessedStory[]
   

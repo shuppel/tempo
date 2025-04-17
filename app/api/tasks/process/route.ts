@@ -367,11 +367,11 @@ Provide the result as a JSON object with this EXACT structure:
 
         const jsonText = jsonMatch[0]
         // Type assertion for the parsed data
-        const parsedData = JSON.parse(jsonText) as any
+        const parsedData = JSON.parse(jsonText) as { stories?: unknown[] }
         
         // Create processedData with proper type handling
         processedData = {
-          stories: parsedData.stories.map((story: any) => ({
+          stories: (parsedData.stories || []).map((story: Record<string, unknown>) => ({
             ...story,
             tasks: Array.isArray(story.tasks) 
               ? story.tasks.map(transformTaskData) 
@@ -380,8 +380,8 @@ Provide the result as a JSON object with this EXACT structure:
         };
 
         // Add UUIDs for any tasks that don't have IDs
-        processedData.stories.forEach((story: any) => {
-          story.tasks = story.tasks.map((task: any) => {
+        processedData.stories.forEach((story: { tasks: { id?: string }[] }) => {
+          story.tasks = story.tasks.map((task: { id?: string }) => {
             // Ensure task has an ID
             if (!task.id) {
               task.id = crypto.randomUUID()
@@ -391,8 +391,8 @@ Provide the result as a JSON object with this EXACT structure:
         });
 
         // Validate task durations and suggest breaks
-        processedData.stories.forEach((story: any) => {
-          story.tasks.forEach((task: any) => {
+        processedData.stories.forEach((story: { tasks: { id?: string }[] }) => {
+          story.tasks.forEach((task: { id?: string; duration?: number; suggestedBreaks?: unknown[] }) => {
             // Round durations to the nearest 5 minutes
             if (task.duration) {
               task.duration = roundToNearestBlock(task.duration)
@@ -439,8 +439,8 @@ Provide the result as a JSON object with this EXACT structure:
 
         // Check for task coverage
         const processedTaskTitles = new Set(
-          processedData.stories.flatMap((story: any) => 
-            story.tasks.map((task: any) => task.title.toLowerCase().trim())
+          processedData.stories.flatMap((story: { tasks: { title: string }[] }) => 
+            story.tasks.map((task) => task.title.toLowerCase().trim())
           )
         )
         

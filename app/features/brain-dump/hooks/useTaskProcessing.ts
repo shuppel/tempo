@@ -2,13 +2,14 @@
 import { useState } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory } from "@/lib/types"
+import type { ErrorDetails } from "../types"
 
 export function useTaskProcessing() {
   const [processedStories, setProcessedStories] = useState<ProcessedStory[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>("")
   const [processingProgress, setProcessingProgress] = useState(0)
-  const [error, setError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+  const [error, setError] = useState<ErrorDetails | null>(null)
 
   const processTasks = async (tasks: string, shouldRetry = false) => {
     setIsProcessing(true)

@@ -3,13 +3,14 @@ import { useState } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
 import type { ProcessedStory } from "@/lib/types"
 import { useRouter } from "next/navigation"
+import type { ErrorDetails } from "../types"
 
 export function useSessionCreation() {
   const router = useRouter()
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [processingStep, setProcessingStep] = useState<string>("")
   const [processingProgress, setProcessingProgress] = useState(0)
-  const [error, setError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+  const [error, setError] = useState<ErrorDetails | null>(null)
 
   const createSession = async (stories: ProcessedStory[]) => {
     setIsCreatingSession(true)

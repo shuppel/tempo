@@ -379,7 +379,7 @@ export const sessionStorage = {
   /**
    * Validate session data structure
    */
-  isValidSession(data: any): data is StoredSession {
+  isValidSession(data: unknown): data is StoredSession {
     // Check if data exists and is an object
     if (!data || typeof data !== 'object') {
       console.error('Invalid session: data is not an object', data);
