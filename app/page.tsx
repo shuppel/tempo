@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { BrainDump } from "@/app/features/brain-dump"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ChevronRight } from "lucide-react"
 
 interface Stats {
   totalTasks: number
@@ -21,71 +22,73 @@ export default function Home() {
 
   const handleTasksProcessed = (stories: { tasks: { isFrog?: boolean }[]; estimatedDuration: number }[]) => {
     const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
-    const totalDuration = stories.reduce((acc, story) => acc + story.estimatedDuration, 0)
+    const totalDuration = stories.reduce((acc, story) => {
+      // Ensure we're using the correct duration field and handling potential undefined values
+      const storyDuration = story.estimatedDuration || 
+        (story.tasks.reduce((taskSum: number, task) => taskSum + (task.duration || 0), 0)) || 0
+      return acc + storyDuration
+    }, 0)
     const totalFrogs = stories.reduce((acc, story) => 
       acc + story.tasks.filter((task) => task.isFrog).length, 0)
     
     setStats({
       totalTasks,
-      totalDuration,
+      totalDuration: Math.round(totalDuration), // Ensure integer duration
       totalStories: stories.length,
       totalFrogs
     })
   }
 
   return (
-    <main className="flex-1 container mx-auto p-4 md:p-8 max-w-6xl">
-      <div className="grid gap-12">
-        <div className="space-y-4">
-          <h1 className="text-5xl">Brain Dump</h1>
-          <p className="text-body-large text-muted-foreground">
-            Transform scattered thoughts into structured productivity. Simply list your tasks—we'll analyze, organize, and create focused work sessions optimized for your workflow. No more overwhelm, just clarity and progress.
-          </p>
-        </div>
+    <main className="flex-1 container mx-auto p-4 md:p-6 max-w-5xl">
+      <div className="grid gap-6 md:grid-cols-[1.5fr,1fr]">
+        <BrainDump onTasksProcessed={handleTasksProcessed} />
 
-        <div className="grid gap-8 md:grid-cols-[2fr,1fr]">
-          <BrainDump onTasksProcessed={handleTasksProcessed} />
-
-          <div className="space-y-8">
-            <Card className="border-2">
-              <CardHeader className="space-y-3">
-                <CardTitle className="text-2xl">Session Preview</CardTitle>
-                <CardDescription className="text-body text-muted-foreground">
-                  Your productivity metrics at a glance
+        {stats.totalTasks > 0 && (
+          <Card className="border h-fit shadow-sm">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-medium">Session Preview</CardTitle>
+                <CardDescription className="text-sm">
+                  Productivity metrics
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <dl className="space-y-6">
-                  <div>
-                    <dt className="ui-label mb-2">Tasks</dt>
-                    <dd className="text-4xl font-heading">{stats.totalTasks}</dd>
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" />
+                <span>Optimize workflow</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-4">
+                <div className="flex justify-between items-baseline">
+                  <dt className="text-muted-foreground text-sm">Tasks</dt>
+                  <dd className="text-2xl font-medium">{stats.totalTasks}</dd>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <dt className="text-muted-foreground text-sm">Estimated Time</dt>
+                  <dd className="text-2xl font-medium">
+                    {stats.totalDuration > 59 
+                      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
+                      : `${stats.totalDuration}m`}
+                  </dd>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <dt className="text-muted-foreground text-sm">Focus Stories</dt>
+                  <dd className="text-2xl font-medium">{stats.totalStories}</dd>
+                </div>
+                {stats.totalFrogs > 0 && (
+                  <div className="flex justify-between items-baseline">
+                    <dt className="text-muted-foreground text-sm flex items-center gap-1">
+                      <span>Frogs</span>
+                      <span className="text-base">🐸</span>
+                    </dt>
+                    <dd className="text-2xl font-medium text-primary">{stats.totalFrogs}</dd>
                   </div>
-                  <div>
-                    <dt className="ui-label mb-2">Estimated Time</dt>
-                    <dd className="text-4xl font-heading">
-                      {stats.totalDuration > 59 
-                        ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
-                        : `${stats.totalDuration}m`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="ui-label mb-2">Focus Stories</dt>
-                    <dd className="text-4xl font-heading">{stats.totalStories}</dd>
-                  </div>
-                  {stats.totalFrogs > 0 && (
-                    <div>
-                      <dt className="ui-label mb-2 flex items-center gap-2">
-                        <span>Eat These Frogs First</span>
-                        <span className="text-lg">🐸</span>
-                      </dt>
-                      <dd className="text-4xl font-heading text-primary">{stats.totalFrogs}</dd>
-                    </div>
-                  )}
-                </dl>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </main>
   )

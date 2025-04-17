@@ -10,6 +10,8 @@ import {
   calculateTotalDuration,
   type TimeBox
 } from "@/lib/durationUtils"
+import { TaskPersistenceService } from '../../../features/task-persistence/services/task-persistence.service'
+import type { BaseStatus } from '@/lib/types'
 
 // Create a singleton instance of SessionStorageService
 const sessionStorage = new SessionStorageService()
@@ -291,7 +293,6 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
   
   console.log(`Created mapping for ${titleToStoryMap.size} potential story titles`)
   
-  
   // Only validate that the totalDuration is a valid multiple of BLOCK_SIZE and above MIN_DURATION
   const totalDuration = currentStories.reduce((sum, story) => sum + story.estimatedDuration, 0)
   if (totalDuration < DURATION_RULES.MIN_DURATION || totalDuration % DURATION_RULES.BLOCK_SIZE !== 0) {
@@ -302,6 +303,29 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
     try {
       console.log(`Attempting to create session (attempt ${retryCount + 1}/${maxRetries})`)
       console.log('Total duration:', totalDuration, 'minutes')
+      
+      // Convert processed stories to tasks and save them
+      const tasks = currentStories.flatMap(story => 
+        story.tasks.map(task => ({
+          id: task.id || crypto.randomUUID(),
+          title: task.title,
+          description: '',
+          duration: task.duration,
+          difficulty: task.difficulty || 'medium',
+          taskCategory: task.taskCategory,
+          projectType: task.projectType,
+          isFrog: task.isFrog || false,
+          status: 'todo' as BaseStatus,
+          children: [],
+          refined: true,
+          needsSplitting: task.needsSplitting,
+          splitInfo: task.splitInfo,
+          storyId: story.title,
+        }))
+      )
+
+      // Save tasks to persistent storage
+      await TaskPersistenceService.saveTasks(tasks)
       
       // Ensure all tasks have IDs before sending
       currentStories.forEach(story => {

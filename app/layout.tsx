@@ -4,6 +4,10 @@ import "@/styles/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Header } from "@/components/header"
 import { Toaster } from "@/components/ui/use-toast"
+import { Inter } from "next/font/google"
+import { Providers } from "./providers"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export const viewport: Viewport = {
   themeColor: [
@@ -24,13 +28,13 @@ export const metadata: Metadata = {
         sizes: "any",
       },
       {
-        url: "/assets/logo/toro_logo.png",
+        url: "/assets/logo/tempo_logo.png",
         type: "image/png",
         sizes: "32x32",
       },
     ],
     apple: {
-      url: "/assets/logo/toro_logo.png",
+      url: "/assets/logo/tempo_logo.png",
       type: "image/png",
     },
   },
@@ -47,20 +51,22 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${textMeOne.variable} ${happyMonkey.variable} ${nunitoSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${textMeOne.variable} ${happyMonkey.variable} ${nunitoSans.variable} ${inter.className}`} suppressHydrationWarning>
       <body className={`min-h-screen bg-background font-body antialiased theme-transition`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            {children}
-          </div>
-          <Toaster />
-        </ThemeProvider>
+        <Providers>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              {children}
+            </div>
+            <Toaster />
+          </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )

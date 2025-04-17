@@ -166,6 +166,25 @@ export class TaskRolloverService {
   }
 
   /**
+   * Unarchives the session for the given date.
+   * 
+   * This changes the session status from 'archived' back to 'planned'
+   * Used when a user wants to restore an archived session to active status
+   * 
+   * @param date The date of the session to unarchive
+   * @returns A boolean indicating whether the unarchiving was successful
+   */
+  async unarchiveSession(date: string): Promise<boolean> {
+    try {
+      const success = await this.sessionStorage.unarchiveSession(date);
+      return success;
+    } catch (error) {
+      console.error('[TaskRolloverService] Failed to unarchive session:', error);
+      return false;
+    }
+  }
+
+  /**
    * Convert incomplete tasks to brain dump text format
    * 
    * This creates a formatted text representation of tasks that can be added to the brain dump input.

@@ -55,6 +55,7 @@ export interface Task {
   storyId?: string
   groupId?: string
   originalTitle?: string
+  lastUpdated?: string
 }
 
 export interface TaskBreak {
@@ -118,6 +119,8 @@ export interface TimeBox {
   estimatedEndTime?: string
   icon?: string
   status?: TimeBoxStatus
+  actualDuration?: number
+  startTime?: string
 }
 
 export interface StoryBlock {

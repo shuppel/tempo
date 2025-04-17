@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils" // Utility function for merging class names dyn
 
 /**
  * Card Component:
- * - The root container for a styled card.
- * - Provides a rounded border, shadow, and background.
- * - Supports additional classes via `className`.
+ * - Linear-inspired card with minimal styling.
+ * - Provides subtle border, clean background, and soft shadow.
  */
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -15,7 +14,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow",
+      "rounded-lg border border-border/40 bg-card text-card-foreground shadow-linear-card",
       className
     )}
     {...props}
@@ -25,8 +24,7 @@ Card.displayName = "Card"
 
 /**
  * CardHeader Component:
- * - Wraps the header section of the card.
- * - Adds padding and vertical spacing.
+ * - Clean header section with consistent spacing.
  */
 const CardHeader = React.forwardRef<
   HTMLDivElement,
@@ -34,7 +32,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn("flex flex-col space-y-1 p-5", className)}
     {...props}
   />
 ))
@@ -42,16 +40,15 @@ CardHeader.displayName = "CardHeader"
 
 /**
  * CardTitle Component:
- * - Displays the title inside a card.
- * - Uses a bold font with tight tracking.
+ * - Minimal, clean title with appropriate weight.
  */
 const CardTitle = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  HTMLHeadingElement,
+  React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <div
+  <h3
     ref={ref}
-    className={cn("font-semibold leading-none tracking-tight", className)}
+    className={cn("text-base font-medium leading-none", className)}
     {...props}
   />
 ))
@@ -59,14 +56,13 @@ CardTitle.displayName = "CardTitle"
 
 /**
  * CardDescription Component:
- * - Provides a smaller, muted text description.
- * - Often used below the `CardTitle`.
+ * - Subtle, muted description text.
  */
 const CardDescription = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <div
+  <p
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
@@ -76,21 +72,19 @@ CardDescription.displayName = "CardDescription"
 
 /**
  * CardContent Component:
- * - Wraps the main content area of the card.
- * - Removes top padding to align closely with the header.
+ * - Content area with appropriate padding.
  */
 const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
 ))
 CardContent.displayName = "CardContent"
 
 /**
  * CardFooter Component:
- * - Wraps the footer section of the card.
- * - Typically used for buttons or additional actions.
+ * - Footer with consistent spacing and alignment.
  */
 const CardFooter = React.forwardRef<
   HTMLDivElement,
@@ -98,7 +92,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
+    className={cn("flex items-center p-5 pt-0", className)}
     {...props}
   />
 ))

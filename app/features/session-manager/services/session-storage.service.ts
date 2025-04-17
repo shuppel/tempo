@@ -17,7 +17,13 @@ export class SessionStorageService {
    */
   async getSession(date: string): Promise<Session | null> {
     console.log(`[SessionStorageService] Getting session for date: ${date}`)
-    const storedSession = sessionStorage.getSession(date)
+    let storedSession: any = null;
+    try {
+      storedSession = await sessionStorage.getSession(date);
+    } catch (error) {
+      console.error(`[SessionStorageService] Error getting session for date: ${date}`, error);
+      return null;
+    }
     
     if (!storedSession) {
       console.log(`[SessionStorageService] No session found for date: ${date}`)
@@ -117,7 +123,13 @@ export class SessionStorageService {
    */
   async getAllSessions(): Promise<Session[]> {
     console.log(`[SessionStorageService] Getting all sessions`)
-    const storedSessions = sessionStorage.getAllSessions()
+    let storedSessions: Record<string, any> = {};
+    try {
+      storedSessions = await sessionStorage.getAllSessions();
+    } catch (error) {
+      console.error(`[SessionStorageService] Error getting all sessions`, error);
+      return [];
+    }
     const sessionCount = Object.keys(storedSessions).length
     console.log(`[SessionStorageService] Found ${sessionCount} sessions`)
     
@@ -182,7 +194,7 @@ export class SessionStorageService {
     console.log(`[SessionStorageService] Saving session for date: ${formattedDate} with ${session.storyBlocks?.length || 0} story blocks and total duration: ${session.totalDuration}`)
     
     try {
-      sessionStorage.saveSession(formattedDate, {
+      await sessionStorage.saveSession(formattedDate, {
         ...session,
         totalSessions: 1, // Required by StoredSession
         startTime: session.lastUpdated || new Date().toISOString(),
@@ -191,15 +203,14 @@ export class SessionStorageService {
       })
       
       // Verify the session was saved
-      const verifySession = sessionStorage.getSession(formattedDate)
+      const verifySession: any = await sessionStorage.getSession(formattedDate)
       if (!verifySession) {
         console.error(`[SessionStorageService] Failed to verify session save for date: ${formattedDate}`)
       } else {
         console.log(`[SessionStorageService] Successfully saved and verified session for date: ${formattedDate}`)
       }
     } catch (error) {
-      console.error(`[SessionStorageService] Error saving session for date: ${formattedDate}:`, error)
-      throw error
+      console.error(`[SessionStorageService] Error saving session for date: ${formattedDate}`, error)
     }
   }
 
@@ -363,7 +374,7 @@ export class SessionStorageService {
    * Save timer state for a session
    */
   async saveTimerState(
-    date: string, 
+    date: string,
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
@@ -383,22 +394,109 @@ export class SessionStorageService {
       return false;
     }
   }
+  
+  /**
+   * Save actual duration for a timebox
+   */
+  async saveActualDuration(
+    date: string,
+    storyId: string,
+    timeBoxIndex: number,
+    actualDuration: number
+  ): Promise<boolean> {
+    try {
+      const formattedDate = this.formatDate(date);
+      console.log(`[SessionStorageService] Saving actual duration of ${actualDuration}min for timebox ${timeBoxIndex} in story ${storyId}`);
+      
+      // Get the session
+      const session = await sessionStorage.getSession(formattedDate);
+      if (!session) {
+        console.error(`[SessionStorageService] No session found for date: ${formattedDate}`);
+        return false;
+      }
+      
+      // Find the story
+      const storyIndex = session.storyBlocks.findIndex(s => s.id === storyId);
+      if (storyIndex === -1) {
+        console.error(`[SessionStorageService] Story with ID ${storyId} not found`);
+        return false;
+      }
+      
+      // Find the timebox
+      const timeBox = session.storyBlocks[storyIndex].timeBoxes[timeBoxIndex];
+      if (!timeBox) {
+        console.error(`[SessionStorageService] TimeBox at index ${timeBoxIndex} not found`);
+        return false;
+      }
+      
+      // Log timebox details for debugging
+      console.log(`[SessionStorageService] TimeBox details before update:`);
+      console.log(`  Type: ${timeBox.type}`);
+      console.log(`  Duration: ${timeBox.duration}min`);
+      console.log(`  Status: ${timeBox.status}`);
+      console.log(`  Start Time: ${timeBox.startTime || 'Not set'}`);
+      console.log(`  Actual Duration: ${timeBox.actualDuration || 'Not set'}`);
+      
+      // Set the actual duration
+      timeBox.actualDuration = actualDuration;
+      
+      // Ensure timeBox has a startTime (required for time calculations)
+      if (!timeBox.startTime) {
+        // Create a synthetic startTime based on the end time and actual duration
+        const syntheticStartTime = new Date();
+        syntheticStartTime.setMinutes(syntheticStartTime.getMinutes() - actualDuration);
+        timeBox.startTime = syntheticStartTime.toISOString();
+        console.log(`[SessionStorageService] Created synthetic startTime: ${timeBox.startTime}`);
+      }
+      
+      // Save the updated session
+      const sessionData: Session = {
+        date: formattedDate,
+        storyBlocks: session.storyBlocks,
+        status: session.status as SessionStatus || 'planned',
+        totalDuration: session.totalDuration || 0,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await this.saveSession(formattedDate, sessionData);
+      
+      // Verify the save worked by checking if the actual duration was saved
+      const verifySession = await sessionStorage.getSession(formattedDate);
+      if (verifySession && 
+          verifySession.storyBlocks[storyIndex] && 
+          verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex]) {
+          
+        const savedActualDuration = verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex].actualDuration;
+        
+        if (savedActualDuration === actualDuration) {
+          console.log(`[SessionStorageService] Successfully verified actual duration was saved: ${savedActualDuration}min`);
+          return true;
+        } else {
+          console.error(`[SessionStorageService] Verification failed - Expected: ${actualDuration}min, Got: ${savedActualDuration}min`);
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`[SessionStorageService] Error saving actual duration:`, error);
+      return false;
+    }
+  }
 
   /**
    * Get timer state for a session
    */
-  getTimerState(date: string): { 
+  async getTimerState(date: string): Promise<{
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
     isTimerRunning: boolean
-  } | null {
+  } | null> {
     try {
-      const formattedDate = this.formatDate(date);
-      console.log(`[SessionStorageService] Getting timer state for date: ${formattedDate}`);
-      
-      return sessionStorage.getTimerState(formattedDate);
+      const timerState = await sessionStorage.getTimerState(date);
+      return timerState;
     } catch (error) {
-      console.error(`[SessionStorageService] Error getting timer state for date: ${date}:`, error);
+      console.error(`[SessionStorageService] Error getting timer state for date: ${date}`, error);
       return null;
     }
   }
@@ -448,34 +546,5 @@ export class SessionStorageService {
 
   private getKey(date: string): string {
     return `${SESSION_PREFIX}${date}`
-  }
-
-  /**
-   * Archive a session by setting its status to 'archived'
-   */
-  async archiveSession(date: string): Promise<boolean> {
-    console.log(`[SessionStorageService] Archiving session for date: ${date}`)
-    
-    try {
-      const session = await this.getSession(date)
-      if (!session) {
-        console.log(`[SessionStorageService] No session found for date: ${date} to archive`)
-        return false
-      }
-      
-      // Update the session status to archived
-      const updatedSession: Session = {
-        ...session,
-        status: 'archived' as const
-      }
-      
-      // Save the updated session
-      await this.saveSession(date, updatedSession)
-      console.log(`[SessionStorageService] Successfully archived session for date: ${date}`)
-      return true
-    } catch (error) {
-      console.error(`[SessionStorageService] Error archiving session for date: ${date}:`, error)
-      return false
-    }
   }
 }
