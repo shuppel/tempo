@@ -139,7 +139,7 @@ export function Toaster() {
             title={toast.title}
             description={toast.description}
             action={toast.action}
-            variant={toast.variant as any}
+            variant={toast.variant}
             onClose={() => dismiss(toast.id)}
             className="mb-2"
           />

@@ -19,11 +19,11 @@ export default function Home() {
     totalFrogs: 0
   })
 
-  const handleTasksProcessed = (stories: any[]) => {
+  const handleTasksProcessed = (stories: { tasks: { isFrog?: boolean }[]; estimatedDuration: number }[]) => {
     const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
     const totalDuration = stories.reduce((acc, story) => acc + story.estimatedDuration, 0)
     const totalFrogs = stories.reduce((acc, story) => 
-      acc + story.tasks.filter((task: any) => task.isFrog).length, 0)
+      acc + story.tasks.filter((task) => task.isFrog).length, 0)
     
     setStats({
       totalTasks,

@@ -5,6 +5,7 @@ import { SessionStorageService } from "@/app/features/session-manager"
 import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { TaskRolloverService } from "@/app/features/task-rollover"
+import { ErrorDetails } from "../types"
 
 // Create a singleton instance of SessionStorageService
 const sessionStorage = new SessionStorageService()
@@ -22,13 +23,13 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   const [isProcessing, setIsProcessing] = useState(false)
   const [taskProcessingStep, setTaskProcessingStep] = useState<string>("")
   const [taskProcessingProgress, setTaskProcessingProgress] = useState(0)
-  const [taskProcessingError, setTaskProcessingError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+  const [taskProcessingError, setTaskProcessingError] = useState<ErrorDetails | null>(null)
   
   // Session creation state
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [sessionCreationStep, setSessionCreationStep] = useState<string>("")
   const [sessionCreationProgress, setSessionCreationProgress] = useState(0)
-  const [sessionCreationError, setSessionCreationError] = useState<{ message: string; code?: string; details?: any } | null>(null)
+  const [sessionCreationError, setSessionCreationError] = useState<ErrorDetails | null>(null)
 
   // Create the rollover service once
   const rolloverService = useMemo(() => new TaskRolloverService(), []);
@@ -341,7 +342,17 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
   }
 
   // Helper function to validate and extract session duration
-  function validateSessionDuration(sessionPlan: any): number {
+  interface SessionPlanWithDuration extends Record<string, unknown> {
+    totalDuration?: number;
+    storyBlocks?: Array<{
+      totalDuration?: number;
+    }>;
+    stories?: Array<{
+      estimatedDuration?: number;
+    }>;
+  }
+
+  function validateSessionDuration(sessionPlan: SessionPlanWithDuration): number {
     console.log('Validating session duration for plan:', sessionPlan)
     
     // Check if totalDuration is directly available and valid
@@ -355,7 +366,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     // Calculate from story blocks if available
     if (Array.isArray(sessionPlan.storyBlocks) && sessionPlan.storyBlocks.length > 0) {
       const calculatedDuration = sessionPlan.storyBlocks.reduce(
-        (sum: number, block: { totalDuration?: number }) => sum + (block.totalDuration || 0),
+        (sum: number, block) => sum + (typeof block.totalDuration === 'number' ? block.totalDuration : 0),
         0
       )
       
@@ -372,7 +383,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     // If we can't calculate from blocks, try using the sum of story estimatedDurations
     if (Array.isArray(sessionPlan.stories) && sessionPlan.stories.length > 0) {
       const durationFromStories = sessionPlan.stories.reduce(
-        (sum: number, story: { estimatedDuration?: number }) => sum + (story.estimatedDuration || 0),
+        (sum: number, story) => sum + (typeof story.estimatedDuration === 'number' ? story.estimatedDuration : 0),
         0
       )
       

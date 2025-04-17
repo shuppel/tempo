@@ -134,7 +134,7 @@ interface StoryBlock {
     type: string
     task: string
     message: string
-    details: Record<string, any>
+    details: Record<string, unknown>
   }>
 }
 
@@ -211,8 +211,21 @@ function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): 
   return undefined
 }
 
+interface StoryWithTitle {
+  title: string;
+  estimatedDuration?: number;
+  tasks: unknown[];
+  originalTitle?: string;
+  [key: string]: unknown;
+}
+
+interface StoryMapping {
+  possibleTitle: string;
+  originalTitle: string;
+}
+
 // Update findOriginalStory function to use story mapping if available
-function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: any[]): any {
+function findOriginalStory(storyTitle: string, stories: StoryWithTitle[], storyMapping?: StoryMapping[]): StoryWithTitle | null {
   // Special case for "Break" blocks which don't correspond to actual stories
   if (storyTitle === "Break" || storyTitle.toLowerCase().includes("break")) {
     console.log(`Creating dummy story for special block: ${storyTitle}`);
@@ -245,30 +258,30 @@ function findOriginalStory(storyTitle: string, stories: any[], storyMapping?: an
   // If mapping doesn't work or isn't available, try other methods
 
   // First try exact match
-  let original = stories.find((story: any) => story.title === storyTitle);
+  let original = stories.find((story) => story.title === storyTitle);
   if (original) return original;
   
   // If not found and title contains "Part X of Y", try matching the base title
   if (isSplitTaskPart(storyTitle)) {
     const baseTitle = getBaseStoryTitle(storyTitle);
-    original = stories.find((story: any) => story.title === baseTitle);
+    original = stories.find((story) => story.title === baseTitle);
     if (original) return original;
     
     // Try fuzzy match on base title
-    original = stories.find((story: any) => {
+    original = stories.find((story) => {
       return story.title.includes(baseTitle) || baseTitle.includes(story.title);
     });
     if (original) return original;
   }
   
   // Try fuzzy match as last resort
-  original = stories.find((story: any) => {
+  original = stories.find((story) => {
     const storyWords = story.title.toLowerCase().split(/\s+/);
     const searchWords = storyTitle.toLowerCase().split(/\s+/);
     
     // Count matching words
     const matchCount = searchWords.filter(word => 
-      storyWords.some((storyWord: string) => storyWord.includes(word) || word.includes(storyWord))
+      storyWords.some((storyWord) => storyWord.includes(word) || word.includes(storyWord))
     ).length;
     
     // Require at least 50% of words to match or minimum 2 words
@@ -287,7 +300,7 @@ function buildOriginalTasksMap(stories: z.infer<typeof StorySchema>[]): Map<stri
   const tasksMap = new Map<string, string>();
   
   stories.forEach(story => {
-    story.tasks.forEach((task: any) => {
+    story.tasks.forEach((task: { title: string }) => {
       const normalizedTitle = normalizeTaskTitle(task.title);
       tasksMap.set(normalizedTitle, task.title);
     });
@@ -687,19 +700,19 @@ CRITICAL RULES:
               console.warn(`Reconstructing missing timeBoxes for story block ${i}`);
               block.timeBoxes = [];
             }
-            block.totalDuration = block.timeBoxes.reduce((sum: number, box: any) => sum + (box.duration || 0), 0);
+            block.totalDuration = block.timeBoxes.reduce((sum: number, box: { duration?: number }) => sum + (box.duration || 0), 0);
           }
         }
 
         // Transform fields to ensure consistent property names
         if (parsedData.storyBlocks && Array.isArray(parsedData.storyBlocks)) {
-          parsedData.storyBlocks = parsedData.storyBlocks.map((block: any) => {
+          parsedData.storyBlocks = parsedData.storyBlocks.map((block: Record<string, unknown>) => {
             // Transform the story block itself
             const transformedBlock = transformStoryData(block);
             
             // Transform timeBoxes and their tasks
             if (transformedBlock.timeBoxes && Array.isArray(transformedBlock.timeBoxes)) {
-              transformedBlock.timeBoxes = transformedBlock.timeBoxes.map((timeBox: any) => {
+              transformedBlock.timeBoxes = transformedBlock.timeBoxes.map((timeBox: Record<string, unknown>) => {
                 // Transform tasks within each time box
                 if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
                   timeBox.tasks = timeBox.tasks.map(transformTaskData);
@@ -738,7 +751,7 @@ CRITICAL RULES:
         const storyBlocks = parsedData.storyBlocks || []
 
         // Verify all tasks have the correct properties
-        storyBlocks.forEach((block: any) => {
+        storyBlocks.forEach((block: { storyType?: string; type?: string; projectType?: string; project?: string; timeBoxes?: unknown[]; title?: string }) => {
           // Transform story properties if needed
           if (!block.storyType && block.type) {
             console.log(`Transforming story type -> storyType for "${block.title}"`)
@@ -752,9 +765,9 @@ CRITICAL RULES:
           }
           
           if (block.timeBoxes && Array.isArray(block.timeBoxes)) {
-            block.timeBoxes.forEach((timeBox: any) => {
+            block.timeBoxes.forEach((timeBox: { tasks?: unknown[] }) => {
               if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
-                timeBox.tasks.forEach((task: any) => {
+                timeBox.tasks.forEach((task: { taskCategory?: string; type?: string; projectType?: string; project?: string; title?: string }) => {
                   // Ensure task has taskCategory property (originally might have been type)
                   if (!task.taskCategory && task.type) {
                     console.log(`Transforming task type -> taskCategory for "${task.title}"`)

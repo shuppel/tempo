@@ -8,6 +8,15 @@ export interface ApiError {
   details?: unknown
 }
 
+export interface ErrorDetails {
+  message: string
+  code?: string
+  stack?: string
+  details?: unknown
+  cause?: unknown
+  response?: Record<string, unknown>
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return (
     typeof error === 'object' &&

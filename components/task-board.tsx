@@ -117,7 +117,16 @@ export function TaskBoard() {
     }
   }
 
-  const handleDragEnd = (result: any) => {
+  interface DragResult {
+    source: {
+      index: number;
+    };
+    destination?: {
+      index: number;
+    };
+  }
+  
+  const handleDragEnd = (result: DragResult) => {
     if (!result.destination) return
 
     const items = Array.from(tasks)
