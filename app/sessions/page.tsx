@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { format, parseISO, isValid } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -169,16 +169,6 @@ export default function SessionsPage() {
     return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`
   }
 
-  if (loading) {
-    return (
-      <main className="flex-1 container mx-auto p-4 md:p-8 max-w-4xl">
-        <div className="flex justify-center items-center min-h-[300px]">
-          <p className="text-muted-foreground">Loading sessions...</p>
-        </div>
-      </main>
-    )
-  }
-
   // Filter sessions by status - show archived last
   const activeSessions = sessions.filter(s => s.status !== 'archived')
   const archivedSessions = sessions.filter(s => s.status === 'archived')
@@ -191,6 +181,39 @@ export default function SessionsPage() {
   const sortedArchivedSessions = [...archivedSessions].sort((a, b) => 
     parseISO(b.date).getTime() - parseISO(a.date).getTime()
   )
+
+  // Memoized components
+  const MemoizedMoreButton = useMemo(() => (
+    <Button 
+      variant="outline" 
+      size="icon" 
+      className="h-9 w-9 hover:bg-muted"
+    >
+      <MoreHorizontal className="h-4 w-4" />
+    </Button>
+  ), [])
+
+  const MemoizedViewSessionButton = useMemo(() => (
+    <Button variant="outline" className="gap-2">
+      View Session
+      <ArrowRight className="h-4 w-4" />
+    </Button>
+  ), [])
+
+  const MemoizedClockIcon = useMemo(() => (
+    <Clock className="h-4 w-4" />
+  ), [])
+
+  // Only use conditional for rendering, not for calling hooks
+  if (loading) {
+    return (
+      <main className="flex-1 container mx-auto p-4 md:p-8 max-w-4xl">
+        <div className="flex justify-center items-center min-h-[300px]">
+          <p className="text-muted-foreground">Loading sessions...</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <TooltipProvider>
@@ -235,13 +258,7 @@ export default function SessionsPage() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="icon" 
-                                  className="h-9 w-9 hover:bg-muted"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
+                                {MemoizedMoreButton}
                               </DropdownMenuTrigger>
                             </TooltipTrigger>
                             <TooltipContent side="left">
@@ -269,18 +286,14 @@ export default function SessionsPage() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-
                         <Link href={`/session/${session.date}`}>
-                          <Button variant="outline" className="gap-2">
-                            View Session
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
+                          {MemoizedViewSessionButton}
                         </Link>
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-4 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
+                        {MemoizedClockIcon}
                         {formatDuration(session.totalDuration)}
                       </span>
                       <div className="flex items-center gap-2 text-sm">
@@ -367,7 +380,6 @@ export default function SessionsPage() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-
                             <Link href={`/session/${session.date}`}>
                               <Button variant="outline" size="sm" className="h-8">
                                 View

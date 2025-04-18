@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { BrainDump } from "@/app/features/brain-dump"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronRight } from "lucide-react"
@@ -20,10 +20,9 @@ export default function Home() {
     totalFrogs: 0
   })
 
-  const handleTasksProcessed = (stories: { tasks: { isFrog?: boolean }[]; estimatedDuration: number }[]) => {
+  const handleTasksProcessed = useCallback((stories: { tasks: { isFrog?: boolean, duration?: number }[]; estimatedDuration?: number }[]) => {
     const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
     const totalDuration = stories.reduce((acc, story) => {
-      // Ensure we're using the correct duration field and handling potential undefined values
       const storyDuration = story.estimatedDuration || 
         (story.tasks.reduce((taskSum: number, task) => taskSum + (task.duration || 0), 0)) || 0
       return acc + storyDuration
@@ -31,13 +30,19 @@ export default function Home() {
     const totalFrogs = stories.reduce((acc, story) => 
       acc + story.tasks.filter((task) => task.isFrog).length, 0)
     
-    setStats({
+    setStats(prevStats => ({
       totalTasks,
-      totalDuration: Math.round(totalDuration), // Ensure integer duration
+      totalDuration: Math.round(totalDuration),
       totalStories: stories.length,
       totalFrogs
-    })
-  }
+    }))
+  }, [])
+
+  const formattedDuration = useMemo(() => {
+    return stats.totalDuration > 59 
+      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
+      : `${stats.totalDuration}m`
+  }, [stats.totalDuration])
 
   return (
     <main className="flex-1 container mx-auto p-4 md:p-6 max-w-5xl">
@@ -67,9 +72,7 @@ export default function Home() {
                 <div className="flex justify-between items-baseline">
                   <dt className="text-muted-foreground text-sm">Estimated Time</dt>
                   <dd className="text-2xl font-medium">
-                    {stats.totalDuration > 59 
-                      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
-                      : `${stats.totalDuration}m`}
+                    {formattedDuration}
                   </dd>
                 </div>
                 <div className="flex justify-between items-baseline">

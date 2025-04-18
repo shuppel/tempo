@@ -1,7 +1,7 @@
 // /features/brain-dump/components/BrainDump.tsx
 "use client" // Ensures the component runs on the client side in Next.js.
 
-import React, { useState } from "react"
+import React, { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import debounce from "lodash.debounce"
 
 interface BrainDumpProps {
   onTasksProcessed?: (stories: ProcessedStory[]) => void
@@ -39,27 +40,54 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     isProcessing,
     isCreatingSession,
     processingStep,
-    error,
     processTasks,
     handleCreateSession,
     handleDurationChange,
     handleRetry
   } = useBrainDump(onTasksProcessed)
 
+  const handleTaskChange = debounce((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isInputLocked) {
+      setTasks(e.target.value)
+    }
+  }, 300)
+
+  const handleProcessTasks = useCallback(() => {
+    processTasks(false)
+  }, [processTasks])
+
+  const analyzeButtonContent = useMemo(() => {
+    if (isProcessing) {
+      return (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Analyzing
+        </>
+      )
+    } else if (isInputLocked) {
+      return (
+        <>
+          <Lock className="mr-2 h-4 w-4" />
+          Locked
+        </>
+      )
+    } else {
+      return 'Analyze'
+    }
+  }, [isProcessing, isInputLocked])
+
+  const MemoizedHelpCircle = useMemo(() => (
+    <HelpCircle className="h-4 w-4" />
+  ), [])
+
   return (
     <Card className="border bg-card">
       <CardContent className="p-4 space-y-4">
         <div className="relative">
           <Textarea
-            placeholder="task .init
-Update client dashboard design 🐸
-Send weekly progress report - 20m
-Research API integration - 1h
-Schedule team meeting - by Thursday
-Update project docs
-Finalize product specs - EOD"
+            placeholder={`task .init\nUpdate client dashboard design 🐸\nSend weekly progress report - 20m\nResearch API integration - 1h\nSchedule team meeting - by Thursday\nUpdate project docs\nFinalize product specs - EOD`.replace(/"/g, '&quot;')}
             value={tasks}
-            onChange={(e) => !isInputLocked && setTasks(e.target.value)}
+            onChange={handleTaskChange}
             disabled={isInputLocked}
             className="min-h-[150px] font-mono text-base"
           />
@@ -72,7 +100,7 @@ Finalize product specs - EOD"
                     size="icon" 
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <HelpCircle className="h-4 w-4" />
+                    {MemoizedHelpCircle}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="end" className="max-w-xs text-sm">
@@ -80,7 +108,7 @@ Finalize product specs - EOD"
                     <p>Effective task entry tips:</p>
                     <ul className="list-disc list-inside space-y-1">
                       <li>Use clear, actionable verbs</li>
-                      <li>Estimate time: "30m design review"</li>
+                      <li>Estimate time: &quot;30m design review&quot;</li>
                       <li>Prioritize with 🐸 FROG for critical tasks</li>
                       <li>Add context: deadlines, project names</li>
                     </ul>
@@ -105,23 +133,11 @@ Finalize product specs - EOD"
             <span>Analyze to optimize</span>
           </div>
           <Button 
-            onClick={() => processTasks(false)}
+            onClick={handleProcessTasks}
             disabled={!tasks.trim() || isProcessing || isInputLocked}
             className="w-32"
           >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing
-              </>
-            ) : isInputLocked ? (
-              <>
-                <Lock className="mr-2 h-4 w-4" />
-                Locked
-              </>
-            ) : (
-              'Analyze'
-            )}
+            {analyzeButtonContent}
           </Button>
         </div>
 

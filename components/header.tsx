@@ -9,7 +9,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { format, parseISO } from "date-fns"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 
 export function Header() {
@@ -21,6 +21,27 @@ export function Header() {
   const sessionMatch = pathname.match(/^\/session\/(\d{4}-\d{2}-\d{2})$/)
   const sessionDate = sessionMatch ? parseISO(sessionMatch[1]) : null
 
+  const memoizedImage = useMemo(() => (
+    <Image
+      src="/assets/logo/tempo_logo.png"
+      alt="Tempo Logo"
+      fill
+      className="object-contain drop-shadow-[0_0_25px_rgba(56,189,248,0.2)]"
+      priority
+    />
+  ), [])
+
+  const memoizedMenuButton = useMemo(() => (
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      className="lg:hidden bg-background/50 backdrop-blur-sm border-2 h-12 w-12"
+    >
+      <Menu className="h-5 w-5" />
+      <span className="sr-only">Open menu</span>
+    </Button>
+  ), [])
+
   return (
     <header className="relative border-b bg-gradient-to-r from-background to-card pt-4">
       {/* Logo Container */}
@@ -31,13 +52,7 @@ export function Header() {
             className="flex items-center gap-4 transition-transform hover:scale-[1.02] duration-150 pl-6 md:pl-0 lg:pl-4 mx-auto md:mx-0"
           >
             <div className="relative w-20 h-20">
-              <Image
-                src="/assets/logo/tempo_logo.png"
-                alt="Tempo Logo"
-                fill
-                className="object-contain drop-shadow-[0_0_25px_rgba(56,189,248,0.2)]"
-                priority
-              />
+              {memoizedImage}
             </div>
             <div className="flex flex-col justify-center h-20">
               <span className="text-2xl font-heading font-black leading-none bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
@@ -99,14 +114,7 @@ export function Header() {
           {/* Mobile Menu Button */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="lg:hidden bg-background/50 backdrop-blur-sm border-2 h-12 w-12"
-              >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Open menu</span>
-              </Button>
+              {memoizedMenuButton}
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col gap-4 pt-8">

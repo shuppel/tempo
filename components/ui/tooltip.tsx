@@ -1,15 +1,17 @@
 "use client"
 
-import * as React from "react"
+import React, { memo } from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
 
 const TooltipProvider = TooltipPrimitive.Provider
 
-const Tooltip = ({ ...props }: TooltipPrimitive.TooltipProps) => (
-  <TooltipPrimitive.Root delayDuration={300} {...props} />
-)
+const Tooltip = memo(({ ...props }: TooltipPrimitive.TooltipProps) => {
+  return React.useMemo(() => (
+    <TooltipPrimitive.Root delayDuration={300} {...props} />
+  ), [props]);
+});
 Tooltip.displayName = TooltipPrimitive.Root.displayName
 
 const TooltipTrigger = TooltipPrimitive.Trigger

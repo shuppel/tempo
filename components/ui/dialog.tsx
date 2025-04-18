@@ -1,6 +1,7 @@
 "use client" // Ensures this component runs only on the client side in Next.js.
 
 import * as React from "react"
+import { memo } from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
@@ -34,19 +35,21 @@ const DialogClose = DialogPrimitive.Close
  * DialogOverlay Component:
  * - Clean, minimal overlay with subtle animation.
  */
-const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-foreground/10 backdrop-blur-sm data-[state=open]:animate-linear-in data-[state=closed]:animate-linear-out",
-      className
-    )}
-    {...props}
-  />
-))
+const DialogOverlay = memo(
+  React.forwardRef<
+    React.ElementRef<typeof DialogPrimitive.Overlay>,
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+  >(({ className, ...props }, ref) => (
+    <DialogPrimitive.Overlay
+      ref={ref}
+      className={cn(
+        "fixed inset-0 z-50 bg-foreground/10 backdrop-blur-sm data-[state=open]:animate-linear-in data-[state=closed]:animate-linear-out",
+        className
+      )}
+      {...props}
+    />
+  ))
+)
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 /**
