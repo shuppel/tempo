@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { format, parseISO, isValid } from "date-fns"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
@@ -278,7 +278,7 @@ export default function SessionsPage() {
                         </Link>
                       </div>
                     </div>
-                    <CardDescription className="flex items-center justify-between gap-4 mt-2">
+                    <div className="flex items-center justify-between gap-4 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
                         {formatDuration(session.totalDuration)}
@@ -290,7 +290,7 @@ export default function SessionsPage() {
                           className="w-24" 
                         />
                       </div>
-                    </CardDescription>
+                    </div>
                   </CardHeader>
                 </Card>
               ))}
