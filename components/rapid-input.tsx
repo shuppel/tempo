@@ -27,7 +27,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { refineTask } from "@/lib/ai"
-import type { Task, DifficultyLevel } from "@/lib/types"
+import type { Task } from "@/lib/types"
 
 interface RapidInputProps {
   onTasksGenerated: (tasks: Task[]) => void

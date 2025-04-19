@@ -31,6 +31,11 @@ export function IconExamples() {
           <Icon icon={Brain} color="accent" />
           <span className="text-sm">Accent</span>
         </div>
+        
+        <div className="flex flex-col items-center gap-2 p-3 border rounded-md">
+          <Icon icon={FileText} color="default" />
+          <span className="text-sm">FileText</span>
+        </div>
       </div>
       
       <h2 className="text-xl font-semibold mt-8">Icon Sizes</h2>

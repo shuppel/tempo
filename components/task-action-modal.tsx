@@ -35,7 +35,6 @@ export function TaskActionModal({
   progress,
 }: TaskActionModalProps) {
   const currentStage = PROGRESS_STAGES.find(stage => progress <= stage.threshold) || PROGRESS_STAGES[PROGRESS_STAGES.length - 1]
-  const StageIcon = currentStage.icon
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,13 +47,21 @@ export function TaskActionModal({
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              {currentStage && (
+                <>
+                  <currentStage.icon className="h-5 w-5 text-blue-600" />
+                  <span className="font-semibold text-blue-700 text-sm">{currentStage.label}</span>
+                </>
+              )}
+            </div>
             <ProgressLoader
               progress={progress}
               description={currentAction || "Initializing..."}
             />
             
             <div className="flex justify-between items-center">
-              {PROGRESS_STAGES.map((stage, index) => {
+              {PROGRESS_STAGES.map((stage) => {
                 const Icon = stage.icon
                 const isActive = progress <= stage.threshold
                 const isPast = progress > stage.threshold
