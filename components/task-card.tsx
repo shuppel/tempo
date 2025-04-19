@@ -1,15 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Grip, MoreVertical, Trash, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import * as Checkbox from "@/components/ui/checkbox"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { Timer } from "./timer"
 import type { Task } from "@/lib/types"
-import { DifficultyBadge } from "@/app/features/brain-dump/components/DifficultyBadge"
 
 interface TaskCardProps {
   task: Task
@@ -18,8 +13,6 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
-  const [isRunning, setIsRunning] = useState(false)
-
   const handleStatusToggle = () => {
     onUpdate({
       status: task.status === "completed" ? "todo" : "completed"

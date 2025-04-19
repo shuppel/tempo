@@ -29,6 +29,8 @@ export function ProgressLoader({
     const increment = (progress - displayProgress) / steps // Value increment per step.
 
     let currentStep = 0
+    // Guard: Only animate if displayProgress !== progress
+    if (displayProgress === progress) return;
     const timer = setInterval(() => {
       if (currentStep >= steps) {
         clearInterval(timer)
@@ -39,8 +41,8 @@ export function ProgressLoader({
       }
     }, stepDuration)
 
-    return () => clearInterval(timer) // Cleanup interval when `progress` changes.
-  }, [progress])
+    return () => clearInterval(timer) // Cleanup interval when `progress` or `displayProgress` changes.
+  }, [progress, displayProgress])
 
   return (
     <div className={cn("space-y-2", className)}>

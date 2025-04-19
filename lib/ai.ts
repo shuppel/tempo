@@ -1,5 +1,4 @@
-import type { Task, TaskGroup, ProcessedTask, DifficultyLevel } from "./types"
-import { findClosestFibonacci } from "./utils"
+import type { Task, TaskGroup, DifficultyLevel } from "./types"
 import { calculateTotalDifficulty } from "./utils"
 
 const DURATION_RULES = {

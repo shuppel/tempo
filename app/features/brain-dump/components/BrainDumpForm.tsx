@@ -8,6 +8,7 @@ import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
 import { ProcessedStories } from "./ProcessedStories"
 import { useBrainDump } from "../hooks/useBrainDump"
 import type { ProcessedStory } from "@/lib/types"
+import { escapeHtml } from "@/lib/utils"
 
 interface BrainDumpFormProps {
   onTasksProcessed?: (stories: ProcessedStory[]) => void
@@ -75,17 +76,23 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
                 </AlertTitle>
                 <AlertDescription>
                   <p>{error.message}</p>
-                  {error.details && (
+                  {typeof error.details === "string" || typeof error.details === "object" ? (
                     <div className="mt-2">
                       <div className="text-sm font-medium mb-1">Technical Details:</div>
-                      <pre className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32">
-                        {typeof error.details === 'string' 
-                          ? error.details 
-                          : JSON.stringify(error.details, null, 2)
-                        }
-                      </pre>
+                      <pre
+                        className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32"
+                        dangerouslySetInnerHTML={{
+                          __html: escapeHtml(
+                            String(
+                              typeof error.details === "string"
+                                ? error.details
+                                : JSON.stringify(error.details, null, 2)
+                            )
+                          ),
+                        }}
+                      />
                     </div>
-                  )}
+                  ) : null}
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -107,21 +114,17 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
               <AlertTitle>Input Format Tips</AlertTitle>
               <AlertDescription>
                 <ul className="mt-2 space-y-1 text-sm">
-                  <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
-                  <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
+                  <li>• Start with action verbs: {escapeHtml('"Create", "Review", "Update", etc.')}</li>
+                  <li>• Add time estimates (optional): {escapeHtml('"2 hours of work on Project X"')}</li>
                   <li>• Mark priorities: Add <span className="font-medium text-primary">FROG</span> to indicate high-priority tasks</li>
-                  <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
+                  <li>• Add deadlines (optional): {escapeHtml('"Complete by Friday" or "Due: 3pm"')}</li>
                   <li>• Group related tasks: Use similar prefixes for related items</li>
-                  <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
+                  <li>• Be specific: {escapeHtml('"Review Q1 metrics report" vs "Review report"')}</li>
                 </ul>
                 <div className="mt-2 text-sm font-medium">Examples:</div>
-                <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
-                  Create landing page mockup for client FROG{"\n"}
-                  Review Q1 metrics report - 30 mins{"\n"}
-                  Update team documentation - flexible{"\n"}
-                  Complete project proposal by EOD{"\n"}
-                  Daily standup and team sync
-                </pre>
+                <pre className="mt-1 text-sm bg-muted p-2 rounded-md" dangerouslySetInnerHTML={{ __html: escapeHtml(
+                  `Create landing page mockup for client FROG\nReview Q1 metrics report - 30 mins\nUpdate team documentation - flexible\nComplete project proposal by EOD\nDaily standup and team sync`
+                ) }} />
               </AlertDescription>
             </div>
           </div>

@@ -80,7 +80,7 @@ export function generateSchedulingSuggestion(duration: number): string {
   return suggestions.join('. ')
 }
 
-export function suggestSplitAdjustment(originalDuration: number, splitDuration: number, parts: number): string {
+export function suggestSplitAdjustment(originalDuration: number, splitDuration: number): string {
   const remaining = originalDuration - splitDuration
   const suggestedParts = Math.ceil(remaining / DURATION_RULES.MAX_DURATION)
   

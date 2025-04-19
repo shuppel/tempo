@@ -1,5 +1,5 @@
 // lib/task-manager.ts
-import type { Task, TaskGroup, TimeBox, StoryBlock, SessionPlan, ProcessedTask, SplitInfo, TaskType, TaskCategory, TimeBoxType, StoryType, DifficultyLevel } from "./types"
+import type { Task, TimeBox, StoryBlock, SessionPlan, SplitInfo, TaskCategory, TimeBoxType, StoryType, DifficultyLevel } from "./types"
 
 const DURATION_RULES = {
   FIRST_SESSION: { min: 20, max: 30 },
@@ -33,7 +33,7 @@ function getDifficultyValue(difficulty: DifficultyLevel): number {
   return DIFFICULTY_NUMERIC[difficulty] || DIFFICULTY_NUMERIC.medium;
 }
 
-async function getTaskIcon(taskTitle: string): Promise<string> {
+async function getTaskIcon(): Promise<string> {
   // Call AI to get appropriate icon suggestion
   // This would call your AI endpoint to get icon suggestions
   // For now returning placeholder
@@ -315,7 +315,7 @@ export async function createTimeBoxes(tasks: Task[]): Promise<SessionPlan> {
       timeBoxes,
       totalDuration: storyDuration,
       progress: 0,
-      icon: await getTaskIcon(group.title),
+      icon: await getTaskIcon(),
       type: "timeboxed" as StoryType,
       taskIds: group.tasks.map(task => task.id)
     })

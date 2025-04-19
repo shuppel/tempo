@@ -37,7 +37,17 @@ export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps)
               <span className={cn("font-medium", task.status === "completed" && "line-through text-muted-foreground")}>
                 {task.title}
               </span>
-              {task.isFrog && <span className="text-destructive">🐸</span>}
+              <button
+                onClick={() => onToggleFrog(task.id)}
+                aria-label={task.isFrog ? "Unset frog task" : "Set as frog task"}
+                className={cn(
+                  "ml-1 p-1 rounded hover:bg-destructive/10 transition-colors",
+                  task.isFrog ? "text-destructive" : "text-muted-foreground"
+                )}
+                type="button"
+              >
+                {task.isFrog ? "🐸" : <span role="img" aria-label="frog outline">🐸</span>}
+              </button>
               <span className="text-xs text-muted-foreground">{task.taskCategory}</span>
               {task.projectType && <span className="text-xs text-muted-foreground">{task.projectType}</span>}
             </div>

@@ -1,12 +1,11 @@
 "use client" // Ensures the component runs only on the client side in Next.js.
 
-import * as React from "react"
 import * as CollapsiblePrimitive from "@radix-ui/react-collapsible"
 
 /**
  * Collapsible Component:
  * - Root container for a collapsible section.
- * - Manages open/closed state using Radix UI’s primitive.
+ * - Manages open/closed state using Radix UI's primitive.
  */
 const Collapsible = CollapsiblePrimitive.Root
 

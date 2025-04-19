@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd"
+import { useState, useEffect, useCallback } from "react"
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd"
 import { Plus, AlertCircle, Loader2, RefreshCw, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskCard } from "./task-card"
@@ -10,9 +10,9 @@ import { TaskActionModal } from "./task-action-modal"
 import { TimeboxView } from "./timebox-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
-import { cn } from "@/lib/utils"
+import { cn, escapeHtml } from "@/lib/utils"
 import { organizeTasks, createTimeBoxes } from "@/lib/task-manager"
-import type { Task, SessionPlan, StoryBlock } from "@/lib/types"
+import type { Task, SessionPlan } from "@/lib/types"
 import { useTasks } from "@/features/task-persistence/hooks/useTasks"
 
 interface LoadingState {
@@ -41,7 +41,7 @@ export function TaskBoard() {
   const [currentAction, setCurrentAction] = useState<string>()
   const [actionProgress, setActionProgress] = useState(0)
   const [sessionPlan, setSessionPlan] = useState<SessionPlan | null>(null)
-  const [error, setError] = useState<{ code: string; message: string; details?: string } | null>(null)
+  const [error, setError] = useState<ErrorState | null>(null)
   const [loadingState, setLoadingState] = useState<LoadingState>({
     organizing: false,
     planning: false,
@@ -51,22 +51,7 @@ export function TaskBoard() {
 
   const isLoading = Object.values(loadingState).some(Boolean)
 
-  useEffect(() => {
-    if (tasks.length > 0) {
-      organizeAndPlanTasks()
-    } else {
-      // Animate out the session plan
-      if (sessionPlan) {
-        setLoadingState(prev => ({ ...prev, generating: true }))
-        setTimeout(() => {
-          setSessionPlan(undefined)
-          setLoadingState(prev => ({ ...prev, generating: false }))
-        }, 300)
-      }
-    }
-  }, [tasks])
-
-  const organizeAndPlanTasks = async () => {
+  const organizeAndPlanTasks = useCallback(async () => {
     setIsActionModalOpen(true)
     setCurrentAction("Analyzing and organizing tasks...")
     setActionProgress(20)
@@ -95,7 +80,7 @@ export function TaskBoard() {
       setCurrentAction("Finalizing session plan...")
       
       // Animate out the old plan before setting the new one
-      setSessionPlan(undefined)
+      setSessionPlan(null)
       await new Promise(resolve => setTimeout(resolve, 300))
       
       setSessionPlan(plan)
@@ -123,18 +108,24 @@ export function TaskBoard() {
         setTimeout(() => setShowSuccess(false), 2000)
       }, 1000)
     }
-  }
+  }, [tasks])
 
-  interface DragResult {
-    source: {
-      index: number;
-    };
-    destination?: {
-      index: number;
-    };
-  }
-  
-  const handleDragEnd = (result: DragResult) => {
+  useEffect(() => {
+    if (tasks.length > 0) {
+      organizeAndPlanTasks()
+    } else {
+      // Animate out the session plan
+      if (sessionPlan) {
+        setLoadingState(prev => ({ ...prev, generating: true }))
+        setTimeout(() => {
+          setSessionPlan(null)
+          setLoadingState(prev => ({ ...prev, generating: false }))
+        }, 300)
+      }
+    }
+  }, [tasks, organizeAndPlanTasks, sessionPlan])
+
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
 
     const reorderedTasks = Array.from(tasks)
@@ -206,7 +197,7 @@ export function TaskBoard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Today's Tasks</h2>
+        <h2 className="text-2xl font-bold" dangerouslySetInnerHTML={{ __html: escapeHtml("Today's Tasks") }} />
         <Button onClick={() => setIsDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Task
@@ -231,6 +222,16 @@ export function TaskBoard() {
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle>Success</AlertTitle>
           <AlertDescription>Session plan created successfully!</AlertDescription>
+        </Alert>
+      )}
+
+      {tasksError && (
+        <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-1">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error: Task Loading</AlertTitle>
+          <AlertDescription>
+            <p>{typeof tasksError === 'string' ? tasksError : (tasksError?.message || 'Unknown error')}</p>
+          </AlertDescription>
         </Alert>
       )}
 
@@ -268,7 +269,7 @@ export function TaskBoard() {
           
           <TimeboxView 
             storyBlocks={sessionPlan.storyBlocks}
-            isCurrentTimeBox={(box) => false}
+            isCurrentTimeBox={() => false}
           />
           
           <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -276,7 +277,7 @@ export function TaskBoard() {
               Total Duration: {Math.floor(sessionPlan.totalDuration / 60)} hours {sessionPlan.totalDuration % 60} minutes
             </p>
             <Progress 
-              value={tasks.filter(t => t.status === "completed").length / tasks.length * 100} 
+              value={tasks.filter((t: Task) => t.status === "completed").length / tasks.length * 100} 
               className="w-32"
             />
           </div>
@@ -294,7 +295,7 @@ export function TaskBoard() {
                 isLoading && "opacity-50"
               )}
             >
-              {tasks.map((task, index) => (
+              {tasks.map((task: Task, index: number) => (
                 <Draggable key={task.id} draggableId={task.id} index={index}>
                   {(provided, snapshot) => (
                     <div 
@@ -326,7 +327,7 @@ export function TaskBoard() {
       {tasks.length === 0 && (
         <div className="rounded-lg border border-dashed p-8 text-center animate-in fade-in-50">
           <h3 className="text-lg font-medium">No tasks yet</h3>
-          <p className="text-sm text-muted-foreground">Add a task to get started with your Pomodoro session</p>
+          <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: escapeHtml("Add a task to get started with your Pomodoro session. Don&apos;t forget to plan breaks!") }} />
         </div>
       )}
 

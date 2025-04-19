@@ -1,8 +1,6 @@
 import { 
-  Task, 
   ProcessedTask, 
-  ProcessedStory, 
-  TaskCategory 
+  ProcessedStory
 } from './types';
 
 /**
@@ -137,29 +135,33 @@ export function getBaseStoryTitle(title: string): string {
  * Type guard for checking if an object implements the ProcessedTask interface
  */
 export function isProcessedTask(obj: unknown): obj is ProcessedTask {
-  return obj && 
-    typeof obj === 'object' &&
-    typeof obj.title === 'string' &&
-    typeof obj.duration === 'number' &&
-    typeof obj.isFrog === 'boolean' &&
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o.title === 'string' &&
+    typeof o.duration === 'number' &&
+    typeof o.isFrog === 'boolean' &&
     (
-      typeof obj.taskCategory === 'string' || 
-      typeof obj.type === 'string' // Allow legacy field
-    );
+      typeof o.taskCategory === 'string' || 
+      typeof o.type === 'string' // Allow legacy field
+    )
+  );
 }
 
 /**
  * Type guard for checking if an object implements the ProcessedStory interface
  */
 export function isProcessedStory(obj: unknown): obj is ProcessedStory {
-  return obj && 
-    typeof obj === 'object' &&
-    typeof obj.title === 'string' &&
-    typeof obj.summary === 'string' &&
-    typeof obj.estimatedDuration === 'number' &&
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o.title === 'string' &&
+    typeof o.summary === 'string' &&
+    typeof o.estimatedDuration === 'number' &&
     (
-      typeof obj.type === 'string' || 
-      typeof obj.storyType === 'string' // Allow legacy field
+      typeof o.type === 'string' || 
+      typeof o.storyType === 'string' // Allow legacy field
     ) &&
-    Array.isArray(obj.tasks);
+    Array.isArray(o.tasks)
+  );
 } 

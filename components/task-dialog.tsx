@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { Task, TaskCategory } from "@/lib/types"
+import type { Task, TaskCategory, DifficultyLevel } from "@/lib/types"
+import { escapeHtml } from "@/lib/utils"
 
 interface TaskDialogProps {
   open: boolean
@@ -31,7 +32,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
   const [duration, setDuration] = useState("25")
   const [taskCategory, setTaskCategory] = useState<TaskCategory>("focus")
   const [projectType, setProjectType] = useState("")
-  const [difficulty, setDifficulty] = useState("25")
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("medium")
   const [isFrog, setIsFrog] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,7 +42,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
       title,
       description,
       duration: Number.parseInt(duration),
-      difficulty: Number.parseInt(difficulty),
+      difficulty,
       taskCategory,
       projectType: projectType || undefined,
       isFrog,
@@ -54,7 +55,7 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
     setDuration("25")
     setTaskCategory("focus")
     setProjectType("")
-    setDifficulty("25")
+    setDifficulty("medium")
     setIsFrog(false)
   }
 
@@ -132,26 +133,26 @@ export function TaskDialog({ open, onOpenChange, onAddTask }: TaskDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="difficulty">Difficulty</Label>
-                <Select value={difficulty} onValueChange={setDifficulty}>
+                <Select value={difficulty} onValueChange={(value: string) => setDifficulty(value as DifficultyLevel)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="100">Physical/Logistics (100)</SelectItem>
-                    <SelectItem value="75">High Effort (75)</SelectItem>
-                    <SelectItem value="50">Medium Effort (50)</SelectItem>
-                    <SelectItem value="25">Low Effort (25)</SelectItem>
-                    <SelectItem value="13">Learning (13)</SelectItem>
+                    <SelectItem value="high">High Effort</SelectItem>
+                    <SelectItem value="medium">Medium Effort</SelectItem>
+                    <SelectItem value="low">Low Effort</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="isFrog">Priority Task</Label>
                 <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox id="isFrog" checked={isFrog} onCheckedChange={(checked) => setIsFrog(!!checked)} />
-                  <label htmlFor="isFrog" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Mark as "Eat the Frog" task
-                  </label>
+                  <Checkbox id="isFrog" checked={isFrog} onCheckedChange={(checked: boolean | "indeterminate") => setIsFrog(!!checked)} />
+                  <label
+                    htmlFor="isFrog"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    dangerouslySetInnerHTML={{ __html: escapeHtml('Mark as "Eat the Frog" task') }}
+                  />
                 </div>
               </div>
             </div>

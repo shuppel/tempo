@@ -21,18 +21,23 @@ export function CircularProgress({
   className
 }: CircularProgressProps) {
   const [displayProgress, setDisplayProgress] = React.useState(0)
+  const animationRef = React.useRef<NodeJS.Timeout | null>(null)
 
   React.useEffect(() => {
-    // Smoothly animate the progress value
+    // Guard: Only animate if displayProgress !== progress
+    if (displayProgress === progress) return;
+    if (animationRef.current) {
+      clearInterval(animationRef.current)
+    }
     const duration = 500 // Animation duration in milliseconds.
     const steps = 60 // Number of animation steps for smoothness.
     const stepDuration = duration / steps // Time per step.
     const increment = (progress - displayProgress) / steps // Value increment per step.
 
     let currentStep = 0
-    const timer = setInterval(() => {
+    animationRef.current = setInterval(() => {
       if (currentStep >= steps) {
-        clearInterval(timer)
+        if (animationRef.current) clearInterval(animationRef.current)
         setDisplayProgress(progress) // Ensure the final value is exact.
       } else {
         setDisplayProgress(prev => prev + increment)
@@ -40,8 +45,10 @@ export function CircularProgress({
       }
     }, stepDuration)
 
-    return () => clearInterval(timer) // Cleanup interval on unmount or progress update.
-  }, [progress])
+    return () => {
+      if (animationRef.current) clearInterval(animationRef.current)
+    }
+  }, [progress, displayProgress])
 
   // Calculate circle dimensions
   const radius = (size - strokeWidth) / 2

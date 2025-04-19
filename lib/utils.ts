@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Task, DifficultyLevel } from "./types"
+import type { Task } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -47,5 +47,18 @@ export function formatGitStyle(tasks: GitStyleTask[]): GitStyleTask[] {
   }
 
   return rootTasks.map(processChildren)
+}
+
+/**
+ * Escapes special characters for safe use in JSX/HTML.
+ * Converts ", ', <, >, &, etc. to their HTML entities.
+ */
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
