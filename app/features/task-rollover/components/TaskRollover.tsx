@@ -56,15 +56,13 @@ import {
   Clock,
   CheckCircle,
   Trash2,
-  ArrowRight,
   CheckCheck, 
-  X,
   AlertCircle,
   Square,
   CheckSquare
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/durationUtils";
+import { escapeHtml } from "@/lib/utils";
 import { useTaskRollover, IncompleteTask } from "../hooks/useTaskRollover";
 
 export interface TaskRolloverProps {
@@ -117,7 +115,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     }, 100);
     
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [checkForIncompleteTasks, hasIncompleteTasks]);
 
   // Show the finish question dialog if we have incomplete tasks
   useEffect(() => {
@@ -215,7 +213,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                       You have {incompleteTasks.length} incomplete tasks from your previous session.
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      If you've completed them, please mark the session as done and debrief.
+                      If you&apos;ve completed them, please mark the session as done and debrief.
                       If not, you can carry them over to today.
                     </p>
                   </div>
@@ -268,9 +266,11 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             <DialogTitle>Task Rollover</DialogTitle>
             <DialogDescription>
               {recentSession ? (
-                <span>
-                  Select tasks from {format(parseISO(recentSession.date), "EEEE, MMMM d")} to add to today's plan
-                </span>
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: `Select tasks from ${escapeHtml(format(parseISO(recentSession.date), "EEEE, MMMM d"))} to add to today&#39;s plan`
+                  }}
+                />
               ) : (
                 <span>Select tasks from your previous session</span>
               )}

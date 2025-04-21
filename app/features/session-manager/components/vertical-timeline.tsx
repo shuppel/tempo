@@ -33,12 +33,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "../../../components/ui/alert-dialog"
 import { format } from "date-fns"
-import type { StoryBlock, TimeBox, TimeBoxTask, TimeBoxStatus } from "@/lib/types"
+import type { StoryBlock, TimeBoxTask, TimeBoxStatus } from "@/lib/types"
 import { timeboxTypeConfig, statusColorConfig } from "../config/timeline-config"
-import { SessionDebriefModal, SessionDebriefData } from "./session-debrief-modal"
+import { SessionDebriefModal } from "./session-debrief-modal"
 import { useDebriefStorage } from "../services/debrief-storage.service"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -47,7 +46,6 @@ export interface VerticalTimelineProps {
   storyBlocks: StoryBlock[]
   activeTimeBoxId?: string
   activeStoryId?: string
-  activeTimeBoxIndex?: number
   startTime?: string
   completedPercentage: number
   onTaskClick?: (storyId: string, timeBoxIndex: number, taskIndex: number, task: TimeBoxTask) => void
@@ -63,7 +61,6 @@ export const VerticalTimeline = ({
   storyBlocks,
   activeTimeBoxId,
   activeStoryId,
-  activeTimeBoxIndex,
   startTime,
   completedPercentage,
   onTaskClick,
@@ -74,7 +71,6 @@ export const VerticalTimeline = ({
   onStartSessionDebrief,
   isCompactView = false
 }: VerticalTimelineProps) => {
-  const [visibleBoxes, setVisibleBoxes] = useState<Set<string>>(new Set())
   const [confirmComplete, setConfirmComplete] = useState<{storyId: string, timeBoxIndex: number} | null>(null)
   const [confirmTaskComplete, setConfirmTaskComplete] = useState<{storyId: string, timeBoxIndex: number, taskIndex: number, task: TimeBoxTask} | null>(null)
   // Ready to start popup state
@@ -85,10 +81,9 @@ export const VerticalTimeline = ({
   const [lastNextActionId, setLastNextActionId] = useState<string | null>(null)
   
   // Add state to track if session debrief is active
-  const [sessionDebriefActive, setSessionDebriefActive] = useState(false)
   const [sessionDebriefCompleted, setSessionDebriefCompleted] = useState(false)
   const [sessionDebriefModalOpen, setSessionDebriefModalOpen] = useState(false)
-  const { saveDebrief, isSaving, getDebrief } = useDebriefStorage()
+  const { saveDebrief, getDebrief } = useDebriefStorage()
   const { toast } = useToast()
   const router = useRouter()
   
@@ -254,36 +249,6 @@ export const VerticalTimeline = ({
     }
   }, [safeCompleteTask]);
   
-  // Set up intersection observer to track which items are visible
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Instead of animating items one by one as they come into view,
-        // just mark all items as visible immediately after component mounts
-        const visibleIds = entries.map(entry => entry.target.getAttribute('data-id')).filter(Boolean) as string[];
-        setVisibleBoxes(new Set(visibleIds));
-      },
-      { 
-        threshold: 0.1,
-        rootMargin: "-5% 0px -5% 0px"
-      }
-    )
-    
-    // Query all timeline items and observe them
-    const items = document.querySelectorAll('.timeline-item')
-    items.forEach(item => observer.observe(item))
-    
-    // Mark all items as visible immediately
-    setTimeout(() => {
-      const allIds = Array.from(items).map(item => item.getAttribute('data-id')).filter(Boolean) as string[];
-      setVisibleBoxes(new Set(allIds));
-    }, 100);
-    
-    return () => {
-      observer.disconnect()
-    }
-  }, [storyBlocks])
-  
   // Calculate accumulated duration up to a specific timeBox
   const calculateAccumulatedDuration = (targetStoryIndex: number, targetTimeBoxIndex: number) => {
     let totalMinutes = 0
@@ -365,24 +330,8 @@ export const VerticalTimeline = ({
         actualStart,
         actualEnd
       }
-    } catch (e) {
+    } catch {
       return { start: "", end: "", isAdjusted: false, actualStart: "", actualEnd: "" }
-    }
-  }
-  
-  // Helper function to get button classes for different break types
-  const getBreakButtonClasses = (color: string) => {
-    switch(color) {
-      case 'teal':
-        return "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 dark:bg-teal-950/30 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-900/50"
-      case 'violet':
-        return "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/50"
-      case 'amber':
-        return "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/50"
-      case 'rose':
-        return "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-900/50"
-      default:
-        return "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
     }
   }
   
@@ -535,7 +484,6 @@ export const VerticalTimeline = ({
     
     // Calculate derived metrics
     const totalSessionTime = totalFocusTime + totalBreakTime;
-    const timeSaved = Math.max(0, totalPlannedTime - totalActualTime);
     const averageBreakDuration = breakCount > 0 ? Math.round(totalBreakTime / breakCount) : 0;
     const focusConsistency = totalFocusSessions > 0 
       ? Math.min(10, Math.round((completedFocusSessions / totalFocusSessions) * 10)) 
@@ -881,66 +829,6 @@ export const VerticalTimeline = ({
                       // Calculate time estimates for this timebox
                       const timeEstimates = calculateTimeEstimates(storyIndex, timeBoxIndex)
                       
-                      // Show a tooltip explaining adjusted time estimates if needed
-                      const timeEstimateTooltip = timeEstimates.isAdjusted
-                        ? `Scheduled time: ${timeEstimates.start} - ${timeEstimates.end} (adjusted)`
-                        : `Scheduled time: ${timeEstimates.start} - ${timeEstimates.end}`
-                        
-                      // Add tooltip content for actual duration if completed
-                      const tooltipContent = (
-                        <>
-                          <div className="font-medium mb-1">{config.title}</div>
-                          
-                          {/* Planned information */}
-                          <div className="mb-2">
-                            <div className="text-sm font-medium">Planned</div>
-                            <div>Duration: {timeBox.duration} minutes</div>
-                            <div>Scheduled time: {timeEstimates.start} - {timeEstimates.end}</div>
-                          </div>
-                          
-                          {/* Actual time information for completed tasks */}
-                          {timeBox.actualDuration !== undefined && timeBox.status === 'completed' && (
-                            <div className="mt-2 p-2 rounded border border-gray-200 dark:border-gray-700">
-                              <div className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Actual Completion</div>
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium text-sm">
-                                    Duration: {timeBox.actualDuration} minutes
-                                  </span>
-                                  
-                                  {timeBox.duration !== timeBox.actualDuration && (
-                                    <span className={cn(
-                                      "ml-2 text-xs px-2 py-0.5 rounded-full font-medium",
-                                      timeBox.actualDuration < timeBox.duration
-                                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                    )}>
-                                      {timeBox.actualDuration < timeBox.duration 
-                                        ? `Saved ${timeBox.duration - timeBox.actualDuration} min` 
-                                        : `Added ${timeBox.actualDuration - timeBox.duration} min`}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                {/* Calculate efficiency percentage */}
-                                {timeBox.actualDuration < timeBox.duration && (
-                                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
-                                    You completed this task {Math.round((1 - timeBox.actualDuration / timeBox.duration) * 100)}% faster than planned!
-                                  </div>
-                                )}
-                                
-                                {/* Display actual time period */}
-                                {timeEstimates.actualStart && timeEstimates.actualEnd && (
-                                  <div className="mt-1 text-sm">
-                                    Time: {timeEstimates.actualStart} - {timeEstimates.actualEnd}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )
-                      
                       // Animation variants
                       const boxAnimation = {
                         hidden: { opacity: 0, y: 20 },
@@ -1160,7 +1048,46 @@ export const VerticalTimeline = ({
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="z-[9999] bg-white dark:bg-gray-900 shadow-lg px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-800 text-sm">
-                                  {tooltipContent}
+                                  {/* Add tooltip content for actual duration if completed */}
+                                  {timeBox.actualDuration !== undefined && timeBox.status === 'completed' && (
+                                    <div className="mt-2 p-2 rounded border border-gray-200 dark:border-gray-700">
+                                      <div className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Actual Completion</div>
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-medium text-sm">
+                                            Duration: {timeBox.actualDuration} minutes
+                                          </span>
+                                          
+                                          {timeBox.duration !== timeBox.actualDuration && (
+                                            <span className={cn(
+                                              "ml-2 text-xs px-2 py-0.5 rounded-full font-medium",
+                                              timeBox.actualDuration < timeBox.duration
+                                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                            )}>
+                                              {timeBox.actualDuration < timeBox.duration 
+                                                ? `Saved ${timeBox.duration - timeBox.actualDuration} min` 
+                                                : `Added ${timeBox.actualDuration - timeBox.duration} min`}
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Calculate efficiency percentage */}
+                                        {timeBox.actualDuration < timeBox.duration && (
+                                          <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
+                                            You completed this task {Math.round((1 - timeBox.actualDuration / timeBox.duration) * 100)}% faster than planned!
+                                          </div>
+                                        )}
+                                        
+                                        {/* Display actual time period */}
+                                        {timeEstimates.actualStart && timeEstimates.actualEnd && (
+                                          <div className="mt-1 text-sm">
+                                            Time: {timeEstimates.actualStart} - {timeEstimates.actualEnd}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </TooltipContent>
                               </Tooltip>
                             </div>
@@ -1469,7 +1396,6 @@ export const VerticalTimeline = ({
                             if (completedPercentage === 100 && typeof onStartSessionDebrief === 'function') {
                               // 10 minutes for the debrief by default
                               onStartSessionDebrief(10);
-                              setSessionDebriefActive(true);
                               setSessionDebriefModalOpen(true);
                               console.log("Opening debrief modal, modal state:", true);
                             } else {
@@ -1519,7 +1445,6 @@ export const VerticalTimeline = ({
             console.log("Saving debrief data:", data);
             await saveDebrief(data);
             setSessionDebriefCompleted(true);
-            setSessionDebriefActive(false);
             setSessionDebriefModalOpen(false);
             
             // Navigate to home page after debrief is completed

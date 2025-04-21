@@ -93,7 +93,7 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const [brainDumpText, setBrainDumpText] = useState('');
   
   // Track if the service is enabled
-  const [serviceEnabled, setServiceEnabled] = useState(() => {
+  const [serviceEnabled] = useState(() => {
     // Read from localStorage with a default of true
     const savedSetting = localStorage.getItem(SERVICE_ENABLED_KEY);
     // Default to enabled if not set
@@ -270,15 +270,6 @@ export function useTaskRollover(): UseTaskRolloverReturn {
       router.push(`/session/${recentSession.date}`);
     }
   }, [recentSession, router]);
-
-  // Toggle the service enabled state
-  const toggleServiceEnabled = useCallback(() => {
-    setServiceEnabled(prev => {
-      const newValue = !prev;
-      localStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
-      return newValue;
-    });
-  }, []);
 
   return {
     isOpen,

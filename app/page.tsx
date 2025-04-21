@@ -30,12 +30,12 @@ export default function Home() {
     const totalFrogs = stories.reduce((acc, story) => 
       acc + story.tasks.filter((task) => task.isFrog).length, 0)
     
-    setStats(prevStats => ({
+    setStats({
       totalTasks,
       totalDuration: Math.round(totalDuration),
       totalStories: stories.length,
       totalFrogs
-    }))
+    })
   }, [])
 
   const formattedDuration = useMemo(() => {

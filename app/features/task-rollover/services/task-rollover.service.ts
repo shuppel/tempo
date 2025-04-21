@@ -13,7 +13,7 @@
  * - Session archiving integration
  */
 import { SessionStorageService } from "@/app/features/session-manager";
-import { TimeBoxTask, Session, StoryBlock, TimeBox } from "@/lib/types";
+import { TimeBoxTask, Session } from "@/lib/types";
 import { formatDuration } from "@/lib/durationUtils";
 
 export class TaskRolloverService {

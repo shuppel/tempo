@@ -725,7 +725,7 @@ export const useSession = ({
           setSession(loadedSession)
           
           // Load timer state from storage first
-          const timerState = storageService.getTimerState(id)
+          const timerState = await storageService.getTimerState(id)
           
           if (timerState && timerState.activeTimeBox) {
             // Use persisted timer state if available
@@ -740,8 +740,8 @@ export const useSession = ({
               // Set time remaining based on the stored remaining time or default to full duration
               const storyIndex = loadedSession.storyBlocks.findIndex(s => s.id === inProgressTimeBox.storyId)
               if (storyIndex !== -1) {
-                const timeBox = loadedSession.storyBlocks[storyIndex].timeBoxes[inProgressTimeBox.timeBoxIndex]
-                setTimeRemaining((timeBox as any).remainingTime || timeBox.duration * 60)
+                const timeBox = loadedSession.storyBlocks[storyIndex].timeBoxes[inProgressTimeBox.timeBoxIndex] as TimeBox
+                setTimeRemaining((timeBox as TimeBox & { remainingTime?: number }).remainingTime ?? timeBox.duration * 60)
               }
             }
           }
@@ -763,8 +763,7 @@ export const useSession = ({
       // Save current timer state if session exists
       if (session?.date) {
         // Calculate the exact remaining time for accurate persistence
-        let exactTimeRemaining = timeRemaining
-        
+        const exactTimeRemaining = timeRemaining
         // If timer is running, adjust the time for accuracy
         if (isTimerRunning && timerIdRef.current) {
           // We can't depend on exact calculations during unload, so we just save what we know

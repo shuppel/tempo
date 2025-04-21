@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { use } from "react"
 import { SessionStorageService } from "@/app/features/session-manager"
 import { Button } from "@/components/ui/button"
@@ -42,10 +42,6 @@ const DialogContent = React.forwardRef<
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
-interface PageParams {
-  date: string
-}
-
 interface SessionPageProps {
   params: { date: string } | Promise<{ date: string }>
 }
@@ -56,7 +52,7 @@ export default function SessionPage({ params }: SessionPageProps) {
   const { date } = unwrappedParams
   const router = useRouter()
   
-  const storageService = new SessionStorageService()
+  const storageService = useMemo(() => new SessionStorageService(), [])
   const [isLoading, setIsLoading] = useState(true)
   const [hasSession, setHasSession] = useState(false)
   const [sessionData, setSessionData] = useState<Session | null>(null)
@@ -107,7 +103,7 @@ export default function SessionPage({ params }: SessionPageProps) {
         clearInterval(intervalId);
       }
     };
-  }, [date, showStartModal])
+  }, [date, showStartModal, storageService])
 
   // Get time estimates using the utility function
   const { totalTime, estimatedEnd } = sessionData ? 

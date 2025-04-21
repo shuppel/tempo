@@ -3,7 +3,6 @@ import type {
   StoryBlock, 
   TimeBox, 
   TimeBoxTask,
-  BaseStatus,
   TimeBoxStatus,
   SessionStatus
 } from "@/lib/types"
@@ -17,7 +16,7 @@ export class SessionStorageService {
    */
   async getSession(date: string): Promise<Session | null> {
     console.log(`[SessionStorageService] Getting session for date: ${date}`)
-    let storedSession: any = null;
+    let storedSession: import("@/lib/sessionStorage").StoredSession | null = null;
     try {
       storedSession = await sessionStorage.getSession(date);
     } catch (error) {
@@ -39,11 +38,11 @@ export class SessionStorageService {
       return null
     }
     
-    console.log(`[SessionStorageService] Found session for date: ${date} with ${storedSession.storyBlocks?.length || 0} story blocks`)
+    console.log(`[SessionStorageService] Found session for date: ${date} with ${Array.isArray(storedSession.storyBlocks) ? storedSession.storyBlocks.length : 0} story blocks`)
     
     return {
       date: this.formatDate(date),
-      storyBlocks: storedSession.storyBlocks || [],
+      storyBlocks: Array.isArray(storedSession.storyBlocks) ? storedSession.storyBlocks : [],
       status: (storedSession.status as SessionStatus) || 'planned',
       totalDuration: storedSession.totalDuration || 0,
       lastUpdated: storedSession.lastUpdated || new Date().toISOString()
@@ -123,7 +122,7 @@ export class SessionStorageService {
    */
   async getAllSessions(): Promise<Session[]> {
     console.log(`[SessionStorageService] Getting all sessions`)
-    let storedSessions: Record<string, any> = {};
+    let storedSessions: Record<string, import("@/lib/sessionStorage").StoredSession> = {};
     try {
       storedSessions = await sessionStorage.getAllSessions();
     } catch (error) {
@@ -149,7 +148,7 @@ export class SessionStorageService {
         console.log(`[SessionStorageService] Found ${sessionKeys.length} raw session keys, but they were not loaded by sessionStorage:`, sessionKeys);
         
         // Try to manually retrieve and fix this
-        const manuallyLoadedSessions = [];
+        const manuallyLoadedSessions: Session[] = [];
         for (const key of sessionKeys) {
           try {
             const rawData = localStorage.getItem(key);
@@ -158,7 +157,7 @@ export class SessionStorageService {
               const date = key.replace('session-', '');
               manuallyLoadedSessions.push({
                 date: this.formatDate(date),
-                storyBlocks: sessionData.storyBlocks || [],
+                storyBlocks: Array.isArray(sessionData.storyBlocks) ? sessionData.storyBlocks : [],
                 status: (sessionData.status as SessionStatus) || 'planned',
                 totalDuration: sessionData.totalDuration || 0,
                 lastUpdated: sessionData.lastUpdated || new Date().toISOString()
@@ -179,10 +178,10 @@ export class SessionStorageService {
     
     return Object.entries(storedSessions).map(([date, session]) => ({
       date: this.formatDate(date),
-      storyBlocks: session.storyBlocks,
+      storyBlocks: Array.isArray(session.storyBlocks) ? session.storyBlocks : [],
       status: (session.status as SessionStatus) || 'planned',
-      totalDuration: session.totalDuration,
-      lastUpdated: session.lastUpdated
+      totalDuration: session.totalDuration || 0,
+      lastUpdated: session.lastUpdated || new Date().toISOString()
     }))
   }
 
@@ -203,14 +202,14 @@ export class SessionStorageService {
       })
       
       // Verify the session was saved
-      const verifySession: any = await sessionStorage.getSession(formattedDate)
+      const verifySession: import("@/lib/sessionStorage").StoredSession | null = await sessionStorage.getSession(formattedDate)
       if (!verifySession) {
         console.error(`[SessionStorageService] Failed to verify session save for date: ${formattedDate}`)
       } else {
         console.log(`[SessionStorageService] Successfully saved and verified session for date: ${formattedDate}`)
       }
-    } catch (error) {
-      console.error(`[SessionStorageService] Error saving session for date: ${formattedDate}`, error)
+    } catch (_error) {
+      console.error(`[SessionStorageService] Error saving session for date: ${formattedDate}`, _error)
     }
   }
 
@@ -239,7 +238,7 @@ export class SessionStorageService {
     
     console.log(`[SessionStorageService] Updating task status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex} to ${status}`);
     
-    const result = sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
+    const result = await sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
     console.log(`[SessionStorageService] Task status update result: ${result}`);
     
     return result;
@@ -495,8 +494,8 @@ export class SessionStorageService {
     try {
       const timerState = await sessionStorage.getTimerState(date);
       return timerState;
-    } catch (error) {
-      console.error(`[SessionStorageService] Error getting timer state for date: ${date}`, error);
+    } catch (_error) {
+      console.error(`[SessionStorageService] Error getting timer state for date: ${date}`, _error);
       return null;
     }
   }
@@ -518,7 +517,7 @@ export class SessionStorageService {
       const day = String(parsedDate.getDate()).padStart(2, '0')
       return `${year}-${month}-${day}`
     } catch (error) {
-      console.error('Failed to parse date:', date)
+      console.error('Failed to parse date:', date, error)
       return date // Return original if parsing fails
     }
   }
@@ -526,25 +525,63 @@ export class SessionStorageService {
   /**
    * Normalize a session object to ensure all required fields are present
    */
-  private normalizeSession(session: any): Session {
+  private normalizeSession(session: unknown): Session {
     if (!session || typeof session !== 'object') {
       throw new Error('Invalid session data')
     }
-
+    const s = session as { [key: string]: unknown };
     // Ensure date is in correct format
-    const date = this.formatDate(session.date)
-
+    const date = typeof s.date === 'string' ? this.formatDate(s.date) : '';
     return {
-      ...session,
       date,
-      status: session.status || 'planned',
-      storyBlocks: session.storyBlocks || [],
-      totalDuration: session.totalDuration || 0,
-      lastUpdated: session.lastUpdated || new Date().toISOString()
+      status: (s.status as SessionStatus) || 'planned',
+      storyBlocks: Array.isArray(s.storyBlocks) ? s.storyBlocks as StoryBlock[] : [],
+      totalDuration: typeof s.totalDuration === 'number' ? s.totalDuration : 0,
+      lastUpdated: typeof s.lastUpdated === 'string' ? s.lastUpdated : new Date().toISOString()
     }
   }
 
   private getKey(date: string): string {
     return `${SESSION_PREFIX}${date}`
+  }
+
+  /**
+   * Archive a session by setting its status to 'archived'
+   */
+  async archiveSession(date: string): Promise<boolean> {
+    try {
+      const formattedDate = this.formatDate(date);
+      const session = await this.getSession(formattedDate);
+      if (!session) {
+        console.error(`[SessionStorageService] No session found to archive for date: ${formattedDate}`);
+        return false;
+      }
+      session.status = 'archived';
+      await this.saveSession(formattedDate, session);
+      return true;
+    } catch (error) {
+      console.error(`[SessionStorageService] Error archiving session for date: ${date}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Unarchive a session by setting its status to 'planned'
+   */
+  async unarchiveSession(date: string): Promise<boolean> {
+    try {
+      const formattedDate = this.formatDate(date);
+      const session = await this.getSession(formattedDate);
+      if (!session) {
+        console.error(`[SessionStorageService] No session found to unarchive for date: ${formattedDate}`);
+        return false;
+      }
+      session.status = 'planned';
+      await this.saveSession(formattedDate, session);
+      return true;
+    } catch (error) {
+      console.error(`[SessionStorageService] Error unarchiving session for date: ${date}:`, error);
+      return false;
+    }
   }
 }

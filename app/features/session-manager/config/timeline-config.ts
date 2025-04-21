@@ -1,13 +1,10 @@
 import { 
-  Clock, 
   CheckCircle2, 
-  Play, 
   Pause, 
   Coffee, 
   FileText, 
   Brain,
-  LucideIcon,
-  Calendar
+  LucideIcon
 } from "lucide-react"
 
 export interface TimeboxTypeConfig {
