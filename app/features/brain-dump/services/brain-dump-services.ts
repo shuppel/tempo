@@ -5,13 +5,10 @@ import { SessionStorageService } from "@/app/features/session-manager"
 import { isApiError } from "../types"
 import { 
   DURATION_RULES,
-  validateTaskDuration,
   roundToNearestBlock,
-  calculateTotalDuration,
-  type TimeBox
 } from "@/lib/durationUtils"
 import { TaskPersistenceService } from '../../../features/task-persistence/services/task-persistence.service'
-import type { BaseStatus } from '@/lib/types'
+import type { BaseStatus, StoryBlock, TimeBox, TimeBoxTask } from '@/lib/types'
 
 // Create a singleton instance of SessionStorageService
 const sessionStorage = new SessionStorageService()
@@ -68,10 +65,13 @@ const modifyStoriesForRetry = (stories: ProcessedStory[], error: { details?: { b
   // Create a deep copy to avoid mutating the original data
   const modifiedStories = JSON.parse(JSON.stringify(stories)) as ProcessedStory[]
   
-  console.log('Modifying stories for retry. Error details:', error?.details)
+  // Type guard for error.details
+  const errorWithDetails = (typeof error === 'object' && error !== null && 'details' in error) ? error as { details?: { block?: string; preventiveModification?: boolean } } : undefined;
+  
+  console.log('Modifying stories for retry. Error details:', errorWithDetails?.details)
   
   // Check if we have a specific error for a block
-  const problematicBlock = error?.details?.block
+  const problematicBlock = errorWithDetails?.details?.block
   
   // More aggressive task splitting - use duration rules from durationUtils
   modifiedStories.forEach(story => {
@@ -431,7 +431,7 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
         console.warn('Session response missing valid totalDuration, calculating from story blocks')
         
         const calculatedTotalDuration = data.storyBlocks.reduce(
-          (sum: number, block: any) => sum + (block.totalDuration || 0), 
+          (sum: number, block: StoryBlock) => sum + (block.totalDuration || 0), 
           0
         )
         
@@ -468,17 +468,20 @@ const createSession = async (stories: ProcessedStory[], startTime: string, maxRe
           startTime: startTime,
           endTime: new Date(new Date(startTime).getTime() + (data.totalDuration * 60 * 1000)).toISOString(),
           // Add required StoryBlock fields if missing
-          storyBlocks: data.storyBlocks.map((block: any, index: number) => ({
+          storyBlocks: (data.storyBlocks as StoryBlock[]).map((block: StoryBlock, index: number) => ({
             ...block,
             id: block.id || `story-${index}-${Date.now()}`,
             progress: 0,
-            timeBoxes: (block.timeBoxes || []).map((timeBox: any, boxIndex: number) => ({
-              ...timeBox,
-              status: timeBox.status || 'todo',
+            timeBoxes: (block.timeBoxes || []).map((timeBox: TimeBox) => ({
+              ...((typeof timeBox === 'object' && timeBox !== null) ? timeBox : {}),
+              status: (typeof timeBox === 'object' && timeBox !== null && 'status' in timeBox) ? (timeBox as { status?: string }).status || 'todo' : 'todo',
               // Ensure task fields are correctly structured
-              tasks: (timeBox.tasks || []).map((task: any) => ({
-                ...task,
-                status: task.status || 'todo'
+              tasks: (typeof timeBox === 'object' && timeBox !== null && 'tasks' in timeBox && Array.isArray((timeBox as TimeBox).tasks)
+                ? ((timeBox as TimeBox).tasks ?? [])
+                : []
+              ).map((task: TimeBoxTask) => ({
+                ...((typeof task === 'object' && task !== null) ? task : {}),
+                status: (typeof task === 'object' && task !== null && 'status' in task) ? (task as { status?: string }).status || 'todo' : 'todo'
               }))
             }))
           }))

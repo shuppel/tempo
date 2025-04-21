@@ -1,13 +1,12 @@
 import * as React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, Clock, Pause, Brain, FileText, CheckCircle, Circle, Play, X, ChevronRight, ChevronDown, CircleDot, Undo2 } from "lucide-react"
+import { CheckCircle2, Clock, Pause, Brain, FileText, CheckCircle, Circle, Play, X, Undo2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { format } from "date-fns"
 import type { StoryBlock, TimeBox, TimeBoxTask } from "@/lib/types"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import {
   Tooltip,
   TooltipContent,
@@ -76,9 +75,6 @@ export const TimeboxView = ({
   // Track if this is the first time the component is rendered
   const [isFirstRender, setIsFirstRender] = useState(true);
   
-  // Ref to track the first start button
-  const firstStartButtonRef = useRef<HTMLButtonElement | null>(null);
-  
   // Determine if we should show animation guidance
   const [showGuidance, setShowGuidance] = useState(false);
   
@@ -136,16 +132,23 @@ export const TimeboxView = ({
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [showCaptionBubble, startButtonRef.current, captionBubbleRef.current])
+  }, [showCaptionBubble])
+  
+  // Helper function to check if a timebox is the current active one
+  const isTimeBoxActiveById = useCallback((storyId: string, timeBoxIndex: number): boolean => {
+    const story = storyBlocks.find(s => s.id === storyId);
+    if (!story) return false;
+    const timeBox = story.timeBoxes[timeBoxIndex];
+    if (!timeBox) return false;
+    return isCurrentTimeBox(timeBox);
+  }, [storyBlocks, isCurrentTimeBox]);
   
   // Find the first todo timebox (work or break)
-  const findFirstTodoTimeBox = () => {
+  const findFirstTodoTimeBox = useCallback(() => {
     // Skip stories without ids
-    if (!storyBlocks.length) return null
-    
+    if (!storyBlocks.length) return null;
     for (const story of storyBlocks) {
       if (!story.id) continue; // Skip stories without IDs
-      
       for (let i = 0; i < story.timeBoxes.length; i++) {
         const timeBox = story.timeBoxes[i];
         if (timeBox.status === 'todo' && !isTimeBoxActiveById(story.id, i)) {
@@ -159,7 +162,7 @@ export const TimeboxView = ({
       }
     }
     return null;
-  };
+  }, [storyBlocks, isTimeBoxActiveById]);
   
   // Update nextActionTimebox when component mounts or storyBlocks changes
   useEffect(() => {
@@ -172,18 +175,7 @@ export const TimeboxView = ({
     } else {
       setNextActionTimebox(null);
     }
-  }, [storyBlocks]);
-  
-  // Helper function to check if a timebox is the current active one
-  const isTimeBoxActiveById = (storyId: string, timeBoxIndex: number): boolean => {
-    const story = storyBlocks.find(s => s.id === storyId);
-    if (!story) return false;
-    
-    const timeBox = story.timeBoxes[timeBoxIndex];
-    if (!timeBox) return false;
-    
-    return isCurrentTimeBox(timeBox);
-  };
+  }, [storyBlocks, findFirstTodoTimeBox]);
   
   const firstTodoTimeBox = findFirstTodoTimeBox();
   const isFirstTodoTimeBox = (storyId: string, timeBoxIndex: number) => 
@@ -294,7 +286,7 @@ export const TimeboxView = ({
                   const config = timeboxTypeConfig[timeBox.type as keyof typeof timeboxTypeConfig] || timeboxTypeConfig.work;
                   const Icon = config.icon;
                   const isCompleted = timeBox.status === "completed";
-                  const isActive = isCurrentTimeBox(timeBox);
+                  const isActive = isTimeBoxActiveById(storyId, timeBoxIndex);
                   const isWork = timeBox.type === "work";
                     const isCurrentFirstTodo = isFirstTodoTimeBox(storyId, timeBoxIndex);
                     const shouldHighlightNextAction = isNextAction(storyId, timeBoxIndex);

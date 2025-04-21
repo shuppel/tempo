@@ -32,7 +32,7 @@
 
 ## BUGS 03/21/2025
 [ ] The focus cards for some reason are adding time to the elapsed time and unable to solve using claude/cursor(not getting it)
-[ ]The ghost text on the front page is now not seperate lines. We should be on seperate lines.
+[x]The ghost text on the front page is now not seperate lines. We should be on seperate lines.
 [ ]The work blocks div that is all white needs to be dark (in dark mode) 
 [ ]Need to be able to edit the work blocks (click and edit, very simple)
 [ ]Rate limits, hardening prior to production. 

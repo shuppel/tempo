@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { StoredSession } from '@/lib/sessionStorage';
 
 // In a real application, we would use a database to store these, but for this demo,
 // we'll use in-memory storage that will be reset when the server restarts
-let clientIDs: Record<string, number> = {};
-let sessionStore: Record<string, any> = {};
+const clientIDs: Record<string, number> = {};
+const sessionStore: Record<string, StoredSession> = {};
 let version = 0;
 
 // Important: This is just a simple demo for cross-browser syncing
@@ -36,7 +37,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePull(pullRequest: any) {
+interface PullRequest {
+  pull: {
+    clientID: string;
+  };
+}
+
+async function handlePull(pullRequest: PullRequest) {
   const { clientID } = pullRequest.pull;
   
   // Get the client's last mutation ID, or 0 if it's a new client
@@ -62,7 +69,24 @@ async function handlePull(pullRequest: any) {
   });
 }
 
-async function handlePush(pushRequest: any) {
+interface PushMutation {
+  id: number;
+  name: string;
+  args: {
+    date: string;
+    session?: StoredSession;
+    [key: string]: unknown;
+  };
+}
+
+interface PushRequest {
+  push: {
+    clientID: string;
+    mutations: PushMutation[];
+  };
+}
+
+async function handlePush(pushRequest: PushRequest) {
   const { clientID, mutations } = pushRequest.push;
   
   // Initialize the client's last mutation ID if it doesn't exist
@@ -89,11 +113,15 @@ async function handlePush(pushRequest: any) {
     // Process the mutation based on its name
     switch (name) {
       case 'saveSession':
-        sessionStore[`session-${args.date}`] = args.session;
+        if (args.session && typeof args.date === 'string') {
+          sessionStore[`session-${args.date}`] = args.session;
+        }
         break;
         
       case 'deleteSession':
-        delete sessionStore[`session-${args.date}`];
+        if (typeof args.date === 'string') {
+          delete sessionStore[`session-${args.date}`];
+        }
         break;
         
       case 'clearAllSessions':

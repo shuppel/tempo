@@ -1,14 +1,10 @@
 // /features/brain-dump/hooks/useBrainDump.ts
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { brainDumpService } from "@/app/features/brain-dump/services/brain-dump-services"
-import { SessionStorageService } from "@/app/features/session-manager"
-import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { TaskRolloverService } from "@/app/features/task-rollover"
 import { ErrorDetails } from "../types"
-
-// Create a singleton instance of SessionStorageService
-const sessionStorage = new SessionStorageService()
+import type { ProcessedStory, ProcessedTask } from "@/lib/types"
 
 export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => void) {
   const router = useRouter()
@@ -66,7 +62,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     setTaskProcessingError(null)
 
     try {
-      const taskList = tasks.split("\n").filter(task => task.trim())
+      const taskList = tasks.split("\n").filter((task: string) => task.trim())
       
       if (taskList.length === 0) {
         throw new Error("Please enter at least one task")
@@ -112,15 +108,15 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
     } catch (error) {
       console.error("Failed to process tasks:", error)
       
-      let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
-      let errorCode = 'UNKNOWN_ERROR'
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      const errorCode = 'UNKNOWN_ERROR'
       let errorDetails = error
 
       // Error handling logic
       if (error instanceof Error && typeof error.message === 'string') {
         try {
           if (error.message.includes('Details:')) {
-            const [message, details] = error.message.split('\n\nDetails:')
+            const [, details] = error.message.split('\n\nDetails:')
             try {
               const parsedDetails = JSON.parse(details)
               errorDetails = parsedDetails
@@ -131,16 +127,16 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
                     ...parsedDetails,
                     response: parsedResponse
                   }
-                } catch (e) {
+                } catch {
                   // Keep the original response if parsing fails
                 }
               }
-            } catch (e) {
+            } catch {
               errorDetails = details.trim()
             }
-            errorMessage = message.trim()
           }
-        } catch (e) {
+        } catch {
+          // If parsing fails, use the original error message
           errorDetails = error.message
         }
       }
@@ -172,7 +168,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       const updatedStories = processedStories.map(story => ({
         ...story,
         estimatedDuration: editedDurations[story.title] || story.estimatedDuration,
-        tasks: story.tasks.map(task => ({ ...task })),
+        tasks: story.tasks.map((task: ProcessedTask) => ({ ...task })),
         projectType: story.projectType || 'Default Project',
         category: story.category || 'Development'
       }))
@@ -273,9 +269,9 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
           console.log(`[useBrainDump] Archiving previous session: ${recentSession.date}`);
           await rolloverService.archiveSession(recentSession.date);
         }
-      } catch (archiveError) {
+      } catch {
         // Log but don't fail if archiving fails
-        console.error('[useBrainDump] Error archiving previous session:', archiveError);
+        console.error('[useBrainDump] Error archiving previous session');
       }
 
       // Navigate to the newly created session page
@@ -293,7 +289,7 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       console.error("Failed to create session:", error)
       
       // Detailed error handling
-      let errorMessage = error instanceof Error ? error.message : 'Failed to create session'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create session'
       let errorCode = 'SESSION_ERROR'
       let errorDetails = error
       
@@ -301,14 +297,13 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
       if (error instanceof Error) {
         if (error.message.includes('Details:')) {
           try {
-            const [message, details] = error.message.split('\n\nDetails:')
-            errorMessage = message.trim()
+            const [, details] = error.message.split('\n\nDetails:')
             try {
               errorDetails = JSON.parse(details.trim())
             } catch {
               errorDetails = details.trim()
             }
-          } catch (e) {
+          } catch {
             // If parsing fails, use the original error message
             errorDetails = error.message
           }
@@ -317,10 +312,8 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
         // Check for specific error messages
         if (error.message.includes('work time') && error.message.includes('break')) {
           errorCode = 'EXCESSIVE_WORK_TIME'
-          errorMessage = 'Session contains too much consecutive work time without breaks. Try splitting large tasks or adding breaks.'
         } else if (error.message.includes('duration')) {
           errorCode = 'INVALID_DURATION'
-          errorMessage = 'Invalid session duration. Please check your task durations.'
         }
       }
       
@@ -433,24 +426,24 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
           const scaleFactor = newDuration / oldDuration
 
           // Scale task durations proportionally and round to nearest minute
-          const updatedTasks = story.tasks.map(task => ({
+          const updatedTasks = story.tasks.map((task: ProcessedTask) => ({
             ...task,
             duration: Math.max(1, Math.round(task.duration * scaleFactor))
           }))
 
           // Calculate total after initial scaling
-          let totalTaskDuration = updatedTasks.reduce((sum, task) => sum + task.duration, 0)
+          let totalTaskDuration = updatedTasks.reduce((sum: number, task: ProcessedTask) => sum + task.duration, 0)
           
           // Distribute any remaining difference across tasks evenly
           if (totalTaskDuration !== newDuration) {
             const diff = newDuration - totalTaskDuration
             const tasksToAdjust = [...updatedTasks]
-              .sort((a, b) => b.duration - a.duration) // Sort by duration descending
+              .sort((a: ProcessedTask, b: ProcessedTask) => b.duration - a.duration) // Sort by duration descending
               .slice(0, Math.abs(diff)) // Take as many tasks as we need to adjust
 
             // Add or subtract 1 minute from each task until we reach the target
-            tasksToAdjust.forEach(task => {
-              const taskIndex = updatedTasks.findIndex(t => t.title === task.title)
+            tasksToAdjust.forEach((task: ProcessedTask) => {
+              const taskIndex = updatedTasks.findIndex((t: ProcessedTask) => t.title === task.title)
               if (taskIndex !== -1) {
                 updatedTasks[taskIndex].duration += diff > 0 ? 1 : -1
                 totalTaskDuration += diff > 0 ? 1 : -1
@@ -459,10 +452,10 @@ export function useBrainDump(onTasksProcessed?: (stories: ProcessedStory[]) => v
 
             // If we still have a difference, adjust the longest task
             if (totalTaskDuration !== newDuration) {
-              const longestTask = updatedTasks.reduce((max, task) => 
+              const longestTask = updatedTasks.reduce((max: ProcessedTask, task: ProcessedTask) => 
                 task.duration > max.duration ? task : max
               , updatedTasks[0])
-              const taskIndex = updatedTasks.findIndex(t => t.title === longestTask.title)
+              const taskIndex = updatedTasks.findIndex((t: ProcessedTask) => t.title === longestTask.title)
               updatedTasks[taskIndex].duration += newDuration - totalTaskDuration
             }
           }

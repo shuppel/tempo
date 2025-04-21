@@ -5,11 +5,7 @@
  * It serves as a reference for AI models and developers to understand the system's behavior.
  */
 
-import type { 
-  Task, ProcessedTask, ProcessedStory, SessionPlan, 
-  TimeBox, StoryBlock, TaskBreak, TaskType, StoryType,
-  SessionState, TimeBoxType
-} from "../../../../lib/types"
+import type { TaskType, StoryType, SessionState } from "../../../../lib/types"
 import { DURATION_RULES } from "../../../../lib/durationUtils"
 
 /**

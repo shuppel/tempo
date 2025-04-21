@@ -11,7 +11,7 @@ export function useTaskProcessing() {
   const [processingProgress, setProcessingProgress] = useState(0)
   const [error, setError] = useState<ErrorDetails | null>(null)
 
-  const processTasks = async (tasks: string, shouldRetry = false) => {
+  const processTasks = async (tasks: string) => {
     setIsProcessing(true)
     setProcessingStep("Analyzing tasks...")
     setProcessingProgress(20)
@@ -58,7 +58,7 @@ export function useTaskProcessing() {
       console.error("Failed to process tasks:", error)
       
       let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
-      let errorCode = 'UNKNOWN_ERROR'
+      const errorCode = 'UNKNOWN_ERROR'
       let errorDetails = error
 
       // Error handling logic
@@ -76,16 +76,16 @@ export function useTaskProcessing() {
                     ...parsedDetails,
                     response: parsedResponse
                   }
-                } catch (e) {
+                } catch {
                   // Keep the original response if parsing fails
                 }
               }
-            } catch (e) {
+            } catch {
               errorDetails = details.trim()
             }
             errorMessage = message.trim()
           }
-        } catch (e) {
+        } catch {
           errorDetails = error.message
         }
       }

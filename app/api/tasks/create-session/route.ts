@@ -5,25 +5,13 @@ import {
   DURATION_RULES as BaseDurationRules,
   TimeBox as DurationTimeBox,
   calculateDurationSummary,
-  calculateTotalDuration,
-  validateTaskDuration,
-  generateSchedulingSuggestion,
-  suggestSplitAdjustment
+  calculateTotalDuration
 } from '@/lib/durationUtils'
-import type { 
-  Task, 
-  TaskType, 
-  StoryType,
-  APIProcessedTask,
-  APIProcessedStory,
-  APISessionResponse
-} from '@/lib/types'
+import type { TaskType } from '@/lib/types'
 import {
   transformTaskData,
   transformStoryData,
-  normalizeTaskTitle,
   isSplitTaskPart,
-  getBaseTaskTitle,
   getBaseStoryTitle
 } from '@/lib/transformUtils'
 
@@ -138,79 +126,6 @@ interface StoryBlock {
   }>
 }
 
-type SessionResponse = APISessionResponse;
-
-// Add helper functions for task title handling
-function getValidDurationRange(task: TimeBoxTask): { min: number; max: number } {
-  // Account for breaks in the duration ranges
-  const minWithBreak = DURATION_RULES.MIN_DURATION + DURATION_RULES.SHORT_BREAK
-  const maxWithBreak = DURATION_RULES.MAX_DURATION + DURATION_RULES.LONG_BREAK * 2 // Allow for two long breaks
-  
-  return {
-    min: minWithBreak,
-    max: maxWithBreak
-  }
-}
-
-function getDurationDescription(range: { min: number; max: number }, type: string): string {
-  return `${range.min}-${range.max} minutes (including breaks, ${type})`
-}
-
-function findMatchingTaskTitle(searchTitle: string, availableTitles: string[]): string | undefined {
-  const normalizedSearch = normalizeTaskTitle(searchTitle)
-  
-  // Log for debugging
-  console.log(`Matching title: "${searchTitle}" normalized to "${normalizedSearch}"`)
-  
-  // First check for split task matches
-  const splitMatches = availableTitles.filter(title => 
-    title.includes('(Part') && 
-    normalizeTaskTitle(title.split('(Part')[0]) === normalizedSearch
-  )
-  
-  if (splitMatches.length > 0) {
-    console.log(`Found split task matches: ${splitMatches.join(', ')}`)
-    // Return the first part to represent the whole task
-    return splitMatches[0].split('(Part')[0].trim()
-  }
-
-  // Try exact match first
-  const exactMatch = availableTitles.find(title => {
-    const normalizedTitle = normalizeTaskTitle(title)
-    console.log(`Comparing with: "${title}" normalized to "${normalizedTitle}"`)
-    return normalizedTitle === normalizedSearch
-  })
-  
-  if (exactMatch) {
-    console.log(`Found exact match: "${exactMatch}"`)
-    return exactMatch
-  }
-
-  // Try fuzzy matching for project names
-  const fuzzyMatch = availableTitles.find(title => {
-    const normalizedTitle = normalizeTaskTitle(title)
-    // Check if the core project names match
-    const searchWords = normalizedSearch.split(' ').filter(word => word.length > 2)
-    const titleWords = normalizedTitle.split(' ').filter(word => word.length > 2)
-    
-    const matchingWords = searchWords.filter(word => 
-      titleWords.some((titleWord: string) => 
-        titleWord.includes(word) || word.includes(titleWord)
-      )
-    )
-    
-    return matchingWords.length >= Math.min(2, searchWords.length)
-  })
-
-  if (fuzzyMatch) {
-    console.log(`Found fuzzy match: "${fuzzyMatch}"`)
-    return fuzzyMatch
-  }
-
-  console.log(`No match found for "${searchTitle}"`)
-  return undefined
-}
-
 interface StoryWithTitle {
   title: string;
   estimatedDuration?: number;
@@ -292,21 +207,7 @@ function findOriginalStory(storyTitle: string, stories: StoryWithTitle[], storyM
     console.log(`Found story using fuzzy match: ${storyTitle} -> ${original.title}`);
   }
   
-  return original;
-}
-
-function buildOriginalTasksMap(stories: z.infer<typeof StorySchema>[]): Map<string, string> {
-  // Create a map of normalized task titles to original task titles
-  const tasksMap = new Map<string, string>();
-  
-  stories.forEach(story => {
-    story.tasks.forEach((task: { title: string }) => {
-      const normalizedTitle = normalizeTaskTitle(task.title);
-      tasksMap.set(normalizedTitle, task.title);
-    });
-  });
-  
-  return tasksMap;
+  return original || null;
 }
 
 function validateAllTasksIncluded(originalTasks: z.infer<typeof TaskSchema>[], scheduledTasks: TimeBoxTask[]): {
@@ -379,7 +280,7 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
     const updatedTimeBoxes: TimeBox[] = [];
     
     let consecutiveWorkTime = 0;
-    let currentTime = new Date();
+    const currentTime = new Date();
     
     // Set the start time for the first time box
     if (block.timeBoxes.length > 0) {
@@ -463,21 +364,6 @@ function insertMissingBreaks(storyBlocks: StoryBlock[]): StoryBlock[] {
 // Extract the inferred type from the schema
 type Story = z.infer<typeof StorySchema>
 
-// Upgrade task objects to the session model 
-function upgradeTaskToSessionTask(task: z.infer<typeof TaskSchema>): TimeBoxTask {
-  return {
-    id: task.id,
-    title: task.title,
-    duration: task.duration,
-    taskCategory: task.taskCategory,
-    projectType: task.projectType,
-    isFrog: task.isFrog,
-    originalTitle: task.originalTitle,
-    splitInfo: task.splitInfo,
-    suggestedBreaks: task.suggestedBreaks || []
-  }
-}
-
 // Add retry configuration
 const RETRY_CONFIG = {
   maxRetries: 3,
@@ -509,11 +395,6 @@ async function retryWithBackoff<T>(
 }
 
 export async function POST(req: Request) {
-  const currentTime = new Date()
-  let startTime
-  let stories
-  let storyMapping
-
   try {
     const body = await req.json()
     const { stories, startTime, storyMapping } = RequestSchema.parse(body)
@@ -534,9 +415,6 @@ export async function POST(req: Request) {
         { totalDuration, maxDuration: 24 * 60 }
       )
     }
-
-    // Create a map of original tasks for validation
-    const originalTasksMap = buildOriginalTasksMap(stories);
 
     try {
       // Log input data
@@ -754,13 +632,12 @@ CRITICAL RULES:
             // Transform story properties if needed
             if (!transformedBlock.storyType && transformedBlock.type) {
               console.log(`Transforming story type -> storyType for "${transformedBlock.title}"`)
-              transformedBlock.storyType = transformedBlock.type
+              transformedBlock.storyType = String(transformedBlock.type);
             }
             
             if (!transformedBlock.projectType && transformedBlock.project) {
               console.log(`Transforming story project -> projectType for "${transformedBlock.title}"`)
-              transformedBlock.projectType = transformedBlock.project
-              delete transformedBlock.project
+              transformedBlock.projectType = String(transformedBlock.project);
             }
             
             return transformedBlock;
@@ -795,9 +672,9 @@ CRITICAL RULES:
           }
           
           if (block.timeBoxes && Array.isArray(block.timeBoxes)) {
-            block.timeBoxes.forEach((timeBox: { tasks?: unknown[] }) => {
+            (block.timeBoxes as Array<{ tasks?: unknown[] }>).forEach((timeBox) => {
               if (timeBox.tasks && Array.isArray(timeBox.tasks)) {
-                timeBox.tasks.forEach((task: { taskCategory?: string; type?: string; projectType?: string; project?: string; title?: string }) => {
+                (timeBox.tasks as Array<Record<string, unknown>>).forEach((task) => {
                   // Ensure task has taskCategory property (originally might have been type)
                   if (!task.taskCategory && task.type) {
                     console.log(`Transforming task type -> taskCategory for "${task.title}"`)

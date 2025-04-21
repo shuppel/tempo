@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { InfoIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StoryCard } from "./StoryCard"
-import type { ProcessedStory } from "@/lib/types"
+import type { ProcessedStory, APISessionResponse } from "@/lib/types"
 
 interface ProcessedStoriesProps {
   stories: ProcessedStory[]
@@ -12,7 +12,7 @@ interface ProcessedStoriesProps {
   onDurationChange: (storyTitle: string, newDuration: number) => void
   isCreatingSession?: boolean
   onRetry?: () => void
-  onCreateSession?: () => Promise<any>
+  onCreateSession?: () => Promise<APISessionResponse>
 }
 
 export const ProcessedStories = ({ 

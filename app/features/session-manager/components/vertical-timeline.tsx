@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { cn, escapeHtml } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { 
   Clock, 
@@ -563,7 +563,7 @@ export const VerticalTimeline = ({
                 Ready to get started?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-base text-gray-600 dark:text-gray-400">
-                Your next task is ready and waiting for you. Let's go there now!
+                Your next task is ready and waiting for you. Let&apos;s go there now!
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex items-center justify-center my-2">
@@ -661,7 +661,7 @@ export const VerticalTimeline = ({
                   <>
                     <span className="mb-4 block">Are you sure you want to mark the following task as complete?</span>
                     <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
-                      <span className="font-medium block">"{confirmTaskComplete.task.title}"</span>
+                      <span className="font-medium block">{`"${escapeHtml(confirmTaskComplete.task.title)}"`}</span>
                     </div>
                   </>
                 )}
@@ -815,7 +815,6 @@ export const VerticalTimeline = ({
                       const timeBoxId = `${storyId}-box-${timeBoxIndex}`
                       const isActive = timeBoxId === activeTimeBoxId
                       const config = timeboxTypeConfig[timeBox.type as keyof typeof timeboxTypeConfig] || timeboxTypeConfig.work
-                      const Icon = config.icon
                       const isCompleted = timeBox.status === "completed"
                       const isInProgress = timeBox.status === "in-progress"
                       

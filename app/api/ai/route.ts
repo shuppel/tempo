@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         // Validate that we got valid JSON
         JSON.parse(content);
         return NextResponse.json({ content });
-      } catch (parseError) {
+      } catch {
         console.error('Invalid JSON response from Claude:', message.content);
         return NextResponse.json({ error: 'Invalid response format from AI' }, { status: 500 });
       }
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         // Validate that we got valid JSON
         JSON.parse(content);
         return NextResponse.json({ content });
-      } catch (parseError) {
+      } catch {
         console.error('Invalid JSON response from Claude:', message.content);
         return NextResponse.json({ error: 'Invalid response format from AI' }, { status: 500 });
       }

@@ -42,7 +42,7 @@ export function useSessionCreation() {
     } catch (error) {
       console.error("Failed to create session:", error)
       
-      let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
       let errorDetails = error instanceof Error ? error.cause : error
       
       // If the error has a structured response

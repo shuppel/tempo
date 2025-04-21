@@ -8,7 +8,6 @@ import { Textarea } from "@/app/components/ui/textarea"
 import { Slider } from "@/app/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 
 // Type for session metrics
@@ -192,7 +191,7 @@ export function SessionDebriefModal({
     console.log("Saving debrief data:", debriefData);
     onSave(debriefData);
     onClose();
-  }, [productivityRating, stressLevel, satisfactionRating, energyLevel, focusRating, sessionDate, onSave, sessionMetrics]);
+  }, [productivityRating, stressLevel, satisfactionRating, energyLevel, focusRating, sessionDate, onSave, sessionMetrics, onClose]);
 
   const handleNextPage = () => {
     if (currentPage === 'reflection') {

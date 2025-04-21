@@ -47,7 +47,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { LiaFrogSolid } from "react-icons/lia"
 import { Icon } from "@/components/ui/icon"
@@ -517,7 +516,6 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
   const intersectionRatio = useRef(1);
   const [isTimerVisible, setIsTimerVisible] = useState(true);
   const [viewportHeight, setViewportHeight] = useState(0);
-  const [timerRect, setTimerRect] = useState({ top: 0, height: 0 });
   
   // Get scroll information
   const { scrollY } = useScroll();
@@ -651,11 +649,6 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
     
     const updateMeasurements = () => {
       setViewportHeight(window.innerHeight);
-      
-      if (timerCardRef.current) {
-        const rect = timerCardRef.current.getBoundingClientRect();
-        setTimerRect({ top: rect.top, height: rect.height });
-      }
     };
     
     // Initial measurement
@@ -677,7 +670,7 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
   }, [activeTimeBox]);
   
   // Update scroll progress based on timer position
-  useMotionValueEvent(scrollY, "change", (latest) => {
+  useMotionValueEvent(scrollY, "change", () => {
     if (!timerCardRef.current || !viewportHeight) return;
     
     // Get the latest timer card position
@@ -815,8 +808,6 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
       isTimerVisible
     });
   }, [activeTimeBox, timeRemaining, isTimerRunning, stableFloatingVisible, isTimerVisible]);
-
-  const router = useRouter();
 
   // Time adjustment drawer state
   const [showTimeAdjust, setShowTimeAdjust] = useState(false);
@@ -1248,7 +1239,6 @@ export const SessionView = ({ id, date, storageService }: SessionViewProps) => {
               storyBlocks={session.storyBlocks}
               activeTimeBoxId={activeTimeBox ? `${activeTimeBox.storyId}-box-${activeTimeBox.timeBoxIndex}` : undefined}
               activeStoryId={activeTimeBox?.storyId}
-              activeTimeBoxIndex={activeTimeBox?.timeBoxIndex}
               startTime={session.lastUpdated || new Date().toISOString()}
               completedPercentage={completedPercentage}
               onTaskClick={handleTaskClick}
