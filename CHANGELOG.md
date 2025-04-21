@@ -54,12 +54,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Initial release.
 
-## [0.2.1] - Unreleased
+## [0.2.1] - 2025-04-21
 ### Fixed
 - Removed unused variables, imports, and type definitions across the codebase.
-- Replaced all instances of `any` with specific types for improved type safety.
+- Replaced all instances of specific types for improved type safety (no more `any`).
 - Updated variable declarations to use `const` where possible (prefer-const).
 - Fixed unescaped entity issues in JSX (e.g., quotes and apostrophes).
 - Addressed React hook dependency warnings and improved hook usage.
 - Cleaned up unused React component imports and props.
 - Improved code consistency and maintainability by adhering to lint rules.
+- Fixed all lint errors across the codebase for production readiness.
