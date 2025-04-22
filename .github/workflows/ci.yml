@@ -1,26 +1,41 @@
-name: CI/CD Pipeline
+name: Toro CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - '.vscode/**'
   pull_request:
-    branches: [ main, master, dev ]
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - '.vscode/**'
+
+env:
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
   lint:
-    name: ESLint
+    name: ESLint & Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           
       - name: Install dependencies
         run: npm ci
+        
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
         
       - name: Run ESLint
         run: npm run lint
@@ -32,10 +47,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           
       - name: Install dependencies
@@ -48,26 +63,53 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-files
-          path: .next/
+          path: |
+            .next/
+            !.next/cache
           retention-days: 7
+          
+      - name: Check bundle size
+        run: |
+          if [ -d ".next/analyze" ]; then
+            echo "Bundle analysis available in .next/analyze"
+          fi
 
-  test:
-    name: Test
+  # Uncomment when you add tests
+  # test:
+  #   name: Test
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Setup Node.js ${{ env.NODE_VERSION }}
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: 'npm'
+  #         
+  #     - name: Install dependencies
+  #       run: npm ci
+  #       
+  #     - name: Run tests
+  #       run: npm test
+
+  deploy:
+    name: Deploy Preview
+    if: github.event_name == 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          name: build-files
+          path: .next/
           
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Add test script
+      - name: Setup preview deployment
         run: |
-          echo "Add your test command here"
-          # Example: npm test
+          echo "Setting up preview deployment"
+          # Add your deployment commands here
+          # Example: npx vercel --token=${{ secrets.VERCEL_TOKEN }} --confirm
