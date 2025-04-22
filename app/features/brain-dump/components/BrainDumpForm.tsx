@@ -186,7 +186,7 @@ Task 4 - due by 5pm`}
         </div>
 
         <div className="flex justify-end gap-2">
-          {processedStories.length > 0 && (
+          {isInputLocked && (
             <Button
               onClick={handleRetry}
               variant="outline"

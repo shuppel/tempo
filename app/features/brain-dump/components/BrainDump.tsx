@@ -16,7 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import debounce from "lodash.debounce";
 
 interface BrainDumpProps {
   onTasksProcessed?: (stories: ProcessedStory[]) => void;
@@ -45,15 +44,6 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     handleDurationChange,
     handleRetry,
   } = useBrainDump(onTasksProcessed);
-
-  const handleTaskChange = debounce(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      if (!isInputLocked) {
-        setTasks(e.target.value);
-      }
-    },
-    300,
-  );
 
   const handleProcessTasks = useCallback(() => {
     processTasks(false);
@@ -94,7 +84,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
               "&quot;",
             )}
             value={tasks}
-            onChange={handleTaskChange}
+            onChange={(e) => setTasks(e.target.value)}
             disabled={isInputLocked}
             className="min-h-[150px] font-mono text-base"
           />

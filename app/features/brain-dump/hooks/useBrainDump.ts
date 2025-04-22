@@ -166,6 +166,7 @@ export function useBrainDump(
       });
       setTaskProcessingStep("Error occurred");
       setTaskProcessingProgress(0);
+      setIsInputLocked(false); // Unlock input when an error occurs
     } finally {
       setTimeout(() => {
         setIsProcessing(false);
