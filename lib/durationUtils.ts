@@ -6,6 +6,8 @@ export const DURATION_RULES = {
   LONG_BREAK: 15,
   DEBRIEF: 5,
   MAX_WORK_WITHOUT_BREAK: 90,
+  SHORT_BREAK_WORK_REDUCTION: 30, // A short break reduces accumulated work time by this amount
+  WORK_TIME_TOLERANCE: 5, // 5-minute tolerance for work time limits
   DURATION_TOLERANCE: 5, // Allow 5-minute tolerance for duration matching
 } as const;
 

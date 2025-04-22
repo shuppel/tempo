@@ -464,6 +464,67 @@ const createSession = async (
           const errorDetails = data.details
             ? `\n\nDetails: ${JSON.stringify(data.details, null, 2)}`
             : "";
+
+          // Handle MISSING_TASKS error specially
+          if (data.code === "MISSING_TASKS" && data.details) {
+            // Type guard for missingTasks property
+            const details = data.details as Record<string, unknown>;
+            if (details.missingTasks && Array.isArray(details.missingTasks)) {
+              console.log(
+                "Handling missing tasks error with specific solutions",
+              );
+
+              // Create a map of missing task titles for quick lookup
+              const missingTasksSet = new Set(
+                details.missingTasks.map((title: string) =>
+                  title.toLowerCase(),
+                ),
+              );
+
+              // Modify stories with missing tasks
+              currentStories = currentStories.map((story) => {
+                // Check if any tasks in this story are missing
+                const hasMissingTasks = story.tasks.some((task) =>
+                  missingTasksSet.has(task.title.toLowerCase()),
+                );
+
+                if (!hasMissingTasks) {
+                  return story; // No changes needed for this story
+                }
+
+                console.log(`Found story with missing tasks: ${story.title}`);
+
+                // Fix tasks that are missing by making them more flexible
+                const fixedTasks = story.tasks.map((task) => {
+                  if (missingTasksSet.has(task.title.toLowerCase())) {
+                    console.log(`Making task more flexible: ${task.title}`);
+                    return {
+                      ...task,
+                      isFlexible: true, // Make the task flexible
+                      // Add special tag for scheduler to prioritize this task
+                      specialHandling: "enforce_inclusion",
+                      // Store original properties for reference
+                      originalProperties: {
+                        isFlexible: task.isFlexible,
+                      },
+                    };
+                  }
+                  return task;
+                });
+
+                return {
+                  ...story,
+                  tasks: fixedTasks,
+                };
+              });
+
+              // Throw the error with the original details to allow retry
+              throw new Error(`${data.error}${errorDetails}`, {
+                cause: { ...data, fixedForRetry: true },
+              });
+            }
+          }
+
           throw new Error(`${data.error}${errorDetails}`, { cause: data });
         }
         // If it's a raw error message
