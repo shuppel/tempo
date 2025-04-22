@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useState, useEffect, useMemo } from "react";
-import { use } from "react";
 import { SessionStorageService } from "@/app/features/session-manager";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,13 +41,8 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-export default function SessionPage({
-  params,
-}: {
-  params: Promise<{ date: string }>;
-}) {
-  const unwrappedParams = use(params);
-  const { date } = unwrappedParams;
+export default function SessionPage({ params }: { params: { date: string } }) {
+  const { date } = params;
   const router = useRouter();
 
   const storageService = useMemo(() => new SessionStorageService(), []);
