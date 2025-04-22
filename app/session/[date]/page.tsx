@@ -42,15 +42,24 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-export default function SessionPage({ params }: PageProps) {
-  const { date } = params;
-  const router = useRouter();
+function isParamsWithDate(obj: unknown): obj is { date: string } {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    "date" in obj &&
+    typeof (obj as { date: unknown }).date === "string"
+  );
+}
 
+function SessionPageInner({ params }: { params: { date: string } }) {
+  const router = useRouter();
   const storageService = useMemo(() => new SessionStorageService(), []);
   const [isLoading, setIsLoading] = useState(true);
   const [hasSession, setHasSession] = useState(false);
   const [sessionData, setSessionData] = useState<Session | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
+
+  const { date } = params;
 
   // Format date for display (MM/DD/YYYY)
   const formattedDate = date
@@ -304,4 +313,25 @@ export default function SessionPage({ params }: PageProps) {
       </div>
     </main>
   );
+}
+
+export default function SessionPage(props: PageProps) {
+  if (!isParamsWithDate(props.params)) {
+    return (
+      <main className="flex-1 container py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold mb-4">
+            Invalid Session Parameters
+          </h1>
+          <p>Session parameters are missing or invalid.</p>
+          <p className="mt-4">
+            <a href="/sessions" className="text-blue-500 hover:underline">
+              Return to Sessions List
+            </a>
+          </p>
+        </div>
+      </main>
+    );
+  }
+  return <SessionPageInner params={props.params} />;
 }
