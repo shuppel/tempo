@@ -19,7 +19,10 @@ import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getSessionTimeEstimates } from "@/lib/durationUtils";
 import { SessionView } from "@/app/features/session-manager";
-import type { PageProps } from ".next/types/app/session/[date]/page";
+
+type PageProps = {
+  params: { date: string };
+};
 
 // Create a custom DialogContent without the close button
 const DialogContent = React.forwardRef<
