@@ -16,6 +16,7 @@
     - Respects energy curves throughout the day 
 - Middleware API transfer layer: Transform Linear tickets into Tempo micro tasks using AI
 
+
 ## COMPLETED
 - Story Mapping & Task Reference System:
   * Robust tracking of original story/task titles during splitting
@@ -49,4 +50,12 @@
 [ ] we need to push to dev, fix all the lint errors, so we can get this setup. We need to also have a limit call on the API. This we can do using Vercel KV and Upstash Ratelimit
 [ ] we need a sync engine (replicache is strong, maybe expensive option long term)
 
-##Bugs 04/20 getting through lint errors
+##Bugs 04/20 Completed (lint errors)
+
+##Bugs 04/22 
+[ ] New bug in vercel layer : 
+
+app/session/[date]/page.tsx
+Type error: Type 'PageProps' does not satisfy the constraint 'import("/vercel/path0/.next/types/app/session/[date]/page").PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ date: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
