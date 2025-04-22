@@ -42,9 +42,12 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-export default function SessionPage({ params }: { params: { date: string } }) {
-  // Unwrap params using React.use() as recommended by Next.js
-  const unwrappedParams = params instanceof Promise ? use(params) : params;
+export default function SessionPage({
+  params,
+}: {
+  params: Promise<{ date: string }>;
+}) {
+  const unwrappedParams = use(params);
   const { date } = unwrappedParams;
   const router = useRouter();
 
