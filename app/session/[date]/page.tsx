@@ -41,7 +41,12 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-export default function SessionPage({ params }: { params: { date: string } }) {
+// Local definition
+type SessionPageProps = {
+  params: { date: string };
+};
+
+export default function SessionPage({ params }: SessionPageProps) {
   const { date } = params;
   const router = useRouter();
 
