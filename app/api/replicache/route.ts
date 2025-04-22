@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import type { StoredSession } from '@/lib/sessionStorage';
+import { NextRequest, NextResponse } from "next/server";
+import type { StoredSession } from "@/lib/sessionStorage";
 
 // In a real application, we would use a database to store these, but for this demo,
 // we'll use in-memory storage that will be reset when the server restarts
@@ -14,13 +14,13 @@ let version = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('Replicache API request:', JSON.stringify(body, null, 2));
+    console.log("Replicache API request:", JSON.stringify(body, null, 2));
 
     // Support both { method: 'push'/'pull', ... } and { push: {...} }/{ pull: {...} }
-    if (body.method === 'pull') {
+    if (body.method === "pull") {
       return handlePull({ pull: body });
     }
-    if (body.method === 'push') {
+    if (body.method === "push") {
       return handlePush({ push: body });
     }
     if (body.pull) {
@@ -30,10 +30,13 @@ export async function POST(request: NextRequest) {
       return handlePush(body);
     }
 
-    return NextResponse.json({ error: 'Unknown request type' }, { status: 400 });
+    return NextResponse.json(
+      { error: "Unknown request type" },
+      { status: 400 },
+    );
   } catch (error) {
-    console.error('Error processing Replicache request:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error("Error processing Replicache request:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -45,23 +48,23 @@ interface PullRequest {
 
 async function handlePull(pullRequest: PullRequest) {
   const { clientID } = pullRequest.pull;
-  
+
   // Get the client's last mutation ID, or 0 if it's a new client
   const lastMutationID = clientIDs[clientID] || 0;
-  
+
   // Get all sessions from the session store
   const cookie = version;
   const patch = [];
-  
+
   // Add all sessions from the store to the patch
   for (const [key, value] of Object.entries(sessionStore)) {
     patch.push({
-      op: 'put',
+      op: "put",
       key,
       value,
     });
   }
-  
+
   return NextResponse.json({
     lastMutationID,
     cookie,
@@ -88,54 +91,57 @@ interface PushRequest {
 
 async function handlePush(pushRequest: PushRequest) {
   const { clientID, mutations } = pushRequest.push;
-  
+
   // Initialize the client's last mutation ID if it doesn't exist
   if (!clientIDs[clientID]) {
     clientIDs[clientID] = 0;
   }
-  
+
   const expectedMutationID = clientIDs[clientID] + 1;
-  
+
   // Process each mutation
   for (const mutation of mutations) {
     const { id, name, args } = mutation;
-    
+
     // Ensure mutations are processed in order
     if (id < expectedMutationID) {
       console.log(`Skipping mutation ${id} - already processed`);
       continue;
     }
-    
+
     if (id > expectedMutationID) {
-      return NextResponse.json({ error: `Mutation ID ${id} is from the future` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Mutation ID ${id} is from the future` },
+        { status: 400 },
+      );
     }
-    
+
     // Process the mutation based on its name
     switch (name) {
-      case 'saveSession':
-        if (args.session && typeof args.date === 'string') {
+      case "saveSession":
+        if (args.session && typeof args.date === "string") {
           sessionStore[`session-${args.date}`] = args.session;
         }
         break;
-        
-      case 'deleteSession':
-        if (typeof args.date === 'string') {
+
+      case "deleteSession":
+        if (typeof args.date === "string") {
           delete sessionStore[`session-${args.date}`];
         }
         break;
-        
-      case 'clearAllSessions':
+
+      case "clearAllSessions":
         // Filter out session entries from the store
         Object.keys(sessionStore).forEach((key) => {
-          if (key.startsWith('session-')) {
+          if (key.startsWith("session-")) {
             delete sessionStore[key];
           }
         });
         break;
-        
-      case 'updateTimeBoxStatus':
-      case 'updateTaskStatus':
-      case 'saveTimerState': {
+
+      case "updateTimeBoxStatus":
+      case "updateTaskStatus":
+      case "saveTimerState": {
         const key = `session-${args.date}`;
         const session = sessionStore[key];
         if (session) {
@@ -145,17 +151,17 @@ async function handlePush(pushRequest: PushRequest) {
         }
         break;
       }
-        
+
       default:
         console.warn(`Unknown mutation: ${name}`);
     }
-    
+
     // Update the client's last mutation ID and the global version
     clientIDs[clientID] = id;
     version++;
   }
-  
+
   return NextResponse.json({
     lastMutationID: clientIDs[clientID],
   });
-} 
+}

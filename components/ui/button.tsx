@@ -1,8 +1,8 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Button Variants:
@@ -39,8 +39,8 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
 
 /**
  * ButtonProps Interface:
@@ -51,7 +51,7 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean // If true, renders as a child component instead of a button.
+  asChild?: boolean; // If true, renders as a child component instead of a button.
 }
 
 /**
@@ -60,17 +60,17 @@ export interface ButtonProps
  */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button" // Uses `Slot` if `asChild` is true, otherwise defaults to `button`.
+    const Comp = asChild ? Slot : "button"; // Uses `Slot` if `asChild` is true, otherwise defaults to `button`.
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))} // Merges class variants and custom classes.
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
 // Exporting the Button component and its variants.
-export { Button, buttonVariants }
+export { Button, buttonVariants };

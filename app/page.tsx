@@ -1,15 +1,21 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useMemo } from "react"
-import { BrainDump } from "@/app/features/brain-dump"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronRight } from "lucide-react"
+import { useState, useCallback, useMemo } from "react";
+import { BrainDump } from "@/app/features/brain-dump";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
 
 interface Stats {
-  totalTasks: number
-  totalDuration: number
-  totalStories: number
-  totalFrogs: number
+  totalTasks: number;
+  totalDuration: number;
+  totalStories: number;
+  totalFrogs: number;
 }
 
 export default function Home() {
@@ -17,32 +23,50 @@ export default function Home() {
     totalTasks: 0,
     totalDuration: 0,
     totalStories: 0,
-    totalFrogs: 0
-  })
+    totalFrogs: 0,
+  });
 
-  const handleTasksProcessed = useCallback((stories: { tasks: { isFrog?: boolean, duration?: number }[]; estimatedDuration?: number }[]) => {
-    const totalTasks = stories.reduce((acc, story) => acc + story.tasks.length, 0)
-    const totalDuration = stories.reduce((acc, story) => {
-      const storyDuration = story.estimatedDuration || 
-        (story.tasks.reduce((taskSum: number, task) => taskSum + (task.duration || 0), 0)) || 0
-      return acc + storyDuration
-    }, 0)
-    const totalFrogs = stories.reduce((acc, story) => 
-      acc + story.tasks.filter((task) => task.isFrog).length, 0)
-    
-    setStats({
-      totalTasks,
-      totalDuration: Math.round(totalDuration),
-      totalStories: stories.length,
-      totalFrogs
-    })
-  }, [])
+  const handleTasksProcessed = useCallback(
+    (
+      stories: {
+        tasks: { isFrog?: boolean; duration?: number }[];
+        estimatedDuration?: number;
+      }[],
+    ) => {
+      const totalTasks = stories.reduce(
+        (acc, story) => acc + story.tasks.length,
+        0,
+      );
+      const totalDuration = stories.reduce((acc, story) => {
+        const storyDuration =
+          story.estimatedDuration ||
+          story.tasks.reduce(
+            (taskSum: number, task) => taskSum + (task.duration || 0),
+            0,
+          ) ||
+          0;
+        return acc + storyDuration;
+      }, 0);
+      const totalFrogs = stories.reduce(
+        (acc, story) => acc + story.tasks.filter((task) => task.isFrog).length,
+        0,
+      );
+
+      setStats({
+        totalTasks,
+        totalDuration: Math.round(totalDuration),
+        totalStories: stories.length,
+        totalFrogs,
+      });
+    },
+    [],
+  );
 
   const formattedDuration = useMemo(() => {
-    return stats.totalDuration > 59 
-      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m` 
-      : `${stats.totalDuration}m`
-  }, [stats.totalDuration])
+    return stats.totalDuration > 59
+      ? `${Math.floor(stats.totalDuration / 60)}h ${stats.totalDuration % 60}m`
+      : `${stats.totalDuration}m`;
+  }, [stats.totalDuration]);
 
   return (
     <main className="flex-1 container mx-auto p-4 md:p-6 max-w-5xl">
@@ -53,7 +77,9 @@ export default function Home() {
           <Card className="border h-fit shadow-sm">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-medium">Session Preview</CardTitle>
+                <CardTitle className="text-lg font-medium">
+                  Session Preview
+                </CardTitle>
                 <CardDescription className="text-sm">
                   Productivity metrics
                 </CardDescription>
@@ -70,13 +96,15 @@ export default function Home() {
                   <dd className="text-2xl font-medium">{stats.totalTasks}</dd>
                 </div>
                 <div className="flex justify-between items-baseline">
-                  <dt className="text-muted-foreground text-sm">Estimated Time</dt>
-                  <dd className="text-2xl font-medium">
-                    {formattedDuration}
-                  </dd>
+                  <dt className="text-muted-foreground text-sm">
+                    Estimated Time
+                  </dt>
+                  <dd className="text-2xl font-medium">{formattedDuration}</dd>
                 </div>
                 <div className="flex justify-between items-baseline">
-                  <dt className="text-muted-foreground text-sm">Focus Stories</dt>
+                  <dt className="text-muted-foreground text-sm">
+                    Focus Stories
+                  </dt>
                   <dd className="text-2xl font-medium">{stats.totalStories}</dd>
                 </div>
                 {stats.totalFrogs > 0 && (
@@ -85,7 +113,9 @@ export default function Home() {
                       <span>Frogs</span>
                       <span className="text-base">🐸</span>
                     </dt>
-                    <dd className="text-2xl font-medium text-primary">{stats.totalFrogs}</dd>
+                    <dd className="text-2xl font-medium text-primary">
+                      {stats.totalFrogs}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -94,6 +124,5 @@ export default function Home() {
         )}
       </div>
     </main>
-  )
+  );
 }
-

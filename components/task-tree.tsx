@@ -1,28 +1,40 @@
-"use client"
+"use client";
 
-import { CheckCircle2, Circle, GitCommit, GitFork } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { Task } from "@/lib/types"
+import { CheckCircle2, Circle, GitCommit, GitFork } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Task } from "@/lib/types";
 
 // Extend the Task interface to include parentId
 interface TaskWithParent extends Task {
-  parentId?: string
+  parentId?: string;
 }
 
 interface TaskTreeProps {
-  tasks: TaskWithParent[]
-  onToggleStatus: (taskId: string) => void
-  onToggleFrog: (taskId: string) => void
+  tasks: TaskWithParent[];
+  onToggleStatus: (taskId: string) => void;
+  onToggleFrog: (taskId: string) => void;
 }
 
-export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps) {
+export function TaskTree({
+  tasks,
+  onToggleStatus,
+  onToggleFrog,
+}: TaskTreeProps) {
   const renderTask = (task: TaskWithParent, level = 0) => {
-    const childTasks = tasks.filter((t) => t.parentId === task.id)
+    const childTasks = tasks.filter((t) => t.parentId === task.id);
 
     return (
       <div key={task.id} className="space-y-2">
-        <div className={cn("flex items-center gap-2 rounded-lg p-2 hover:bg-muted/50", level > 0 && "ml-6")}>
-          <button onClick={() => onToggleStatus(task.id)} className="flex items-center gap-2">
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-lg p-2 hover:bg-muted/50",
+            level > 0 && "ml-6",
+          )}
+        >
+          <button
+            onClick={() => onToggleStatus(task.id)}
+            className="flex items-center gap-2"
+          >
             {task.status === "completed" ? (
               <CheckCircle2 className="h-5 w-5 text-primary" />
             ) : (
@@ -30,28 +42,54 @@ export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps)
             )}
           </button>
 
-          {level > 0 && <GitFork className="h-4 w-4 -rotate-90 text-muted-foreground" />}
+          {level > 0 && (
+            <GitFork className="h-4 w-4 -rotate-90 text-muted-foreground" />
+          )}
 
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className={cn("font-medium", task.status === "completed" && "line-through text-muted-foreground")}>
+              <span
+                className={cn(
+                  "font-medium",
+                  task.status === "completed" &&
+                    "line-through text-muted-foreground",
+                )}
+              >
                 {task.title}
               </span>
               <button
                 onClick={() => onToggleFrog(task.id)}
-                aria-label={task.isFrog ? "Unset frog task" : "Set as frog task"}
+                aria-label={
+                  task.isFrog ? "Unset frog task" : "Set as frog task"
+                }
                 className={cn(
                   "ml-1 p-1 rounded hover:bg-destructive/10 transition-colors",
-                  task.isFrog ? "text-destructive" : "text-muted-foreground"
+                  task.isFrog ? "text-destructive" : "text-muted-foreground",
                 )}
                 type="button"
               >
-                {task.isFrog ? "🐸" : <span role="img" aria-label="frog outline">🐸</span>}
+                {task.isFrog ? (
+                  "🐸"
+                ) : (
+                  <span role="img" aria-label="frog outline">
+                    🐸
+                  </span>
+                )}
               </button>
-              <span className="text-xs text-muted-foreground">{task.taskCategory}</span>
-              {task.projectType && <span className="text-xs text-muted-foreground">{task.projectType}</span>}
+              <span className="text-xs text-muted-foreground">
+                {task.taskCategory}
+              </span>
+              {task.projectType && (
+                <span className="text-xs text-muted-foreground">
+                  {task.projectType}
+                </span>
+              )}
             </div>
-            {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
+            {task.description && (
+              <p className="text-sm text-muted-foreground">
+                {task.description}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -61,14 +99,17 @@ export function TaskTree({ tasks, onToggleStatus, onToggleFrog }: TaskTreeProps)
         </div>
 
         {childTasks.length > 0 && (
-          <div className="space-y-2">{childTasks.map((childTask) => renderTask(childTask, level + 1))}</div>
+          <div className="space-y-2">
+            {childTasks.map((childTask) => renderTask(childTask, level + 1))}
+          </div>
         )}
       </div>
-    )
-  }
+    );
+  };
 
-  const rootTasks = tasks.filter((task) => !task.parentId)
+  const rootTasks = tasks.filter((task) => !task.parentId);
 
-  return <div className="space-y-4">{rootTasks.map((task) => renderTask(task))}</div>
+  return (
+    <div className="space-y-4">{rootTasks.map((task) => renderTask(task))}</div>
+  );
 }
-

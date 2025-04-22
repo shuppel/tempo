@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Alert Variants:
@@ -22,8 +22,8 @@ const alertVariants = cva(
     defaultVariants: {
       variant: "default", // Default variant if none is specified.
     },
-  }
-)
+  },
+);
 
 /**
  * Alert Component:
@@ -41,8 +41,8 @@ const Alert = React.forwardRef<
     className={cn(alertVariants({ variant }), className)} // Merges variant and custom classes.
     {...props}
   />
-))
-Alert.displayName = "Alert"
+));
+Alert.displayName = "Alert";
 
 /**
  * AlertTitle Component:
@@ -58,8 +58,8 @@ const AlertTitle = React.forwardRef<
     className={cn("mb-1 font-medium leading-none tracking-tight", className)} // Consistent text styling.
     {...props}
   />
-))
-AlertTitle.displayName = "AlertTitle"
+));
+AlertTitle.displayName = "AlertTitle";
 
 /**
  * AlertDescription Component:
@@ -75,8 +75,8 @@ const AlertDescription = React.forwardRef<
     className={cn("text-sm [&_p]:leading-relaxed", className)} // Ensures consistent paragraph spacing.
     {...props}
   />
-))
-AlertDescription.displayName = "AlertDescription"
+));
+AlertDescription.displayName = "AlertDescription";
 
 // Exporting all components for modular use.
-export { Alert, AlertTitle, AlertDescription }
+export { Alert, AlertTitle, AlertDescription };

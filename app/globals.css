@@ -35,14 +35,30 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    
+
     /* Timer-specific variables for light mode */
     --timer-border-color: rgba(165, 180, 252, 0.7);
-    --timer-background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(238, 242, 255, 1) 100%);
+    --timer-background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(238, 242, 255, 1) 100%
+    );
 
     /* Progress bar gradients */
-    --progress-gradient-colors: linear-gradient(to right, #f472b6, #fb923c, #a78bfa, #4ade80);
-    --progress-gradient-colors-dark: linear-gradient(to right, #db2777, #ea580c, #8b5cf6, #22c55e);
+    --progress-gradient-colors: linear-gradient(
+      to right,
+      #f472b6,
+      #fb923c,
+      #a78bfa,
+      #4ade80
+    );
+    --progress-gradient-colors-dark: linear-gradient(
+      to right,
+      #db2777,
+      #ea580c,
+      #8b5cf6,
+      #22c55e
+    );
     --timebox-gradient-colors: linear-gradient(to right, #a78bfa, #34d399);
     --timebox-gradient-colors-dark: linear-gradient(to right, #8b5cf6, #10b981);
   }
@@ -71,10 +87,14 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    
+
     /* Timer-specific variables for dark mode */
     --timer-border-color: rgba(253, 186, 116, 0.7);
-    --timer-background: linear-gradient(180deg, rgba(17, 24, 39, 1) 0%, rgba(49, 46, 40, 1) 100%);
+    --timer-background: linear-gradient(
+      180deg,
+      rgba(17, 24, 39, 1) 0%,
+      rgba(49, 46, 40, 1) 100%
+    );
   }
 }
 
@@ -156,7 +176,8 @@
 
 /* Timer animations */
 @keyframes number-bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -165,7 +186,8 @@
 }
 
 @keyframes digit-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -176,7 +198,8 @@
 }
 
 @keyframes colon-blink {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -216,7 +239,8 @@
 }
 
 @keyframes subtle-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -225,7 +249,8 @@
 }
 
 @keyframes subtle-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 10px 2px rgba(99, 102, 241, 0.2);
   }
   50% {
@@ -234,7 +259,8 @@
 }
 
 @keyframes border-pulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(165, 180, 252, 0.7);
   }
   50% {
@@ -244,7 +270,8 @@
 
 /* Dark mode animations and effects */
 @keyframes dark-subtle-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 10px 2px rgba(249, 115, 22, 0.2);
   }
   50% {
@@ -253,7 +280,8 @@
 }
 
 @keyframes dark-border-pulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(253, 186, 116, 0.7);
   }
   50% {
@@ -263,8 +291,13 @@
 
 /* Add these fun sparkle and shine effects for the timer */
 @keyframes sparkle {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes shine-line {
@@ -283,11 +316,13 @@
   border-radius: 0.9rem;
   position: relative;
   overflow: hidden;
-  animation: subtle-float 5s ease-in-out infinite, 
-             subtle-glow 6s ease-in-out infinite,
-             border-pulse 4s alternate infinite;
-  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.2),
-              0 8px 10px -6px rgba(99, 102, 241, 0.1);
+  animation:
+    subtle-float 5s ease-in-out infinite,
+    subtle-glow 6s ease-in-out infinite,
+    border-pulse 4s alternate infinite;
+  box-shadow:
+    0 10px 25px -5px rgba(99, 102, 241, 0.2),
+    0 8px 10px -6px rgba(99, 102, 241, 0.1);
   border: 1px solid rgba(165, 180, 252, 0.7);
   transform: translateZ(0);
   backdrop-filter: blur(8px);
@@ -303,7 +338,14 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #a5b4fc, #818cf8, #4f46e5, #818cf8, #a5b4fc);
+  background: linear-gradient(
+    90deg,
+    #a5b4fc,
+    #818cf8,
+    #4f46e5,
+    #818cf8,
+    #a5b4fc
+  );
   background-size: 200% auto;
   animation: timer-gradient-shift 8s ease infinite;
   z-index: 2;
@@ -317,7 +359,12 @@
   left: 10%;
   right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.7), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(79, 70, 229, 0.7),
+    transparent
+  );
   z-index: 2;
 }
 
@@ -372,7 +419,8 @@
   position: absolute;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, 
+  background: linear-gradient(
+    90deg,
     transparent 0%,
     transparent 30%,
     rgba(165, 180, 252, 0.8) 50%,
@@ -386,18 +434,19 @@
 }
 
 .timer-card-container.floating {
-  animation: subtle-float 4s ease-in-out infinite, 
-             subtle-glow 5s ease-in-out infinite,
-             border-pulse 3.5s alternate infinite;
+  animation:
+    subtle-float 4s ease-in-out infinite,
+    subtle-glow 5s ease-in-out infinite,
+    border-pulse 3.5s alternate infinite;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 1.25rem;
   border-width: 1px;
-  box-shadow: 
+  box-shadow:
     0 0 1px rgba(0, 0, 0, 0.2),
     0 0 20px rgba(99, 102, 241, 0.25),
     0 4px 16px rgba(0, 0, 0, 0.1);
-  animation: 
+  animation:
     subtle-glow 4s ease-in-out infinite alternate,
     float 6s ease-in-out infinite alternate;
   transform: translateZ(0);
@@ -410,15 +459,16 @@
 
 /* Enhanced dark mode floating timer with more visible white outline */
 .dark .timer-card-container.floating {
-  animation: subtle-float 4s ease-in-out infinite, 
-             dark-subtle-glow 5s ease-in-out infinite,
-             dark-border-pulse 3.5s alternate infinite;
-  box-shadow: 
+  animation:
+    subtle-float 4s ease-in-out infinite,
+    dark-subtle-glow 5s ease-in-out infinite,
+    dark-border-pulse 3.5s alternate infinite;
+  box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.5),
     0 0 4px rgba(255, 255, 255, 0.4),
     0 0 15px rgba(249, 115, 22, 0.3),
     0 4px 20px rgba(0, 0, 0, 0.2);
-  animation: 
+  animation:
     dark-subtle-glow 4s ease-in-out infinite alternate,
     float 6s ease-in-out infinite alternate;
   border-color: rgba(253, 186, 116, 0.5);
@@ -436,7 +486,14 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #a5b4fc, #818cf8, #4f46e5, #818cf8, #a5b4fc);
+  background: linear-gradient(
+    90deg,
+    #a5b4fc,
+    #818cf8,
+    #4f46e5,
+    #818cf8,
+    #a5b4fc
+  );
   background-size: 200% auto;
   animation: timer-gradient-shift 6s ease infinite;
   z-index: 2;
@@ -451,11 +508,12 @@
   left: 0;
   right: 0;
   height: 6px;
-  background: linear-gradient(90deg, 
-    rgba(165, 180, 252, 0.05) 0%, 
-    rgba(129, 140, 248, 0.3) 20%, 
-    rgba(79, 70, 229, 0.5) 50%, 
-    rgba(129, 140, 248, 0.3) 80%, 
+  background: linear-gradient(
+    90deg,
+    rgba(165, 180, 252, 0.05) 0%,
+    rgba(129, 140, 248, 0.3) 20%,
+    rgba(79, 70, 229, 0.5) 50%,
+    rgba(129, 140, 248, 0.3) 80%,
     rgba(165, 180, 252, 0.05) 100%
   );
   animation: timer-gradient-shift 6s ease infinite;
@@ -466,8 +524,8 @@
 
 .dark .timer-card-container.floating::before {
   background: linear-gradient(
-    135deg, 
-    rgba(254, 215, 170, 0.2) 0%, 
+    135deg,
+    rgba(254, 215, 170, 0.2) 0%,
     rgba(251, 146, 60, 0.1) 50%,
     rgba(254, 215, 170, 0.15) 100%
   );
@@ -475,11 +533,12 @@
 }
 
 .dark .timer-card-container.floating::after {
-  background: linear-gradient(90deg, 
-    rgba(253, 186, 116, 0.05) 0%, 
-    rgba(251, 146, 60, 0.3) 20%, 
-    rgba(249, 115, 22, 0.5) 50%, 
-    rgba(251, 146, 60, 0.3) 80%, 
+  background: linear-gradient(
+    90deg,
+    rgba(253, 186, 116, 0.05) 0%,
+    rgba(251, 146, 60, 0.3) 20%,
+    rgba(249, 115, 22, 0.5) 50%,
+    rgba(251, 146, 60, 0.3) 80%,
     rgba(253, 186, 116, 0.05) 100%
   );
 }
@@ -510,7 +569,7 @@
 
 /* Enhanced hover states with outlines */
 .timer-card-container.floating:hover {
-  box-shadow: 
+  box-shadow:
     0 0 2px rgba(0, 0, 0, 0.3),
     0 0 25px rgba(99, 102, 241, 0.35),
     0 8px 24px rgba(0, 0, 0, 0.12);
@@ -519,7 +578,7 @@
 }
 
 .dark .timer-card-container.floating:hover {
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.6),
     0 0 6px rgba(255, 255, 255, 0.5),
     0 0 20px rgba(249, 115, 22, 0.4),
@@ -532,19 +591,33 @@
 /* Dark mode adjustments */
 .dark .timer-card-container {
   --sparkle-color: rgba(253, 186, 116, 0.8);
-  animation: subtle-float 5s ease-in-out infinite, 
-             dark-subtle-glow 6s ease-in-out infinite,
-             dark-border-pulse 4s alternate infinite;
-  box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.1),
-              0 8px 10px -6px rgba(249, 115, 22, 0.05);
+  animation:
+    subtle-float 5s ease-in-out infinite,
+    dark-subtle-glow 6s ease-in-out infinite,
+    dark-border-pulse 4s alternate infinite;
+  box-shadow:
+    0 10px 25px -5px rgba(249, 115, 22, 0.1),
+    0 8px 10px -6px rgba(249, 115, 22, 0.05);
 }
 
 .dark .timer-card-container::before {
-  background: linear-gradient(90deg, rgba(253, 186, 116, 0.3), rgba(251, 146, 60, 0.4), rgba(249, 115, 22, 0.5), rgba(251, 146, 60, 0.4), rgba(253, 186, 116, 0.3));
+  background: linear-gradient(
+    90deg,
+    rgba(253, 186, 116, 0.3),
+    rgba(251, 146, 60, 0.4),
+    rgba(249, 115, 22, 0.5),
+    rgba(251, 146, 60, 0.4),
+    rgba(253, 186, 116, 0.3)
+  );
 }
 
 .dark .timer-card-container::after {
-  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.5), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(249, 115, 22, 0.5),
+    transparent
+  );
 }
 
 .dark .timer-card-container .sparkle-dot {
@@ -552,7 +625,8 @@
 }
 
 .dark .timer-card-container .shine-line {
-  background: linear-gradient(90deg, 
+  background: linear-gradient(
+    90deg,
     transparent 0%,
     transparent 30%,
     rgba(253, 186, 116, 0.4) 50%,

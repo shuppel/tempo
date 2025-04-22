@@ -1,15 +1,12 @@
-import { 
-  ProcessedTask, 
-  ProcessedStory
-} from './types';
+import { ProcessedTask, ProcessedStory } from "./types";
 
 /**
  * Transforms task data by ensuring consistent property names
- * 
+ *
  * Specifically:
  * - Renames 'type' to 'taskCategory' if needed
  * - Renames 'project' to 'projectType' if needed
- * 
+ *
  * @param task Any task object that may contain legacy property names
  * @returns A transformed task with consistent property names
  */
@@ -46,12 +43,12 @@ export function transformTaskData(task: TaskDataInput): TaskDataOutput {
 
 /**
  * Transforms story data by ensuring consistent property names
- * 
+ *
  * Specifically:
  * - Renames 'type' to 'storyType' if needed
  * - Renames 'project' to 'projectType' if needed
  * - Transforms all tasks within the story
- * 
+ *
  * @param story Any story object that may contain legacy property names
  * @returns A transformed story with consistent property names
  */
@@ -100,9 +97,9 @@ export function normalizeTaskTitle(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/^(task|todo|activity):\s*/i, '')
-    .replace(/\s*\([^)]*\)\s*$/g, ''); // Remove trailing parentheticals like "(Part 1 of 2)"
+    .replace(/\s+/g, " ")
+    .replace(/^(task|todo|activity):\s*/i, "")
+    .replace(/\s*\([^)]*\)\s*$/g, ""); // Remove trailing parentheticals like "(Part 1 of 2)"
 }
 
 /**
@@ -117,7 +114,9 @@ export function isSplitTaskPart(title: string): boolean {
  */
 export function getBaseTaskTitle(title: string): string {
   // Extract base title by removing the part indicator
-  return title.replace(/\s*\(?(part|section|segment)\s+\d+\s+of\s+\d+\)?.*$/i, '').trim();
+  return title
+    .replace(/\s*\(?(part|section|segment)\s+\d+\s+of\s+\d+\)?.*$/i, "")
+    .trim();
 }
 
 /**
@@ -135,16 +134,13 @@ export function getBaseStoryTitle(title: string): string {
  * Type guard for checking if an object implements the ProcessedTask interface
  */
 export function isProcessedTask(obj: unknown): obj is ProcessedTask {
-  if (!obj || typeof obj !== 'object') return false;
+  if (!obj || typeof obj !== "object") return false;
   const o = obj as Record<string, unknown>;
   return (
-    typeof o.title === 'string' &&
-    typeof o.duration === 'number' &&
-    typeof o.isFrog === 'boolean' &&
-    (
-      typeof o.taskCategory === 'string' || 
-      typeof o.type === 'string' // Allow legacy field
-    )
+    typeof o.title === "string" &&
+    typeof o.duration === "number" &&
+    typeof o.isFrog === "boolean" &&
+    (typeof o.taskCategory === "string" || typeof o.type === "string") // Allow legacy field
   );
 }
 
@@ -152,16 +148,13 @@ export function isProcessedTask(obj: unknown): obj is ProcessedTask {
  * Type guard for checking if an object implements the ProcessedStory interface
  */
 export function isProcessedStory(obj: unknown): obj is ProcessedStory {
-  if (!obj || typeof obj !== 'object') return false;
+  if (!obj || typeof obj !== "object") return false;
   const o = obj as Record<string, unknown>;
   return (
-    typeof o.title === 'string' &&
-    typeof o.summary === 'string' &&
-    typeof o.estimatedDuration === 'number' &&
-    (
-      typeof o.type === 'string' || 
-      typeof o.storyType === 'string' // Allow legacy field
-    ) &&
+    typeof o.title === "string" &&
+    typeof o.summary === "string" &&
+    typeof o.estimatedDuration === "number" &&
+    (typeof o.type === "string" || typeof o.storyType === "string") && // Allow legacy field
     Array.isArray(o.tasks)
   );
-} 
+}

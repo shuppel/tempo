@@ -1,25 +1,25 @@
 // /features/brain-dump/components/BrainDump.tsx
-"use client" // Ensures the component runs on the client side in Next.js.
+"use client"; // Ensures the component runs on the client side in Next.js.
 
-import React, { useState, useCallback, useMemo } from "react"
-import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Lock, ChevronRight, HelpCircle } from "lucide-react"
-import { useBrainDump } from "../hooks/useBrainDump"
-import { ProcessedStories } from "./ProcessedStories"
-import type { ProcessedStory } from "@/lib/types"
+import React, { useState, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Lock, ChevronRight, HelpCircle } from "lucide-react";
+import { useBrainDump } from "../hooks/useBrainDump";
+import { ProcessedStories } from "./ProcessedStories";
+import type { ProcessedStory } from "@/lib/types";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import debounce from "lodash.debounce"
+} from "@/components/ui/tooltip";
+import debounce from "lodash.debounce";
 
 interface BrainDumpProps {
-  onTasksProcessed?: (stories: ProcessedStory[]) => void
+  onTasksProcessed?: (stories: ProcessedStory[]) => void;
 }
 
 /**
@@ -30,7 +30,7 @@ interface BrainDumpProps {
  * - Allows users to create structured work sessions.
  */
 export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
-  const [showTips, setShowTips] = useState(false)
+  const [showTips, setShowTips] = useState(false);
   const {
     tasks,
     setTasks,
@@ -43,18 +43,21 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
     processTasks,
     handleCreateSession,
     handleDurationChange,
-    handleRetry
-  } = useBrainDump(onTasksProcessed)
+    handleRetry,
+  } = useBrainDump(onTasksProcessed);
 
-  const handleTaskChange = debounce((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!isInputLocked) {
-      setTasks(e.target.value)
-    }
-  }, 300)
+  const handleTaskChange = debounce(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (!isInputLocked) {
+        setTasks(e.target.value);
+      }
+    },
+    300,
+  );
 
   const handleProcessTasks = useCallback(() => {
-    processTasks(false)
-  }, [processTasks])
+    processTasks(false);
+  }, [processTasks]);
 
   const analyzeButtonContent = useMemo(() => {
     if (isProcessing) {
@@ -63,29 +66,33 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Analyzing
         </>
-      )
+      );
     } else if (isInputLocked) {
       return (
         <>
           <Lock className="mr-2 h-4 w-4" />
           Locked
         </>
-      )
+      );
     } else {
-      return 'Analyze'
+      return "Analyze";
     }
-  }, [isProcessing, isInputLocked])
+  }, [isProcessing, isInputLocked]);
 
-  const MemoizedHelpCircle = useMemo(() => (
-    <HelpCircle className="h-4 w-4" />
-  ), [])
+  const MemoizedHelpCircle = useMemo(
+    () => <HelpCircle className="h-4 w-4" />,
+    [],
+  );
 
   return (
     <Card className="border bg-card">
       <CardContent className="p-4 space-y-4">
         <div className="relative">
           <Textarea
-            placeholder={`task .init\nUpdate client dashboard design 🐸\nSend weekly progress report - 20m\nResearch API integration - 1h\nSchedule team meeting - by Thursday\nUpdate project docs\nFinalize product specs - EOD`.replace(/"/g, '&quot;')}
+            placeholder={`task .init\nUpdate client dashboard design 🐸\nSend weekly progress report - 20m\nResearch API integration - 1h\nSchedule team meeting - by Thursday\nUpdate project docs\nFinalize product specs - EOD`.replace(
+              /"/g,
+              "&quot;",
+            )}
             value={tasks}
             onChange={handleTaskChange}
             disabled={isInputLocked}
@@ -95,15 +102,19 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
             <TooltipProvider>
               <Tooltip open={showTips} onOpenChange={setShowTips}>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="text-muted-foreground hover:text-foreground"
                   >
                     {MemoizedHelpCircle}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" align="end" className="max-w-xs text-sm">
+                <TooltipContent
+                  side="bottom"
+                  align="end"
+                  className="max-w-xs text-sm"
+                >
                   <div className="space-y-2">
                     <p>Effective task entry tips:</p>
                     <ul className="list-disc list-inside space-y-1">
@@ -113,8 +124,8 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
                       <li>Add context: deadlines, project names</li>
                     </ul>
                     <p className="text-xs text-muted-foreground mt-2">
-                      <Link 
-                        href="/docs/task-optimization" 
+                      <Link
+                        href="/docs/task-optimization"
                         className="underline"
                       >
                         Learn more about task optimization
@@ -132,7 +143,7 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
             <ChevronRight className="h-3 w-3" />
             <span>Analyze to optimize</span>
           </div>
-          <Button 
+          <Button
             onClick={handleProcessTasks}
             disabled={!tasks.trim() || isProcessing || isInputLocked}
             className="w-32"
@@ -149,8 +160,8 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
                 <Button onClick={handleRetry} variant="outline" size="sm">
                   Reset
                 </Button>
-                <Button 
-                  onClick={handleCreateSession} 
+                <Button
+                  onClick={handleCreateSession}
                   size="sm"
                   disabled={isCreatingSession}
                 >
@@ -160,12 +171,12 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
                       {processingStep || "Creating"}
                     </>
                   ) : (
-                    'Create Session'
+                    "Create Session"
                   )}
                 </Button>
               </div>
             </div>
-            <ProcessedStories 
+            <ProcessedStories
               stories={processedStories}
               editedDurations={editedDurations}
               onDurationChange={handleDurationChange}
@@ -174,5 +185,5 @@ export const BrainDump = ({ onTasksProcessed }: BrainDumpProps) => {
         )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};

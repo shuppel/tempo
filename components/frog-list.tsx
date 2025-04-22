@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import type { Task } from "@/lib/types"
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { Task } from "@/lib/types";
 
 interface FrogListProps {
-  tasks: Task[]
+  tasks: Task[];
 }
 
 export function FrogList({ tasks }: FrogListProps) {
-  const frogs = tasks.filter((task) => task.isFrog)
-  const activeFrogs = frogs.slice(0, 3)
-  const backlogFrogs = frogs.slice(3)
+  const frogs = tasks.filter((task) => task.isFrog);
+  const activeFrogs = frogs.slice(0, 3);
+  const backlogFrogs = frogs.slice(3);
 
   return (
     <div className="space-y-4">
@@ -23,7 +23,9 @@ export function FrogList({ tasks }: FrogListProps) {
               <Alert key={task.id} variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>{task.title}</AlertTitle>
-                <AlertDescription>Difficulty: {task.difficulty} points</AlertDescription>
+                <AlertDescription>
+                  Difficulty: {task.difficulty} points
+                </AlertDescription>
               </Alert>
             ))}
           </div>
@@ -39,13 +41,14 @@ export function FrogList({ tasks }: FrogListProps) {
             {backlogFrogs.map((task) => (
               <Alert key={task.id}>
                 <AlertTitle>{task.title}</AlertTitle>
-                <AlertDescription>Difficulty: {task.difficulty} points</AlertDescription>
+                <AlertDescription>
+                  Difficulty: {task.difficulty} points
+                </AlertDescription>
               </Alert>
             ))}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
-

@@ -3,12 +3,14 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build & Run Commands
+
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Lint codebase
 
 ## Code Style Guidelines
+
 - Use TypeScript with strict type checking
 - Import order: React hooks, external libs, internal modules
 - Use named exports over default exports\
@@ -32,6 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Validate and sanitize all inputs. Follow secure coding practices for authentication and authorization.
 
 ## Types
+
 - Define explicit interfaces/types for all data structures
 - Use type inference where appropriate, explicit return types for functions
 - Prefer type aliases for simple types, interfaces for complex objects

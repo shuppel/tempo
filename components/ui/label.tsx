@@ -1,10 +1,10 @@
-"use client" // Ensures this component runs only on the client side in Next.js.
+"use client"; // Ensures this component runs only on the client side in Next.js.
 
-import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import * as LabelPrimitive from "@radix-ui/react-label";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Label Variants:
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils" // Utility function for merging class names dyn
  * - Ensures readable typography and handles disabled states.
  */
 const labelVariants = cva(
-  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-)
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+);
 
 /**
  * Label Component:
@@ -31,8 +31,8 @@ const Label = React.forwardRef<
     className={cn(labelVariants(), className)} // Merges default and custom styles.
     {...props}
   />
-))
-Label.displayName = LabelPrimitive.Root.displayName
+));
+Label.displayName = LabelPrimitive.Root.displayName;
 
 // Exporting the Label component for reuse.
-export { Label }
+export { Label };

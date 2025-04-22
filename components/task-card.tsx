@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import type { Task } from "@/lib/types"
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { Task } from "@/lib/types";
 
 interface TaskCardProps {
-  task: Task
-  onUpdate: (updates: Partial<Task>) => void
-  onDelete: () => void
+  task: Task;
+  onUpdate: (updates: Partial<Task>) => void;
+  onDelete: () => void;
 }
 
 export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
   const handleStatusToggle = () => {
     onUpdate({
-      status: task.status === "completed" ? "todo" : "completed"
-    })
-  }
+      status: task.status === "completed" ? "todo" : "completed",
+    });
+  };
 
   return (
     <Card className="p-4 mb-2">
@@ -30,11 +30,15 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
           />
           <div>
-            <h3 className={`font-medium ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+            <h3
+              className={`font-medium ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}
+            >
               {task.title}
             </h3>
             {task.description && (
-              <p className="text-sm text-muted-foreground">{task.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {task.description}
+              </p>
             )}
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={task.isFrog ? "default" : "outline"}>
@@ -61,6 +65,5 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
         </Button>
       </div>
     </Card>
-  )
+  );
 }
-

@@ -1,6 +1,6 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Card Component:
@@ -15,12 +15,12 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       "rounded-lg border border-border/40 bg-card text-card-foreground shadow-linear-card",
-      className
+      className,
     )}
     {...props}
   />
-))
-Card.displayName = "Card"
+));
+Card.displayName = "Card";
 
 /**
  * CardHeader Component:
@@ -35,8 +35,8 @@ const CardHeader = React.forwardRef<
     className={cn("flex flex-col space-y-1 p-5", className)}
     {...props}
   />
-))
-CardHeader.displayName = "CardHeader"
+));
+CardHeader.displayName = "CardHeader";
 
 /**
  * CardTitle Component:
@@ -51,8 +51,8 @@ const CardTitle = React.forwardRef<
     className={cn("text-base font-medium leading-none", className)}
     {...props}
   />
-))
-CardTitle.displayName = "CardTitle"
+));
+CardTitle.displayName = "CardTitle";
 
 /**
  * CardDescription Component:
@@ -67,8 +67,8 @@ const CardDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-CardDescription.displayName = "CardDescription"
+));
+CardDescription.displayName = "CardDescription";
 
 /**
  * CardContent Component:
@@ -79,8 +79,8 @@ const CardContent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
-))
-CardContent.displayName = "CardContent"
+));
+CardContent.displayName = "CardContent";
 
 /**
  * CardFooter Component:
@@ -95,8 +95,15 @@ const CardFooter = React.forwardRef<
     className={cn("flex items-center p-5 pt-0", className)}
     {...props}
   />
-))
-CardFooter.displayName = "CardFooter"
+));
+CardFooter.displayName = "CardFooter";
 
 // Exporting all components for modular use.
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+};

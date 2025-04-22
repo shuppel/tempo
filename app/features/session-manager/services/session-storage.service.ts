@@ -1,52 +1,62 @@
-import type { 
-  Session, 
-  StoryBlock, 
-  TimeBox, 
+import type {
+  Session,
+  StoryBlock,
+  TimeBox,
   TimeBoxTask,
   TimeBoxStatus,
-  SessionStatus
-} from "@/lib/types"
-import { sessionStorage } from "@/lib/sessionStorage"
+  SessionStatus,
+} from "@/lib/types";
+import { sessionStorage } from "@/lib/sessionStorage";
 
-const SESSION_PREFIX = 'session-'
+const SESSION_PREFIX = "session-";
 
 export class SessionStorageService {
   /**
    * Get a session by date
    */
   async getSession(date: string): Promise<Session | null> {
-    console.log(`[SessionStorageService] Getting session for date: ${date}`)
-    let storedSession: import("@/lib/sessionStorage").StoredSession | null = null;
+    console.log(`[SessionStorageService] Getting session for date: ${date}`);
+    let storedSession: import("@/lib/sessionStorage").StoredSession | null =
+      null;
     try {
       storedSession = await sessionStorage.getSession(date);
     } catch (error) {
-      console.error(`[SessionStorageService] Error getting session for date: ${date}`, error);
+      console.error(
+        `[SessionStorageService] Error getting session for date: ${date}`,
+        error,
+      );
       return null;
     }
-    
+
     if (!storedSession) {
-      console.log(`[SessionStorageService] No session found for date: ${date}`)
-      
+      console.log(`[SessionStorageService] No session found for date: ${date}`);
+
       // For development only: if no session exists, create a dummy session
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[SessionStorageService] Creating dummy session for development`)
-        const dummySession = this.createDummySession(date)
-        await this.saveSession(date, dummySession)
-        return dummySession
+      if (process.env.NODE_ENV !== "production") {
+        console.log(
+          `[SessionStorageService] Creating dummy session for development`,
+        );
+        const dummySession = this.createDummySession(date);
+        await this.saveSession(date, dummySession);
+        return dummySession;
       }
-      
-      return null
+
+      return null;
     }
-    
-    console.log(`[SessionStorageService] Found session for date: ${date} with ${Array.isArray(storedSession.storyBlocks) ? storedSession.storyBlocks.length : 0} story blocks`)
-    
+
+    console.log(
+      `[SessionStorageService] Found session for date: ${date} with ${Array.isArray(storedSession.storyBlocks) ? storedSession.storyBlocks.length : 0} story blocks`,
+    );
+
     return {
       date: this.formatDate(date),
-      storyBlocks: Array.isArray(storedSession.storyBlocks) ? storedSession.storyBlocks : [],
-      status: (storedSession.status as SessionStatus) || 'planned',
+      storyBlocks: Array.isArray(storedSession.storyBlocks)
+        ? storedSession.storyBlocks
+        : [],
+      status: (storedSession.status as SessionStatus) || "planned",
       totalDuration: storedSession.totalDuration || 0,
-      lastUpdated: storedSession.lastUpdated || new Date().toISOString()
-    }
+      lastUpdated: storedSession.lastUpdated || new Date().toISOString(),
+    };
   }
 
   /**
@@ -54,99 +64,111 @@ export class SessionStorageService {
    * This should only be used in development environments
    */
   private createDummySession(date: string): Session {
-    const formattedDate = this.formatDate(date)
-    console.log(`[SessionStorageService] Creating dummy session for date: ${formattedDate}`)
-    
+    const formattedDate = this.formatDate(date);
+    console.log(
+      `[SessionStorageService] Creating dummy session for date: ${formattedDate}`,
+    );
+
     return {
       date: formattedDate,
       storyBlocks: [
         {
-          id: 'story-1',
-          title: 'Example Story 1',
+          id: "story-1",
+          title: "Example Story 1",
           progress: 0,
           totalDuration: 55, // 25 + 5 + 25
           taskIds: [],
           timeBoxes: [
             {
-              type: 'work',
+              type: "work",
               duration: 25,
-              status: 'todo',
+              status: "todo",
               tasks: [
-                { title: 'Task 1', status: 'todo', duration: 0 },
-                { title: 'Task 2', status: 'todo', duration: 0 }
-              ]
+                { title: "Task 1", status: "todo", duration: 0 },
+                { title: "Task 2", status: "todo", duration: 0 },
+              ],
             },
             {
-              type: 'short-break',
+              type: "short-break",
               duration: 5,
-              status: 'todo',
-              tasks: []
+              status: "todo",
+              tasks: [],
             },
             {
-              type: 'work',
+              type: "work",
               duration: 25,
-              status: 'todo',
-              tasks: [
-                { title: 'Task 3', status: 'todo', duration: 0 }
-              ]
-            }
-          ]
+              status: "todo",
+              tasks: [{ title: "Task 3", status: "todo", duration: 0 }],
+            },
+          ],
         },
         {
-          id: 'story-2',
-          title: 'Example Story 2',
+          id: "story-2",
+          title: "Example Story 2",
           progress: 0,
           totalDuration: 25,
           taskIds: [],
           timeBoxes: [
             {
-              type: 'work',
+              type: "work",
               duration: 25,
-              status: 'todo',
+              status: "todo",
               tasks: [
-                { title: 'Task 4', status: 'todo', duration: 0 },
-                { title: 'Task 5', status: 'todo', duration: 0 }
-              ]
-            }
-          ]
-        }
+                { title: "Task 4", status: "todo", duration: 0 },
+                { title: "Task 5", status: "todo", duration: 0 },
+              ],
+            },
+          ],
+        },
       ],
-      status: 'planned',
+      status: "planned",
       totalDuration: 80,
-      lastUpdated: new Date().toISOString()
-    }
+      lastUpdated: new Date().toISOString(),
+    };
   }
 
   /**
    * Get all sessions
    */
   async getAllSessions(): Promise<Session[]> {
-    console.log(`[SessionStorageService] Getting all sessions`)
-    let storedSessions: Record<string, import("@/lib/sessionStorage").StoredSession> = {};
+    console.log(`[SessionStorageService] Getting all sessions`);
+    let storedSessions: Record<
+      string,
+      import("@/lib/sessionStorage").StoredSession
+    > = {};
     try {
       storedSessions = await sessionStorage.getAllSessions();
     } catch (error) {
-      console.error(`[SessionStorageService] Error getting all sessions`, error);
+      console.error(
+        `[SessionStorageService] Error getting all sessions`,
+        error,
+      );
       return [];
     }
-    const sessionCount = Object.keys(storedSessions).length
-    console.log(`[SessionStorageService] Found ${sessionCount} sessions`)
-    
+    const sessionCount = Object.keys(storedSessions).length;
+    console.log(`[SessionStorageService] Found ${sessionCount} sessions`);
+
     if (sessionCount === 0) {
       // Debug: check localStorage directly to see if there are any session keys
       const allStorageKeys: Array<string | null> = [];
       for (let i = 0; i < localStorage.length; i++) {
         allStorageKeys.push(localStorage.key(i));
       }
-      console.log(`[SessionStorageService] Debug - All localStorage keys:`, allStorageKeys);
-      
+      console.log(
+        `[SessionStorageService] Debug - All localStorage keys:`,
+        allStorageKeys,
+      );
+
       // Check for any session keys specifically
-      const sessionKeys = allStorageKeys.filter((key): key is string => 
-        key !== null && key.startsWith('session-')
+      const sessionKeys = allStorageKeys.filter(
+        (key): key is string => key !== null && key.startsWith("session-"),
       );
       if (sessionKeys.length > 0) {
-        console.log(`[SessionStorageService] Found ${sessionKeys.length} raw session keys, but they were not loaded by sessionStorage:`, sessionKeys);
-        
+        console.log(
+          `[SessionStorageService] Found ${sessionKeys.length} raw session keys, but they were not loaded by sessionStorage:`,
+          sessionKeys,
+        );
+
         // Try to manually retrieve and fix this
         const manuallyLoadedSessions: Session[] = [];
         for (const key of sessionKeys) {
@@ -154,62 +176,84 @@ export class SessionStorageService {
             const rawData = localStorage.getItem(key);
             if (rawData) {
               const sessionData = JSON.parse(rawData);
-              const date = key.replace('session-', '');
+              const date = key.replace("session-", "");
               manuallyLoadedSessions.push({
                 date: this.formatDate(date),
-                storyBlocks: Array.isArray(sessionData.storyBlocks) ? sessionData.storyBlocks : [],
-                status: (sessionData.status as SessionStatus) || 'planned',
+                storyBlocks: Array.isArray(sessionData.storyBlocks)
+                  ? sessionData.storyBlocks
+                  : [],
+                status: (sessionData.status as SessionStatus) || "planned",
                 totalDuration: sessionData.totalDuration || 0,
-                lastUpdated: sessionData.lastUpdated || new Date().toISOString()
+                lastUpdated:
+                  sessionData.lastUpdated || new Date().toISOString(),
               });
-              console.log(`[SessionStorageService] Manually recovered session for date: ${date}`);
+              console.log(
+                `[SessionStorageService] Manually recovered session for date: ${date}`,
+              );
             }
           } catch (error) {
-            console.error(`[SessionStorageService] Failed to manually parse session from key ${key}:`, error);
+            console.error(
+              `[SessionStorageService] Failed to manually parse session from key ${key}:`,
+              error,
+            );
           }
         }
-        
+
         if (manuallyLoadedSessions.length > 0) {
-          console.log(`[SessionStorageService] Returning ${manuallyLoadedSessions.length} manually loaded sessions`);
+          console.log(
+            `[SessionStorageService] Returning ${manuallyLoadedSessions.length} manually loaded sessions`,
+          );
           return manuallyLoadedSessions;
         }
       }
     }
-    
+
     return Object.entries(storedSessions).map(([date, session]) => ({
       date: this.formatDate(date),
-      storyBlocks: Array.isArray(session.storyBlocks) ? session.storyBlocks : [],
-      status: (session.status as SessionStatus) || 'planned',
+      storyBlocks: Array.isArray(session.storyBlocks)
+        ? session.storyBlocks
+        : [],
+      status: (session.status as SessionStatus) || "planned",
       totalDuration: session.totalDuration || 0,
-      lastUpdated: session.lastUpdated || new Date().toISOString()
-    }))
+      lastUpdated: session.lastUpdated || new Date().toISOString(),
+    }));
   }
 
   /**
    * Save a session
    */
   async saveSession(date: string, session: Session): Promise<void> {
-    const formattedDate = this.formatDate(date)
-    console.log(`[SessionStorageService] Saving session for date: ${formattedDate} with ${session.storyBlocks?.length || 0} story blocks and total duration: ${session.totalDuration}`)
-    
+    const formattedDate = this.formatDate(date);
+    console.log(
+      `[SessionStorageService] Saving session for date: ${formattedDate} with ${session.storyBlocks?.length || 0} story blocks and total duration: ${session.totalDuration}`,
+    );
+
     try {
       await sessionStorage.saveSession(formattedDate, {
         ...session,
         totalSessions: 1, // Required by StoredSession
         startTime: session.lastUpdated || new Date().toISOString(),
         endTime: new Date().toISOString(),
-        frogMetrics: { total: 0, scheduled: 0, scheduledWithinTarget: 0 } // Required by SessionPlan
-      })
-      
+        frogMetrics: { total: 0, scheduled: 0, scheduledWithinTarget: 0 }, // Required by SessionPlan
+      });
+
       // Verify the session was saved
-      const verifySession: import("@/lib/sessionStorage").StoredSession | null = await sessionStorage.getSession(formattedDate)
+      const verifySession: import("@/lib/sessionStorage").StoredSession | null =
+        await sessionStorage.getSession(formattedDate);
       if (!verifySession) {
-        console.error(`[SessionStorageService] Failed to verify session save for date: ${formattedDate}`)
+        console.error(
+          `[SessionStorageService] Failed to verify session save for date: ${formattedDate}`,
+        );
       } else {
-        console.log(`[SessionStorageService] Successfully saved and verified session for date: ${formattedDate}`)
+        console.log(
+          `[SessionStorageService] Successfully saved and verified session for date: ${formattedDate}`,
+        );
       }
     } catch (_error) {
-      console.error(`[SessionStorageService] Error saving session for date: ${formattedDate}`, _error)
+      console.error(
+        `[SessionStorageService] Error saving session for date: ${formattedDate}`,
+        _error,
+      );
     }
   }
 
@@ -217,7 +261,7 @@ export class SessionStorageService {
    * Delete a session
    */
   async deleteSession(date: string): Promise<void> {
-    sessionStorage.deleteSession(this.formatDate(date))
+    sessionStorage.deleteSession(this.formatDate(date));
   }
 
   /**
@@ -228,19 +272,27 @@ export class SessionStorageService {
     storyId: string | undefined,
     timeBoxIndex: number,
     taskIndex: number,
-    status: "todo" | "completed"
+    status: "todo" | "completed",
   ): Promise<boolean> {
     // If storyId is undefined, we can't update the task status
     if (!storyId) {
       console.error("Cannot update task status: storyId is undefined");
       return false;
     }
-    
-    console.log(`[SessionStorageService] Updating task status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex} to ${status}`);
-    
-    const result = await sessionStorage.updateTaskStatus(date, storyId, timeBoxIndex, taskIndex, status);
+
+    console.log(
+      `[SessionStorageService] Updating task status in session ${date}, story ${storyId}, timeBox ${timeBoxIndex}, task ${taskIndex} to ${status}`,
+    );
+
+    const result = await sessionStorage.updateTaskStatus(
+      date,
+      storyId,
+      timeBoxIndex,
+      taskIndex,
+      status,
+    );
     console.log(`[SessionStorageService] Task status update result: ${result}`);
-    
+
     return result;
   }
 
@@ -251,35 +303,48 @@ export class SessionStorageService {
     date: string,
     storyId: string,
     timeBoxIndex: number,
-    status: TimeBoxStatus
+    status: TimeBoxStatus,
   ): Promise<boolean> {
-    return sessionStorage.updateTimeBoxStatus(date, storyId, timeBoxIndex, status)
+    return sessionStorage.updateTimeBoxStatus(
+      date,
+      storyId,
+      timeBoxIndex,
+      status,
+    );
   }
 
   /**
    * Calculate session status based on all work timeboxes
    */
   private calculateSessionStatus(storyBlocks: StoryBlock[]): SessionStatus {
-    const allWorkBoxes = storyBlocks.flatMap(story => 
-      story.timeBoxes.filter(box => box.type === 'work')
-    )
-    
-    const allCompleted = allWorkBoxes.every(box => box.status === 'completed')
-    const anyInProgress = allWorkBoxes.some(box => box.status === 'in-progress')
-    const anyCompleted = allWorkBoxes.some(box => box.status === 'completed')
-    
-    if (allCompleted) return 'completed'
-    if (anyInProgress || anyCompleted) return 'in-progress'
-    return 'planned'
+    const allWorkBoxes = storyBlocks.flatMap((story) =>
+      story.timeBoxes.filter((box) => box.type === "work"),
+    );
+
+    const allCompleted = allWorkBoxes.every(
+      (box) => box.status === "completed",
+    );
+    const anyInProgress = allWorkBoxes.some(
+      (box) => box.status === "in-progress",
+    );
+    const anyCompleted = allWorkBoxes.some((box) => box.status === "completed");
+
+    if (allCompleted) return "completed";
+    if (anyInProgress || anyCompleted) return "in-progress";
+    return "planned";
   }
 
   /**
    * Calculate story progress based on completed work timeboxes
    */
   private calculateStoryProgress(timeBoxes: TimeBox[]): number {
-    const workBoxes = timeBoxes.filter(box => box.type === 'work')
-    const completedWorkBoxes = workBoxes.filter(box => box.status === 'completed')
-    return workBoxes.length > 0 ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100) : 0
+    const workBoxes = timeBoxes.filter((box) => box.type === "work");
+    const completedWorkBoxes = workBoxes.filter(
+      (box) => box.status === "completed",
+    );
+    return workBoxes.length > 0
+      ? Math.round((completedWorkBoxes.length / workBoxes.length) * 100)
+      : 0;
   }
 
   /**
@@ -290,33 +355,33 @@ export class SessionStorageService {
     storyId: string,
     timeBoxIndex: number,
     taskIndex: number,
-    status: "todo" | "completed"
+    status: "todo" | "completed",
   ): StoryBlock[] {
-    return storyBlocks.map(story => {
+    return storyBlocks.map((story) => {
       if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
-        const timeBox = story.timeBoxes[timeBoxIndex]
+        const timeBox = story.timeBoxes[timeBoxIndex];
         if (timeBox.tasks && timeBox.tasks[taskIndex]) {
-          const updatedTasks = [...timeBox.tasks]
-          updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], status }
-          
-          const timeBoxStatus = this.calculateTimeBoxStatus(updatedTasks)
-          const updatedTimeBoxes = [...story.timeBoxes]
+          const updatedTasks = [...timeBox.tasks];
+          updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], status };
+
+          const timeBoxStatus = this.calculateTimeBoxStatus(updatedTasks);
+          const updatedTimeBoxes = [...story.timeBoxes];
           updatedTimeBoxes[timeBoxIndex] = {
             ...timeBox,
             tasks: updatedTasks,
-            status: timeBoxStatus
-          }
-          
-          const progress = this.calculateStoryProgress(updatedTimeBoxes)
+            status: timeBoxStatus,
+          };
+
+          const progress = this.calculateStoryProgress(updatedTimeBoxes);
           return {
             ...story,
             timeBoxes: updatedTimeBoxes,
-            progress
-          }
+            progress,
+          };
         }
       }
-      return story
-    })
+      return story;
+    });
   }
 
   /**
@@ -326,47 +391,49 @@ export class SessionStorageService {
     storyBlocks: StoryBlock[],
     storyId: string,
     timeBoxIndex: number,
-    status: TimeBoxStatus
+    status: TimeBoxStatus,
   ): StoryBlock[] {
-    return storyBlocks.map(story => {
+    return storyBlocks.map((story) => {
       if (story.id === storyId && story.timeBoxes[timeBoxIndex]) {
-        const updatedTimeBoxes = [...story.timeBoxes]
-        const timeBox = updatedTimeBoxes[timeBoxIndex]
-        
+        const updatedTimeBoxes = [...story.timeBoxes];
+        const timeBox = updatedTimeBoxes[timeBoxIndex];
+
         // Update tasks based on timebox status
         if (timeBox.tasks) {
-          timeBox.tasks = timeBox.tasks.map(task => ({
+          timeBox.tasks = timeBox.tasks.map((task) => ({
             ...task,
-            status: status === 'completed' ? 'completed' : 'todo'
-          }))
+            status: status === "completed" ? "completed" : "todo",
+          }));
         }
-        
+
         updatedTimeBoxes[timeBoxIndex] = {
           ...timeBox,
-          status
-        }
-        
-        const progress = this.calculateStoryProgress(updatedTimeBoxes)
+          status,
+        };
+
+        const progress = this.calculateStoryProgress(updatedTimeBoxes);
         return {
           ...story,
           timeBoxes: updatedTimeBoxes,
-          progress
-        }
+          progress,
+        };
       }
-      return story
-    })
+      return story;
+    });
   }
 
   /**
    * Calculate timebox status based on its tasks
    */
   private calculateTimeBoxStatus(tasks: TimeBoxTask[]): TimeBoxStatus {
-    const allTasksCompleted = tasks.every(task => task.status === 'completed')
-    const anyTaskCompleted = tasks.some(task => task.status === 'completed')
-    
-    if (allTasksCompleted) return 'completed'
-    if (anyTaskCompleted) return 'in-progress'
-    return 'todo'
+    const allTasksCompleted = tasks.every(
+      (task) => task.status === "completed",
+    );
+    const anyTaskCompleted = tasks.some((task) => task.status === "completed");
+
+    if (allTasksCompleted) return "completed";
+    if (anyTaskCompleted) return "in-progress";
+    return "todo";
   }
 
   /**
@@ -376,24 +443,29 @@ export class SessionStorageService {
     date: string,
     activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
     timeRemaining: number | null,
-    isTimerRunning: boolean
+    isTimerRunning: boolean,
   ): Promise<boolean> {
     try {
       const formattedDate = this.formatDate(date);
-      console.log(`[SessionStorageService] Saving timer state for date: ${formattedDate}`);
-      
+      console.log(
+        `[SessionStorageService] Saving timer state for date: ${formattedDate}`,
+      );
+
       return sessionStorage.saveTimerState(
         formattedDate,
         activeTimeBox,
         timeRemaining,
-        isTimerRunning
+        isTimerRunning,
       );
     } catch (error) {
-      console.error(`[SessionStorageService] Error saving timer state for date: ${date}:`, error);
+      console.error(
+        `[SessionStorageService] Error saving timer state for date: ${date}:`,
+        error,
+      );
       return false;
     }
   }
-  
+
   /**
    * Save actual duration for a timebox
    */
@@ -401,84 +473,106 @@ export class SessionStorageService {
     date: string,
     storyId: string,
     timeBoxIndex: number,
-    actualDuration: number
+    actualDuration: number,
   ): Promise<boolean> {
     try {
       const formattedDate = this.formatDate(date);
-      console.log(`[SessionStorageService] Saving actual duration of ${actualDuration}min for timebox ${timeBoxIndex} in story ${storyId}`);
-      
+      console.log(
+        `[SessionStorageService] Saving actual duration of ${actualDuration}min for timebox ${timeBoxIndex} in story ${storyId}`,
+      );
+
       // Get the session
       const session = await sessionStorage.getSession(formattedDate);
       if (!session) {
-        console.error(`[SessionStorageService] No session found for date: ${formattedDate}`);
+        console.error(
+          `[SessionStorageService] No session found for date: ${formattedDate}`,
+        );
         return false;
       }
-      
+
       // Find the story
-      const storyIndex = session.storyBlocks.findIndex(s => s.id === storyId);
+      const storyIndex = session.storyBlocks.findIndex((s) => s.id === storyId);
       if (storyIndex === -1) {
-        console.error(`[SessionStorageService] Story with ID ${storyId} not found`);
+        console.error(
+          `[SessionStorageService] Story with ID ${storyId} not found`,
+        );
         return false;
       }
-      
+
       // Find the timebox
       const timeBox = session.storyBlocks[storyIndex].timeBoxes[timeBoxIndex];
       if (!timeBox) {
-        console.error(`[SessionStorageService] TimeBox at index ${timeBoxIndex} not found`);
+        console.error(
+          `[SessionStorageService] TimeBox at index ${timeBoxIndex} not found`,
+        );
         return false;
       }
-      
+
       // Log timebox details for debugging
       console.log(`[SessionStorageService] TimeBox details before update:`);
       console.log(`  Type: ${timeBox.type}`);
       console.log(`  Duration: ${timeBox.duration}min`);
       console.log(`  Status: ${timeBox.status}`);
-      console.log(`  Start Time: ${timeBox.startTime || 'Not set'}`);
-      console.log(`  Actual Duration: ${timeBox.actualDuration || 'Not set'}`);
-      
+      console.log(`  Start Time: ${timeBox.startTime || "Not set"}`);
+      console.log(`  Actual Duration: ${timeBox.actualDuration || "Not set"}`);
+
       // Set the actual duration
       timeBox.actualDuration = actualDuration;
-      
+
       // Ensure timeBox has a startTime (required for time calculations)
       if (!timeBox.startTime) {
         // Create a synthetic startTime based on the end time and actual duration
         const syntheticStartTime = new Date();
-        syntheticStartTime.setMinutes(syntheticStartTime.getMinutes() - actualDuration);
+        syntheticStartTime.setMinutes(
+          syntheticStartTime.getMinutes() - actualDuration,
+        );
         timeBox.startTime = syntheticStartTime.toISOString();
-        console.log(`[SessionStorageService] Created synthetic startTime: ${timeBox.startTime}`);
+        console.log(
+          `[SessionStorageService] Created synthetic startTime: ${timeBox.startTime}`,
+        );
       }
-      
+
       // Save the updated session
       const sessionData: Session = {
         date: formattedDate,
         storyBlocks: session.storyBlocks,
-        status: session.status as SessionStatus || 'planned',
+        status: (session.status as SessionStatus) || "planned",
         totalDuration: session.totalDuration || 0,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
-      
+
       await this.saveSession(formattedDate, sessionData);
-      
+
       // Verify the save worked by checking if the actual duration was saved
       const verifySession = await sessionStorage.getSession(formattedDate);
-      if (verifySession && 
-          verifySession.storyBlocks[storyIndex] && 
-          verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex]) {
-          
-        const savedActualDuration = verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex].actualDuration;
-        
+      if (
+        verifySession &&
+        verifySession.storyBlocks[storyIndex] &&
+        verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex]
+      ) {
+        const savedActualDuration =
+          verifySession.storyBlocks[storyIndex].timeBoxes[timeBoxIndex]
+            .actualDuration;
+
         if (savedActualDuration === actualDuration) {
-          console.log(`[SessionStorageService] Successfully verified actual duration was saved: ${savedActualDuration}min`);
+          console.log(
+            `[SessionStorageService] Successfully verified actual duration was saved: ${savedActualDuration}min`,
+          );
           return true;
         } else {
-          console.error(`[SessionStorageService] Verification failed - Expected: ${actualDuration}min, Got: ${savedActualDuration}min`);
+          console.error(
+            `[SessionStorageService] Verification failed - Expected: ${actualDuration}min, Got: ${savedActualDuration}min`,
+          );
           return false;
         }
       }
-      
+
       return true;
     } catch (error) {
-      console.error(`[SessionStorageService] Error saving actual duration:`, error);
+      console.error(
+        `[SessionStorageService] Error saving actual duration:`,
+        error,
+      );
       return false;
     }
   }
@@ -487,15 +581,18 @@ export class SessionStorageService {
    * Get timer state for a session
    */
   async getTimerState(date: string): Promise<{
-    activeTimeBox: { storyId: string; timeBoxIndex: number } | null,
-    timeRemaining: number | null,
-    isTimerRunning: boolean
+    activeTimeBox: { storyId: string; timeBoxIndex: number } | null;
+    timeRemaining: number | null;
+    isTimerRunning: boolean;
   } | null> {
     try {
       const timerState = await sessionStorage.getTimerState(date);
       return timerState;
     } catch (_error) {
-      console.error(`[SessionStorageService] Error getting timer state for date: ${date}`, _error);
+      console.error(
+        `[SessionStorageService] Error getting timer state for date: ${date}`,
+        _error,
+      );
       return null;
     }
   }
@@ -505,20 +602,20 @@ export class SessionStorageService {
    */
   private formatDate(date: string): string {
     // If date already includes hyphens (YYYY-MM-DD), return as is
-    if (date.includes('-') && date.split('-').length === 3) {
-      return date
+    if (date.includes("-") && date.split("-").length === 3) {
+      return date;
     }
-    
+
     // Try to parse as date and format
     try {
-      const parsedDate = new Date(date)
-      const year = parsedDate.getFullYear()
-      const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-      const day = String(parsedDate.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
+      const parsedDate = new Date(date);
+      const year = parsedDate.getFullYear();
+      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(parsedDate.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     } catch (error) {
-      console.error('Failed to parse date:', date, error)
-      return date // Return original if parsing fails
+      console.error("Failed to parse date:", date, error);
+      return date; // Return original if parsing fails
     }
   }
 
@@ -526,23 +623,28 @@ export class SessionStorageService {
    * Normalize a session object to ensure all required fields are present
    */
   private normalizeSession(session: unknown): Session {
-    if (!session || typeof session !== 'object') {
-      throw new Error('Invalid session data')
+    if (!session || typeof session !== "object") {
+      throw new Error("Invalid session data");
     }
     const s = session as { [key: string]: unknown };
     // Ensure date is in correct format
-    const date = typeof s.date === 'string' ? this.formatDate(s.date) : '';
+    const date = typeof s.date === "string" ? this.formatDate(s.date) : "";
     return {
       date,
-      status: (s.status as SessionStatus) || 'planned',
-      storyBlocks: Array.isArray(s.storyBlocks) ? s.storyBlocks as StoryBlock[] : [],
-      totalDuration: typeof s.totalDuration === 'number' ? s.totalDuration : 0,
-      lastUpdated: typeof s.lastUpdated === 'string' ? s.lastUpdated : new Date().toISOString()
-    }
+      status: (s.status as SessionStatus) || "planned",
+      storyBlocks: Array.isArray(s.storyBlocks)
+        ? (s.storyBlocks as StoryBlock[])
+        : [],
+      totalDuration: typeof s.totalDuration === "number" ? s.totalDuration : 0,
+      lastUpdated:
+        typeof s.lastUpdated === "string"
+          ? s.lastUpdated
+          : new Date().toISOString(),
+    };
   }
 
   private getKey(date: string): string {
-    return `${SESSION_PREFIX}${date}`
+    return `${SESSION_PREFIX}${date}`;
   }
 
   /**
@@ -553,14 +655,19 @@ export class SessionStorageService {
       const formattedDate = this.formatDate(date);
       const session = await this.getSession(formattedDate);
       if (!session) {
-        console.error(`[SessionStorageService] No session found to archive for date: ${formattedDate}`);
+        console.error(
+          `[SessionStorageService] No session found to archive for date: ${formattedDate}`,
+        );
         return false;
       }
-      session.status = 'archived';
+      session.status = "archived";
       await this.saveSession(formattedDate, session);
       return true;
     } catch (error) {
-      console.error(`[SessionStorageService] Error archiving session for date: ${date}:`, error);
+      console.error(
+        `[SessionStorageService] Error archiving session for date: ${date}:`,
+        error,
+      );
       return false;
     }
   }
@@ -573,14 +680,19 @@ export class SessionStorageService {
       const formattedDate = this.formatDate(date);
       const session = await this.getSession(formattedDate);
       if (!session) {
-        console.error(`[SessionStorageService] No session found to unarchive for date: ${formattedDate}`);
+        console.error(
+          `[SessionStorageService] No session found to unarchive for date: ${formattedDate}`,
+        );
         return false;
       }
-      session.status = 'planned';
+      session.status = "planned";
       await this.saveSession(formattedDate, session);
       return true;
     } catch (error) {
-      console.error(`[SessionStorageService] Error unarchiving session for date: ${date}:`, error);
+      console.error(
+        `[SessionStorageService] Error unarchiving session for date: ${date}:`,
+        error,
+      );
       return false;
     }
   }
