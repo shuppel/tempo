@@ -19,6 +19,7 @@ import { format, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getSessionTimeEstimates } from "@/lib/durationUtils";
 import { SessionView } from "@/app/features/session-manager";
+import type { PageProps } from ".next/types/app/session/[date]/page";
 
 // Create a custom DialogContent without the close button
 const DialogContent = React.forwardRef<
@@ -41,12 +42,7 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-// Local definition
-type SessionPageProps = {
-  params: { date: string };
-};
-
-export default function SessionPage({ params }: SessionPageProps) {
+export default function SessionPage({ params }: PageProps) {
   const { date } = params;
   const router = useRouter();
 
