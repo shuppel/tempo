@@ -1,31 +1,31 @@
 /**
  * useTaskRollover Hook
- * 
+ *
  * This hook manages the task rollover functionality, allowing users to carry over incomplete tasks
  * from previous sessions to a new session.
- * 
+ *
  * FIXED ISSUES:
  * - Maximum update depth exceeded: Fixed by:
  *   1. Using useRef to track initialization and prevent redundant checks
  *   2. Using localStorage to track last check date instead of component state
  *   3. Using useMemo for computing derived values
  *   4. Carefully controlling re-renders and side effects
- * 
+ *
  * - Infinite render loops: Fixed by:
  *   1. Creating a controlled lifecycle for the component with explicit phases
  *   2. Using refs to track one-time operations
  *   3. Limiting API calls and state updates to only happen when necessary
  *   4. Adding safety checks to all methods
- * 
+ *
  * DATA MODEL:
  * - IncompleteTask: A task from a previous session that may be carried over
  * - Uses Session and TimeBoxTask models from the main app
  * - Preserves all task metadata needed for proper handling
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { TaskRolloverService } from '../services/task-rollover.service';
-import { TimeBoxTask, Session } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { TaskRolloverService } from "../services/task-rollover.service";
+import { TimeBoxTask, Session } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export interface IncompleteTask {
   /** The original task data */
@@ -80,8 +80,8 @@ export interface UseTaskRolloverReturn {
 }
 
 // Create a localStorage key to track when we last checked
-const LAST_CHECK_KEY = 'task-rollover-last-check';
-const SERVICE_ENABLED_KEY = 'task-rollover-enabled';
+const LAST_CHECK_KEY = "task-rollover-last-check";
+const SERVICE_ENABLED_KEY = "task-rollover-enabled";
 
 export function useTaskRollover(): UseTaskRolloverReturn {
   const router = useRouter();
@@ -90,19 +90,19 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const [hasIncompleteTasks, setHasIncompleteTasks] = useState(false);
   const [recentSession, setRecentSession] = useState<Session | null>(null);
   const [incompleteTasks, setIncompleteTasks] = useState<IncompleteTask[]>([]);
-  const [brainDumpText, setBrainDumpText] = useState('');
-  
+  const [brainDumpText, setBrainDumpText] = useState("");
+
   // Track if the service is enabled
-  const [serviceEnabled, setServiceEnabled] = useState(() => {
+  const [serviceEnabled] = useState(() => {
     // Read from localStorage with a default of true
     const savedSetting = localStorage.getItem(SERVICE_ENABLED_KEY);
     // Default to enabled if not set
-    return savedSetting !== null ? savedSetting === 'true' : true;
+    return savedSetting !== null ? savedSetting === "true" : true;
   });
-  
+
   // Create a ref to know if we've already performed the check
   const hasCheckedToday = useRef(false);
-  
+
   // Use useMemo to create the service only once
   const rolloverService = useMemo(() => new TaskRolloverService(), []);
 
@@ -110,14 +110,14 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const shouldCheckToday = useCallback(() => {
     if (!serviceEnabled) return false;
     if (hasCheckedToday.current) return false;
-    
+
     const lastCheck = localStorage.getItem(LAST_CHECK_KEY);
     if (!lastCheck) return true;
-    
+
     // Parse the last check date
     const lastCheckDate = new Date(lastCheck);
     const today = new Date();
-    
+
     // Check if the last check was on a different day
     return (
       lastCheckDate.getDate() !== today.getDate() ||
@@ -130,33 +130,33 @@ export function useTaskRollover(): UseTaskRolloverReturn {
   const checkForIncompleteTasks = useCallback(async () => {
     // Only proceed if the service is enabled
     if (!serviceEnabled) return;
-    
+
     // Prevent concurrent checks
     if (isLoading) return;
-    
+
     setIsLoading(true);
     try {
       const hasIncomplete = await rolloverService.hasIncompleteTasks();
       setHasIncompleteTasks(hasIncomplete);
-      
+
       if (hasIncomplete) {
         const data = await rolloverService.getIncompleteTasks();
         if (data) {
           setRecentSession(data.session);
           setIncompleteTasks(
-            data.tasks.map(task => ({
+            data.tasks.map((task) => ({
               ...task,
-              selected: true // Select all by default
-            }))
+              selected: true, // Select all by default
+            })),
           );
         }
       }
-      
+
       // Record that we've checked today
       localStorage.setItem(LAST_CHECK_KEY, new Date().toISOString());
       hasCheckedToday.current = true;
     } catch (error) {
-      console.error('Error checking for incomplete tasks:', error);
+      console.error("Error checking for incomplete tasks:", error);
     } finally {
       setIsLoading(false);
     }
@@ -171,83 +171,87 @@ export function useTaskRollover(): UseTaskRolloverReturn {
 
   // Calculate selected task count efficiently
   const selectedCount = useMemo(() => {
-    return incompleteTasks.filter(t => t.selected).length;
+    return incompleteTasks.filter((t) => t.selected).length;
   }, [incompleteTasks]);
 
   // Update brain dump text when incompleteTasks changes
   // Using useEffect to prevent recalculating during renders
   useEffect(() => {
     const selectedTasks = incompleteTasks
-      .filter(t => t.selected)
+      .filter((t) => t.selected)
       .map(({ task, storyTitle }) => ({ task, storyTitle }));
-    
+
     if (selectedTasks.length > 0) {
       const text = rolloverService.convertTasksToBrainDumpFormat(selectedTasks);
       setBrainDumpText(text);
     } else {
-      setBrainDumpText('');
+      setBrainDumpText("");
     }
   }, [incompleteTasks, rolloverService]);
 
   // Toggle selection of a task - this won't trigger unnecessary renders
-  const toggleTaskSelection = useCallback((taskIndex: number) => {
-    if (taskIndex < 0 || taskIndex >= incompleteTasks.length) {
-      return; // Prevent out-of-bounds access
-    }
-    
-    setIncompleteTasks(prevTasks => 
-      prevTasks.map((task, index) => 
-        index === taskIndex 
-          ? { ...task, selected: !task.selected } 
-          : task
-      )
-    );
-  }, [incompleteTasks.length]);
+  const toggleTaskSelection = useCallback(
+    (taskIndex: number) => {
+      if (taskIndex < 0 || taskIndex >= incompleteTasks.length) {
+        return; // Prevent out-of-bounds access
+      }
+
+      setIncompleteTasks((prevTasks) =>
+        prevTasks.map((task, index) =>
+          index === taskIndex ? { ...task, selected: !task.selected } : task,
+        ),
+      );
+    },
+    [incompleteTasks.length],
+  );
 
   // Select all tasks
   const selectAllTasks = useCallback(() => {
-    setIncompleteTasks(tasks => 
-      tasks.map(task => ({ ...task, selected: true }))
+    setIncompleteTasks((tasks) =>
+      tasks.map((task) => ({ ...task, selected: true })),
     );
   }, []);
 
   // Deselect all tasks
   const deselectAllTasks = useCallback(() => {
-    setIncompleteTasks(tasks => 
-      tasks.map(task => ({ ...task, selected: false }))
+    setIncompleteTasks((tasks) =>
+      tasks.map((task) => ({ ...task, selected: false })),
     );
   }, []);
 
   // Mark a task as completed in its original session
-  const completeTask = useCallback(async (taskIndex: number) => {
-    if (!recentSession) return;
-    
-    const task = incompleteTasks[taskIndex];
-    if (!task) return;
-    
-    try {
-      const success = await rolloverService.completeTask(
-        recentSession.date,
-        task.storyId,
-        task.timeBoxIndex,
-        task.taskIndex
-      );
-      
-      if (success) {
-        // Remove the task from the list
-        setIncompleteTasks(tasks => 
-          tasks.filter((_, index) => index !== taskIndex)
+  const completeTask = useCallback(
+    async (taskIndex: number) => {
+      if (!recentSession) return;
+
+      const task = incompleteTasks[taskIndex];
+      if (!task) return;
+
+      try {
+        const success = await rolloverService.completeTask(
+          recentSession.date,
+          task.storyId,
+          task.timeBoxIndex,
+          task.taskIndex,
         );
+
+        if (success) {
+          // Remove the task from the list
+          setIncompleteTasks((tasks) =>
+            tasks.filter((_, index) => index !== taskIndex),
+          );
+        }
+      } catch (error) {
+        console.error("Error completing task:", error);
       }
-    } catch (error) {
-      console.error('Error completing task:', error);
-    }
-  }, [recentSession, incompleteTasks, rolloverService]);
+    },
+    [recentSession, incompleteTasks, rolloverService],
+  );
 
   // Delete a task from the rollover (without completing it)
   const deleteTask = useCallback((taskIndex: number) => {
-    setIncompleteTasks(tasks => 
-      tasks.filter((_, index) => index !== taskIndex)
+    setIncompleteTasks((tasks) =>
+      tasks.filter((_, index) => index !== taskIndex),
     );
   }, []);
 
@@ -271,15 +275,6 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     }
   }, [recentSession, router]);
 
-  // Toggle the service enabled state
-  const toggleServiceEnabled = useCallback(() => {
-    setServiceEnabled(prev => {
-      const newValue = !prev;
-      localStorage.setItem(SERVICE_ENABLED_KEY, String(newValue));
-      return newValue;
-    });
-  }, []);
-
   return {
     isOpen,
     setIsOpen,
@@ -297,6 +292,6 @@ export function useTaskRollover(): UseTaskRolloverReturn {
     finishRollover,
     closeAndDiscard,
     debriefPreviousSession,
-    checkForIncompleteTasks
+    checkForIncompleteTasks,
   };
-} 
+}

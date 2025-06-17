@@ -1,23 +1,23 @@
-import * as React from "react"
+import * as React from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ProgressLoader } from "@/components/ui/progress-loader"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { CheckCircle2, Clock, Brain, FileText } from "lucide-react"
-import type { Task } from "@/lib/types"
+} from "@/components/ui/dialog";
+import { ProgressLoader } from "@/components/ui/progress-loader";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, Clock, Brain, FileText } from "lucide-react";
+import type { Task } from "@/lib/types";
 
 interface TaskActionModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  currentTask?: Task
-  currentAction?: string
-  progress: number
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentTask?: Task;
+  currentAction?: string;
+  progress: number;
 }
 
 const PROGRESS_STAGES = [
@@ -25,7 +25,7 @@ const PROGRESS_STAGES = [
   { threshold: 40, label: "Organizing", icon: FileText },
   { threshold: 80, label: "Planning", icon: Clock },
   { threshold: 100, label: "Completing", icon: CheckCircle2 },
-]
+];
 
 export function TaskActionModal({
   open,
@@ -34,8 +34,9 @@ export function TaskActionModal({
   currentAction,
   progress,
 }: TaskActionModalProps) {
-  const currentStage = PROGRESS_STAGES.find(stage => progress <= stage.threshold) || PROGRESS_STAGES[PROGRESS_STAGES.length - 1]
-  const StageIcon = currentStage.icon
+  const currentStage =
+    PROGRESS_STAGES.find((stage) => progress <= stage.threshold) ||
+    PROGRESS_STAGES[PROGRESS_STAGES.length - 1];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,41 +49,55 @@ export function TaskActionModal({
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              {currentStage && (
+                <>
+                  <currentStage.icon className="h-5 w-5 text-blue-600" />
+                  <span className="font-semibold text-blue-700 text-sm">
+                    {currentStage.label}
+                  </span>
+                </>
+              )}
+            </div>
             <ProgressLoader
               progress={progress}
               description={currentAction || "Initializing..."}
             />
-            
+
             <div className="flex justify-between items-center">
-              {PROGRESS_STAGES.map((stage, index) => {
-                const Icon = stage.icon
-                const isActive = progress <= stage.threshold
-                const isPast = progress > stage.threshold
+              {PROGRESS_STAGES.map((stage) => {
+                const Icon = stage.icon;
+                const isActive = progress <= stage.threshold;
+                const isPast = progress > stage.threshold;
                 return (
-                  <div 
+                  <div
                     key={stage.label}
                     className={cn(
                       "flex flex-col items-center gap-2 transition-all duration-300",
                       isPast && "text-green-600",
-                      isActive && "scale-110"
+                      isActive && "scale-110",
                     )}
                   >
-                    <div className={cn(
-                      "p-2 rounded-full transition-colors duration-300",
-                      isPast && "bg-green-50",
-                      isActive && "bg-blue-50",
-                      !isPast && !isActive && "bg-muted"
-                    )}>
-                      <Icon className={cn(
-                        "h-4 w-4",
-                        isPast && "text-green-600",
-                        isActive && "text-blue-600",
-                        !isPast && !isActive && "text-muted-foreground"
-                      )} />
+                    <div
+                      className={cn(
+                        "p-2 rounded-full transition-colors duration-300",
+                        isPast && "bg-green-50",
+                        isActive && "bg-blue-50",
+                        !isPast && !isActive && "bg-muted",
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-4 w-4",
+                          isPast && "text-green-600",
+                          isActive && "text-blue-600",
+                          !isPast && !isActive && "text-muted-foreground",
+                        )}
+                      />
                     </div>
                     <span className="text-xs font-medium">{stage.label}</span>
                   </div>
-                )
+                );
               })}
             </div>
           </div>
@@ -113,5 +128,5 @@ export function TaskActionModal({
         </div>
       </DialogContent>
     </Dialog>
-  )
-} 
+  );
+}

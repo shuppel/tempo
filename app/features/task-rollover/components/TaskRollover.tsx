@@ -2,26 +2,26 @@
 
 /**
  * TaskRollover Component
- * 
+ *
  * This component provides the UI for managing task rollover from previous sessions.
  * It presents a dialog asking users if they've completed their previous tasks,
  * and allows them to select which incomplete tasks to carry over to the new session.
- * 
+ *
  * FIXED ISSUES:
  * - Hydration errors with invalid HTML: Fixed by ensuring proper HTML hierarchy
  *   (removed div elements from inside paragraph elements)
- * 
+ *
  * - Maximum update depth exceeded: Fixed by:
  *   1. Using refs to track component lifecycle and initialization
  *   2. Implementing controlled state updates with explicit checks
  *   3. Ensuring effects have proper dependencies and safeguards
  *   4. Adding clear logging for debugging state flow
- * 
+ *
  * - State update loops: Fixed by:
  *   1. Using refs to track one-time operations (hasAddedTasks)
  *   2. Adding guards to prevent redundant updates
  *   3. Carefully controlling dialog open/close behavior
- * 
+ *
  * COMPONENT LIFECYCLE:
  * 1. Component mounts: Checks once for incomplete tasks
  * 2. If tasks found: Shows confirmation dialog
@@ -52,19 +52,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Clock,
   CheckCircle,
   Trash2,
-  ArrowRight,
-  CheckCheck, 
-  X,
+  CheckCheck,
   AlertCircle,
   Square,
-  CheckSquare
+  CheckSquare,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/durationUtils";
+import { escapeHtml } from "@/lib/utils";
 import { useTaskRollover, IncompleteTask } from "../hooks/useTaskRollover";
 
 export interface TaskRolloverProps {
@@ -74,13 +72,13 @@ export interface TaskRolloverProps {
 export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
   // Reference to track if we've handled task addition to prevent infinite loops
   const hasAddedTasks = useRef(false);
-  
+
   // Reference to track initialization
   const didInitialize = useRef(false);
-  
+
   // Manually track if we should show the finish question to avoid state update loops
   const [showFinishQuestion, setShowFinishQuestion] = useState(false);
-  
+
   const {
     isOpen,
     setIsOpen,
@@ -98,38 +96,51 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     finishRollover,
     closeAndDiscard,
     debriefPreviousSession,
-    checkForIncompleteTasks
+    checkForIncompleteTasks,
   } = useTaskRollover();
 
   // One-time initialization effect (with no dependencies)
   useEffect(() => {
     // Only run this once
     if (didInitialize.current) return;
-    
+
     didInitialize.current = true;
     console.log("[TaskRollover] Component initialized");
-    
+
     // Let the browser paint before checking
     const timeoutId = setTimeout(() => {
       checkForIncompleteTasks().then(() => {
-        console.log("[TaskRollover] Initial check complete", { hasIncompleteTasks });
+        console.log("[TaskRollover] Initial check complete", {
+          hasIncompleteTasks,
+        });
       });
     }, 100);
-    
+
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [checkForIncompleteTasks, hasIncompleteTasks]);
 
   // Show the finish question dialog if we have incomplete tasks
   useEffect(() => {
     // Skip if already initialized or if loading
     if (isLoading) return;
-    
+
     // Only show question if there are actually incomplete tasks
-    if (hasIncompleteTasks && incompleteTasks.length > 0 && !showFinishQuestion && !isOpen) {
+    if (
+      hasIncompleteTasks &&
+      incompleteTasks.length > 0 &&
+      !showFinishQuestion &&
+      !isOpen
+    ) {
       console.log("[TaskRollover] Showing finish question");
       setShowFinishQuestion(true);
     }
-  }, [hasIncompleteTasks, incompleteTasks.length, isLoading, isOpen, showFinishQuestion]);
+  }, [
+    hasIncompleteTasks,
+    incompleteTasks.length,
+    isLoading,
+    isOpen,
+    showFinishQuestion,
+  ]);
 
   // Handle adding tasks to Brain Dump when rollover is finished
   // This runs only once when dialog closes with tasks
@@ -137,10 +148,10 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     // Only run this block when dialog has just closed (isOpen changed to false)
     // AND we have tasks to add AND we haven't already added them
     if (
-      !isOpen && 
-      brainDumpText && 
-      brainDumpText.trim() !== "" && 
-      onCompletedTasksAdded && 
+      !isOpen &&
+      brainDumpText &&
+      brainDumpText.trim() !== "" &&
+      onCompletedTasksAdded &&
       !hasAddedTasks.current
     ) {
       console.log("[TaskRollover] Adding tasks to Brain Dump");
@@ -152,7 +163,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
         console.error("Error adding tasks to Brain Dump:", error);
       }
     }
-    
+
     // If dialog opens, reset the flag
     if (isOpen) {
       hasAddedTasks.current = false;
@@ -177,7 +188,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
     try {
       // If the dialog isn't open, don't do anything
       if (!isOpen) return;
-      
+
       finishRollover();
     } catch (error) {
       console.error("Error completing task rollover:", error);
@@ -187,8 +198,8 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
   return (
     <>
       {/* "Did you finish everything?" question dialog */}
-      <AlertDialog 
-        open={showFinishQuestion} 
+      <AlertDialog
+        open={showFinishQuestion}
         onOpenChange={(open) => {
           if (!open) {
             console.log("[TaskRollover] Finish question dialog closed");
@@ -201,22 +212,25 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             <AlertDialogTitle>Previous Tasks Found</AlertDialogTitle>
             <AlertDialogDescription>
               <div className="space-y-4">
-                Did you finish everything you wanted to finish from the session on
+                Did you finish everything you wanted to finish from the session
+                on
                 {recentSession && (
                   <span className="font-medium ml-1">
                     {format(parseISO(recentSession.date), "EEEE, MMMM d")}
                   </span>
-                )}?
-
+                )}
+                ?
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 rounded-md flex items-start gap-2 mt-4">
                   <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
-                      You have {incompleteTasks.length} incomplete tasks from your previous session.
+                      You have {incompleteTasks.length} incomplete tasks from
+                      your previous session.
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      If you've completed them, please mark the session as done and debrief.
-                      If not, you can carry them over to today.
+                      If you&apos;ve completed them, please mark the session as
+                      done and debrief. If not, you can carry them over to
+                      today.
                     </p>
                   </div>
                 </div>
@@ -224,7 +238,7 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={() => {
                 console.log("[TaskRollover] Finish question canceled");
                 setShowFinishQuestion(false);
@@ -249,13 +263,13 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
       </AlertDialog>
 
       {/* Task Rollover Management Dialog */}
-      <Dialog 
-        open={isOpen} 
+      <Dialog
+        open={isOpen}
         onOpenChange={(open) => {
           console.log("[TaskRollover] Dialog open change:", open);
           // Set the internal state directly, don't rely on cascading effects
           setIsOpen(open);
-          
+
           // If dialog is closing with no selection action, treat as "cancel"
           if (!open && !hasAddedTasks.current) {
             console.log("[TaskRollover] Dialog closed without selecting tasks");
@@ -268,9 +282,11 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
             <DialogTitle>Task Rollover</DialogTitle>
             <DialogDescription>
               {recentSession ? (
-                <span>
-                  Select tasks from {format(parseISO(recentSession.date), "EEEE, MMMM d")} to add to today's plan
-                </span>
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: `Select tasks from ${escapeHtml(format(parseISO(recentSession.date), "EEEE, MMMM d"))} to add to today&#39;s plan`,
+                  }}
+                />
               ) : (
                 <span>Select tasks from your previous session</span>
               )}
@@ -343,8 +359,8 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
                 : "No tasks selected"}
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   console.log("[TaskRollover] Cancel button clicked");
                   closeAndDiscard();
@@ -352,9 +368,11 @@ export function TaskRollover({ onCompletedTasksAdded }: TaskRolloverProps) {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
-                  console.log("[TaskRollover] Add to Brain Dump button clicked");
+                  console.log(
+                    "[TaskRollover] Add to Brain Dump button clicked",
+                  );
                   handleTaskRolloverComplete();
                 }}
                 disabled={selectedCount === 0}
@@ -377,13 +395,19 @@ interface TaskItemProps {
   onDelete: (index: number) => void;
 }
 
-function TaskItem({ task, index, onToggle, onComplete, onDelete }: TaskItemProps) {
+function TaskItem({
+  task,
+  index,
+  onToggle,
+  onComplete,
+  onDelete,
+}: TaskItemProps) {
   return (
     <div className="flex items-start gap-3 border rounded-lg p-3 hover:bg-muted/30 transition-colors">
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="h-6 w-6 p-0 mt-1" 
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 p-0 mt-1"
         onClick={() => onToggle(index)}
       >
         {task.selected ? (
@@ -394,9 +418,7 @@ function TaskItem({ task, index, onToggle, onComplete, onDelete }: TaskItemProps
       </Button>
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
-          <h4 className="font-medium">
-            {task.task.title}
-          </h4>
+          <h4 className="font-medium">{task.task.title}</h4>
           {task.task.isFrog && (
             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
               FROG
@@ -406,7 +428,9 @@ function TaskItem({ task, index, onToggle, onComplete, onDelete }: TaskItemProps
         <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground mt-1">
           <span className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            {task.task.duration ? formatDuration(task.task.duration) : "No duration"}
+            {task.task.duration
+              ? formatDuration(task.task.duration)
+              : "No duration"}
           </span>
           <span className="text-muted-foreground">•</span>
           <span>From: {task.storyTitle}</span>
@@ -434,4 +458,4 @@ function TaskItem({ task, index, onToggle, onComplete, onDelete }: TaskItemProps
       </div>
     </div>
   );
-} 
+}

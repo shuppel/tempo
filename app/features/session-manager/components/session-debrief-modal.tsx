@@ -1,15 +1,27 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useState, useCallback } from "react"
-import { FileText, X, ChevronRight, BarChart3, TrendingUp, Play, PauseCircle, Clock, Brain, CheckCircle, Heart, ChevronLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/app/components/ui/textarea"
-import { Slider } from "@/app/components/ui/slider"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
+import * as React from "react";
+import { useState, useCallback } from "react";
+import {
+  FileText,
+  X,
+  ChevronRight,
+  BarChart3,
+  TrendingUp,
+  Play,
+  PauseCircle,
+  Clock,
+  Brain,
+  CheckCircle,
+  Heart,
+  ChevronLeft,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/app/components/ui/textarea";
+import { Slider } from "@/app/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 // Type for session metrics
 interface SessionMetrics {
@@ -28,30 +40,30 @@ interface SessionMetrics {
 }
 
 export interface SessionDebriefModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: SessionDebriefData) => void
-  sessionDate: string
-  sessionMetrics: SessionMetrics | null
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: SessionDebriefData) => void;
+  sessionDate: string;
+  sessionMetrics: SessionMetrics | null;
 }
 
 export interface SessionDebriefData {
-  sessionDate: string
-  productivity: number
-  stress: number
-  satisfaction: number
-  energy: number
-  focus: number
-  metrics?: SessionMetrics
+  sessionDate: string;
+  productivity: number;
+  stress: number;
+  satisfaction: number;
+  energy: number;
+  focus: number;
+  metrics?: SessionMetrics;
 }
 
 // Helper functions
 const formatTime = (seconds: number): string => {
-  if (!seconds) return '0m';
-  
+  if (!seconds) return "0m";
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
@@ -64,32 +76,38 @@ const calculatePercentage = (part: number, total: number): number => {
 };
 
 const getFocusConsistencyLabel = (value: number): string => {
-  if (value >= 8) return 'Excellent';
-  if (value >= 6) return 'Good';
-  if (value >= 4) return 'Average';
-  return 'Needs Improvement';
+  if (value >= 8) return "Excellent";
+  if (value >= 6) return "Good";
+  if (value >= 4) return "Average";
+  return "Needs Improvement";
 };
 
 const getFocusConsistencyColor = (value: number): string => {
-  if (value >= 8) return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-  if (value >= 6) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
-  if (value >= 4) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
-  return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+  if (value >= 8)
+    return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
+  if (value >= 6)
+    return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
+  if (value >= 4)
+    return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+  return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
 };
 
 const getCompletionSpeedLabel = (value: number): string => {
-  if (value >= 1.5) return 'Very Fast';
-  if (value >= 1.1) return 'Fast';
-  if (value >= 0.9) return 'On Target';
-  if (value >= 0.7) return 'Slower';
-  return 'Much Slower';
+  if (value >= 1.5) return "Very Fast";
+  if (value >= 1.1) return "Fast";
+  if (value >= 0.9) return "On Target";
+  if (value >= 0.7) return "Slower";
+  return "Much Slower";
 };
 
 const getCompletionSpeedColor = (value: number): string => {
-  if (value >= 1.5) return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
-  if (value >= 1.1) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
-  if (value >= 0.9) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
-  return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+  if (value >= 1.5)
+    return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
+  if (value >= 1.1)
+    return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
+  if (value >= 0.9)
+    return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+  return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
 };
 
 const getProgressValue = (value: number): number => {
@@ -97,7 +115,6 @@ const getProgressValue = (value: number): number => {
   // 0.5x = 0%, 1.0x = 50%, 1.5x = 100%
   return Math.min(Math.max((value - 0.5) * 100, 0), 100);
 };
-
 
 // If mock data is truly necessary, consider a more maintainable approach:
 const generateMockSessionMetrics = (): SessionMetrics => {
@@ -119,34 +136,75 @@ const generateMockSessionMetrics = (): SessionMetrics => {
 };
 
 // Only generate mock data in development environment
-const mockSession: SessionMetrics = process.env.NODE_ENV === 'development' 
-  ? generateMockSessionMetrics() 
-  : {} as SessionMetrics;
+const mockSession: SessionMetrics =
+  process.env.NODE_ENV === "development"
+    ? generateMockSessionMetrics()
+    : ({} as SessionMetrics);
 
 // Descriptors for the sliders
 const productivityDescriptors = [
-  "Very low", "Low", "Below average", "Somewhat low", "Average", 
-  "Somewhat high", "Above average", "High", "Very high", "Exceptional"
+  "Very low",
+  "Low",
+  "Below average",
+  "Somewhat low",
+  "Average",
+  "Somewhat high",
+  "Above average",
+  "High",
+  "Very high",
+  "Exceptional",
 ];
 
 const stressDescriptors = [
-  "None", "Minimal", "Very low", "Low", "Moderate", 
-  "Somewhat high", "High", "Very high", "Severe", "Extreme"
+  "None",
+  "Minimal",
+  "Very low",
+  "Low",
+  "Moderate",
+  "Somewhat high",
+  "High",
+  "Very high",
+  "Severe",
+  "Extreme",
 ];
 
 const satisfactionDescriptors = [
-  "Very dissatisfied", "Dissatisfied", "Somewhat dissatisfied", "Slightly dissatisfied", "Neutral", 
-  "Slightly satisfied", "Somewhat satisfied", "Satisfied", "Very satisfied", "Extremely satisfied"
+  "Very dissatisfied",
+  "Dissatisfied",
+  "Somewhat dissatisfied",
+  "Slightly dissatisfied",
+  "Neutral",
+  "Slightly satisfied",
+  "Somewhat satisfied",
+  "Satisfied",
+  "Very satisfied",
+  "Extremely satisfied",
 ];
 
 const energyDescriptors = [
-  "Completely drained", "Very low", "Low", "Somewhat low", "Moderate", 
-  "Somewhat high", "Good", "Very good", "Excellent", "Boundless"
+  "Completely drained",
+  "Very low",
+  "Low",
+  "Somewhat low",
+  "Moderate",
+  "Somewhat high",
+  "Good",
+  "Very good",
+  "Excellent",
+  "Boundless",
 ];
 
 const focusDescriptors = [
-  "Completely distracted", "Very distracted", "Distracted", "Somewhat distracted", "Neutral", 
-  "Somewhat focused", "Focused", "Very focused", "Deeply focused", "Flow state"
+  "Completely distracted",
+  "Very distracted",
+  "Distracted",
+  "Somewhat distracted",
+  "Neutral",
+  "Somewhat focused",
+  "Focused",
+  "Very focused",
+  "Deeply focused",
+  "Flow state",
 ];
 
 export function SessionDebriefModal({
@@ -154,28 +212,30 @@ export function SessionDebriefModal({
   onClose,
   onSave,
   sessionDate,
-  sessionMetrics
+  sessionMetrics,
 }: SessionDebriefModalProps) {
-  const [reflections, setReflections] = useState("")
-  const [productivityRating, setProductivityRating] = useState(5)
-  const [stressLevel, setStressLevel] = useState(5)
-  const [satisfactionRating, setSatisfactionRating] = useState(5)
-  const [energyLevel, setEnergyLevel] = useState(5)
-  const [focusRating, setFocusRating] = useState(5)
-  const [currentPage, setCurrentPage] = useState<'reflection' | 'feelings' | 'metrics'>('reflection')
+  const [reflections, setReflections] = useState("");
+  const [productivityRating, setProductivityRating] = useState(5);
+  const [stressLevel, setStressLevel] = useState(5);
+  const [satisfactionRating, setSatisfactionRating] = useState(5);
+  const [energyLevel, setEnergyLevel] = useState(5);
+  const [focusRating, setFocusRating] = useState(5);
+  const [currentPage, setCurrentPage] = useState<
+    "reflection" | "feelings" | "metrics"
+  >("reflection");
 
   React.useEffect(() => {
     console.log("SessionDebriefModal isOpen:", isOpen);
   }, [isOpen]);
 
   // Reset state when modal is opened
-  // This useEffect ensures that every time the modal is opened, 
+  // This useEffect ensures that every time the modal is opened,
   // the current page is reset to the first page ('reflection')
   // This prevents the modal from retaining its previous navigation state
   // and provides a consistent starting point for the user's debrief experience
   React.useEffect(() => {
     if (isOpen) {
-      setCurrentPage('reflection');
+      setCurrentPage("reflection");
     }
   }, [isOpen]);
 
@@ -187,36 +247,51 @@ export function SessionDebriefModal({
       satisfaction: satisfactionRating,
       energy: energyLevel,
       focus: focusRating,
-      metrics: sessionMetrics || undefined
+      metrics: sessionMetrics || undefined,
     };
     console.log("Saving debrief data:", debriefData);
     onSave(debriefData);
     onClose();
-  }, [productivityRating, stressLevel, satisfactionRating, energyLevel, focusRating, sessionDate, onSave, sessionMetrics]);
+  }, [
+    productivityRating,
+    stressLevel,
+    satisfactionRating,
+    energyLevel,
+    focusRating,
+    sessionDate,
+    onSave,
+    sessionMetrics,
+    onClose,
+  ]);
 
   const handleNextPage = () => {
-    if (currentPage === 'reflection') {
-      setCurrentPage('feelings');
-    } else if (currentPage === 'feelings') {
-      setCurrentPage('metrics');
+    if (currentPage === "reflection") {
+      setCurrentPage("feelings");
+    } else if (currentPage === "feelings") {
+      setCurrentPage("metrics");
     }
   };
 
   const handlePreviousPage = () => {
-    if (currentPage === 'metrics') {
-      setCurrentPage('feelings');
-    } else if (currentPage === 'feelings') {
-      setCurrentPage('reflection');
+    if (currentPage === "metrics") {
+      setCurrentPage("feelings");
+    } else if (currentPage === "feelings") {
+      setCurrentPage("reflection");
     }
   };
 
   // Sample metrics if none provided
   const session = sessionMetrics || mockSession;
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   // For debugging purposes, add a highly visible indicator
-  console.log("Rendering SessionDebriefModal with isOpen:", isOpen, "sessionDate:", sessionDate);
+  console.log(
+    "Rendering SessionDebriefModal with isOpen:",
+    isOpen,
+    "sessionDate:",
+    sessionDate,
+  );
 
   // Render the metrics view
   const renderMetricsView = () => {
@@ -236,11 +311,16 @@ export function SessionDebriefModal({
                 </div>
               </div>
               <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                {calculatePercentage(session.totalFocusTime, session.totalSessionTime)}% of session
+                {calculatePercentage(
+                  session.totalFocusTime,
+                  session.totalSessionTime,
+                )}
+                % of session
               </Badge>
             </div>
             <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-2">
-              You spent {formatTime(session.totalFocusTime)} in focused work out of {formatTime(session.totalSessionTime)} total session time.
+              You spent {formatTime(session.totalFocusTime)} in focused work out
+              of {formatTime(session.totalSessionTime)} total session time.
             </p>
           </div>
 
@@ -257,11 +337,17 @@ export function SessionDebriefModal({
                 </div>
               </div>
               <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
-                {calculatePercentage(session.totalBreakTime, session.totalSessionTime)}% of session
+                {calculatePercentage(
+                  session.totalBreakTime,
+                  session.totalSessionTime,
+                )}
+                % of session
               </Badge>
             </div>
             <p className="text-xs text-purple-600/80 dark:text-purple-400/80 mt-2">
-              You took {session.breakCount} breaks totaling {formatTime(session.totalBreakTime)}, averaging {formatTime(session.averageBreakDuration)} per break.
+              You took {session.breakCount} breaks totaling{" "}
+              {formatTime(session.totalBreakTime)}, averaging{" "}
+              {formatTime(session.averageBreakDuration)} per break.
             </p>
           </div>
 
@@ -278,11 +364,17 @@ export function SessionDebriefModal({
                 </div>
               </div>
               <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                {calculatePercentage(session.completedTasks, session.totalTasks)}% completion
+                {calculatePercentage(
+                  session.completedTasks,
+                  session.totalTasks,
+                )}
+                % completion
               </Badge>
             </div>
             <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-2">
-              You completed {session.completedTasks} of {session.totalTasks} planned tasks, with an average completion time of {formatTime(session.averageTaskCompletionTime)} per task.
+              You completed {session.completedTasks} of {session.totalTasks}{" "}
+              planned tasks, with an average completion time of{" "}
+              {formatTime(session.averageTaskCompletionTime)} per task.
             </p>
           </div>
 
@@ -295,15 +387,21 @@ export function SessionDebriefModal({
                   Focus Consistency
                 </h3>
                 <div className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {session.focusConsistency ? session.focusConsistency.toFixed(1) : '0.0'}/10
+                  {session.focusConsistency
+                    ? session.focusConsistency.toFixed(1)
+                    : "0.0"}
+                  /10
                 </div>
               </div>
-              <Badge className={`${getFocusConsistencyColor(session.focusConsistency || 0)}`}>
+              <Badge
+                className={`${getFocusConsistencyColor(session.focusConsistency || 0)}`}
+              >
                 {getFocusConsistencyLabel(session.focusConsistency || 0)}
               </Badge>
             </div>
             <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-2">
-              Your focus consistency score reflects how well you maintained focus without interruptions during work periods.
+              Your focus consistency score reflects how well you maintained
+              focus without interruptions during work periods.
             </p>
           </div>
 
@@ -316,23 +414,37 @@ export function SessionDebriefModal({
                   Task Completion Speed
                 </h3>
                 <div className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
-                  {session.taskCompletionRate ? session.taskCompletionRate.toFixed(1) : '0.0'}x
+                  {session.taskCompletionRate
+                    ? session.taskCompletionRate.toFixed(1)
+                    : "0.0"}
+                  x
                 </div>
               </div>
-              <Badge className={`${getCompletionSpeedColor(session.taskCompletionRate || 0)}`}>
+              <Badge
+                className={`${getCompletionSpeedColor(session.taskCompletionRate || 0)}`}
+              >
                 {getCompletionSpeedLabel(session.taskCompletionRate || 0)}
               </Badge>
             </div>
             <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-2">
-              Your completion speed compares your actual task completion times against estimated times. Above 1.0x means faster than expected.
+              Your completion speed compares your actual task completion times
+              against estimated times. Above 1.0x means faster than expected.
             </p>
 
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-rose-700 dark:text-rose-300 font-medium">Historical Performance</span>
-                <span className="text-rose-500/70">{formatTime(session.totalActualTime)} vs {formatTime(session.totalEstimatedTime)} estimated</span>
+                <span className="text-rose-700 dark:text-rose-300 font-medium">
+                  Historical Performance
+                </span>
+                <span className="text-rose-500/70">
+                  {formatTime(session.totalActualTime)} vs{" "}
+                  {formatTime(session.totalEstimatedTime)} estimated
+                </span>
               </div>
-              <Progress value={getProgressValue(session.taskCompletionRate || 0)} className="h-2" />
+              <Progress
+                value={getProgressValue(session.taskCompletionRate || 0)}
+                className="h-2"
+              />
               <div className="flex justify-between text-xs mt-1 text-muted-foreground">
                 <span>Slower</span>
                 <span>On Target</span>
@@ -344,37 +456,69 @@ export function SessionDebriefModal({
 
         {/* Session Ratings Summary */}
         <div className="bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
-          <h3 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">Session Ratings Overview</h3>
-          
+          <h3 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
+            Session Ratings Overview
+          </h3>
+
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Productivity</div>
-              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{productivityRating}/10</div>
-              <div className="text-xs text-rose-500 mt-1">{productivityDescriptors[productivityRating-1]}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Productivity
+              </div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                {productivityRating}/10
+              </div>
+              <div className="text-xs text-rose-500 mt-1">
+                {productivityDescriptors[productivityRating - 1]}
+              </div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Stress</div>
-              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{stressLevel}/10</div>
-              <div className="text-xs text-rose-500 mt-1">{stressDescriptors[stressLevel-1]}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Stress
+              </div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                {stressLevel}/10
+              </div>
+              <div className="text-xs text-rose-500 mt-1">
+                {stressDescriptors[stressLevel - 1]}
+              </div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Satisfaction</div>
-              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{satisfactionRating}/10</div>
-              <div className="text-xs text-rose-500 mt-1">{satisfactionDescriptors[satisfactionRating-1]}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Satisfaction
+              </div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                {satisfactionRating}/10
+              </div>
+              <div className="text-xs text-rose-500 mt-1">
+                {satisfactionDescriptors[satisfactionRating - 1]}
+              </div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Energy</div>
-              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{energyLevel}/10</div>
-              <div className="text-xs text-rose-500 mt-1">{energyDescriptors[energyLevel-1]}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Energy
+              </div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                {energyLevel}/10
+              </div>
+              <div className="text-xs text-rose-500 mt-1">
+                {energyDescriptors[energyLevel - 1]}
+              </div>
             </div>
-            
+
             <div className="text-center">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Focus</div>
-              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{focusRating}/10</div>
-              <div className="text-xs text-rose-500 mt-1">{focusDescriptors[focusRating-1]}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Focus
+              </div>
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                {focusRating}/10
+              </div>
+              <div className="text-xs text-rose-500 mt-1">
+                {focusDescriptors[focusRating - 1]}
+              </div>
             </div>
           </div>
         </div>
@@ -387,10 +531,13 @@ export function SessionDebriefModal({
     return (
       <div className="space-y-6">
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-blue-700 dark:text-blue-300 mb-2">Rate Your Experience</h3>
+          <h3 className="text-lg font-medium text-blue-700 dark:text-blue-300 mb-2">
+            Rate Your Experience
+          </h3>
           <p className="text-blue-700/80 dark:text-blue-300/80 text-sm mb-3">
-            How did you feel during this work session? Rating your experience helps identify patterns
-            in your productivity and well-being over time.
+            How did you feel during this work session? Rating your experience
+            helps identify patterns in your productivity and well-being over
+            time.
           </p>
         </div>
 
@@ -400,8 +547,12 @@ export function SessionDebriefModal({
             <div className="flex justify-between">
               <Label htmlFor="productivity">Productivity</Label>
               <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">{productivityRating}/10</span>
-                <span className="text-xs font-medium text-blue-500">{productivityDescriptors[productivityRating-1]}</span>
+                <span className="text-sm text-muted-foreground">
+                  {productivityRating}/10
+                </span>
+                <span className="text-xs font-medium text-blue-500">
+                  {productivityDescriptors[productivityRating - 1]}
+                </span>
               </div>
             </div>
             <Slider
@@ -410,7 +561,9 @@ export function SessionDebriefModal({
               max={10}
               step={1}
               value={[productivityRating]}
-              onValueChange={(value: number[]) => setProductivityRating(value[0])}
+              onValueChange={(value: number[]) =>
+                setProductivityRating(value[0])
+              }
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Unproductive</span>
@@ -423,8 +576,12 @@ export function SessionDebriefModal({
             <div className="flex justify-between">
               <Label htmlFor="stress">Stress Level</Label>
               <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">{stressLevel}/10</span>
-                <span className="text-xs font-medium text-blue-500">{stressDescriptors[stressLevel-1]}</span>
+                <span className="text-sm text-muted-foreground">
+                  {stressLevel}/10
+                </span>
+                <span className="text-xs font-medium text-blue-500">
+                  {stressDescriptors[stressLevel - 1]}
+                </span>
               </div>
             </div>
             <Slider
@@ -446,8 +603,12 @@ export function SessionDebriefModal({
             <div className="flex justify-between">
               <Label htmlFor="satisfaction">Satisfaction</Label>
               <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">{satisfactionRating}/10</span>
-                <span className="text-xs font-medium text-blue-500">{satisfactionDescriptors[satisfactionRating-1]}</span>
+                <span className="text-sm text-muted-foreground">
+                  {satisfactionRating}/10
+                </span>
+                <span className="text-xs font-medium text-blue-500">
+                  {satisfactionDescriptors[satisfactionRating - 1]}
+                </span>
               </div>
             </div>
             <Slider
@@ -456,7 +617,9 @@ export function SessionDebriefModal({
               max={10}
               step={1}
               value={[satisfactionRating]}
-              onValueChange={(value: number[]) => setSatisfactionRating(value[0])}
+              onValueChange={(value: number[]) =>
+                setSatisfactionRating(value[0])
+              }
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Unsatisfied</span>
@@ -469,8 +632,12 @@ export function SessionDebriefModal({
             <div className="flex justify-between">
               <Label htmlFor="energy">Energy Level</Label>
               <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">{energyLevel}/10</span>
-                <span className="text-xs font-medium text-blue-500">{energyDescriptors[energyLevel-1]}</span>
+                <span className="text-sm text-muted-foreground">
+                  {energyLevel}/10
+                </span>
+                <span className="text-xs font-medium text-blue-500">
+                  {energyDescriptors[energyLevel - 1]}
+                </span>
               </div>
             </div>
             <Slider
@@ -492,8 +659,12 @@ export function SessionDebriefModal({
             <div className="flex justify-between">
               <Label htmlFor="focus">Focus Quality</Label>
               <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">{focusRating}/10</span>
-                <span className="text-xs font-medium text-blue-500">{focusDescriptors[focusRating-1]}</span>
+                <span className="text-sm text-muted-foreground">
+                  {focusRating}/10
+                </span>
+                <span className="text-xs font-medium text-blue-500">
+                  {focusDescriptors[focusRating - 1]}
+                </span>
               </div>
             </div>
             <Slider
@@ -519,10 +690,13 @@ export function SessionDebriefModal({
     return (
       <div className="space-y-6">
         <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-rose-700 dark:text-rose-300 mb-2">Time for Reflection</h3>
+          <h3 className="text-lg font-medium text-rose-700 dark:text-rose-300 mb-2">
+            Time for Reflection
+          </h3>
           <p className="text-rose-700/80 dark:text-rose-300/80 text-sm mb-3">
-            Reflecting on your work session helps strengthen neural pathways and improves future productivity.
-            Take 5-15 minutes to consider these questions:
+            Reflecting on your work session helps strengthen neural pathways and
+            improves future productivity. Take 5-15 minutes to consider these
+            questions:
           </p>
           <ul className="space-y-2 text-sm text-rose-600 dark:text-rose-400">
             <li className="flex gap-2">
@@ -561,11 +735,11 @@ export function SessionDebriefModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center"
       style={{
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
       }}
       onClick={(e) => {
         // Close when clicking outside
@@ -578,25 +752,27 @@ export function SessionDebriefModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            {currentPage === 'reflection' ? (
+            {currentPage === "reflection" ? (
               <FileText className="h-5 w-5 text-rose-500" />
-            ) : currentPage === 'feelings' ? (
+            ) : currentPage === "feelings" ? (
               <Heart className="h-5 w-5 text-blue-500" />
             ) : (
               <BarChart3 className="h-5 w-5 text-green-500" />
             )}
             <h2 className="text-xl font-semibold">
-              {currentPage === 'reflection' ? 'Session Reflection' : 
-               currentPage === 'feelings' ? 'Session Experience' : 
-               'Productivity Metrics'}
+              {currentPage === "reflection"
+                ? "Session Reflection"
+                : currentPage === "feelings"
+                  ? "Session Experience"
+                  : "Productivity Metrics"}
             </h2>
-            {currentPage === 'reflection' && (
+            {currentPage === "reflection" && (
               <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-1.5 py-0.5 text-xs ml-2">
                 5-15 min
               </Badge>
             )}
           </div>
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
@@ -610,55 +786,63 @@ export function SessionDebriefModal({
         {/* Page indicator */}
         <div className="flex items-center justify-center mb-6">
           <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${currentPage === 'reflection' ? 'bg-rose-500' : 'bg-gray-300'}`} />
+            <div
+              className={`w-3 h-3 rounded-full ${currentPage === "reflection" ? "bg-rose-500" : "bg-gray-300"}`}
+            />
             <div className="w-8 h-0.5 bg-gray-300" />
-            <div className={`w-3 h-3 rounded-full ${currentPage === 'feelings' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+            <div
+              className={`w-3 h-3 rounded-full ${currentPage === "feelings" ? "bg-blue-500" : "bg-gray-300"}`}
+            />
             <div className="w-8 h-0.5 bg-gray-300" />
-            <div className={`w-3 h-3 rounded-full ${currentPage === 'metrics' ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <div
+              className={`w-3 h-3 rounded-full ${currentPage === "metrics" ? "bg-green-500" : "bg-gray-300"}`}
+            />
           </div>
         </div>
 
         {/* Content area */}
-        {currentPage === 'reflection' ? (
-          renderReflectionView()
-        ) : currentPage === 'feelings' ? (
-          renderFeelingsView()
-        ) : (
-          renderMetricsView()
-        )}
+        {currentPage === "reflection"
+          ? renderReflectionView()
+          : currentPage === "feelings"
+            ? renderFeelingsView()
+            : renderMetricsView()}
 
         {/* Footer with navigation/action buttons */}
         <div className="flex justify-between gap-2 mt-6">
-          {currentPage === 'reflection' ? (
+          {currentPage === "reflection" ? (
             <div></div>
           ) : (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handlePreviousPage}
               className="gap-2"
             >
               <ChevronLeft className="h-4 w-4" />
-              {currentPage === 'feelings' ? 'Back to Reflection' : 'Back to Experience'}
+              {currentPage === "feelings"
+                ? "Back to Reflection"
+                : "Back to Experience"}
             </Button>
           )}
-          
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            {currentPage === 'metrics' ? (
-              <Button 
+            {currentPage === "metrics" ? (
+              <Button
                 onClick={handleSave}
                 className="bg-green-500 hover:bg-green-600 text-white"
               >
                 Save Debrief
               </Button>
             ) : (
-              <Button 
-                className={`gap-2 ${currentPage === 'reflection' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+              <Button
+                className={`gap-2 ${currentPage === "reflection" ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-500 hover:bg-blue-600"} text-white`}
                 onClick={handleNextPage}
               >
-                {currentPage === 'reflection' ? 'Rate Experience' : 'View Metrics'}
+                {currentPage === "reflection"
+                  ? "Rate Experience"
+                  : "View Metrics"}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             )}
@@ -666,5 +850,5 @@ export function SessionDebriefModal({
         </div>
       </div>
     </div>
-  )
-} 
+  );
+}

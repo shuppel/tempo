@@ -1,11 +1,11 @@
-import * as React from "react"
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import * as React from "react";
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 interface CircularProgressProps {
-  progress: number // Current progress value (0-100).
-  size?: number // Diameter of the circular progress indicator.
-  strokeWidth?: number // Thickness of the stroke.
-  className?: string // Additional custom styling classes.
+  progress: number; // Current progress value (0-100).
+  size?: number; // Diameter of the circular progress indicator.
+  strokeWidth?: number; // Thickness of the stroke.
+  className?: string; // Additional custom styling classes.
 }
 
 /**
@@ -18,38 +18,50 @@ export function CircularProgress({
   progress,
   size = 40,
   strokeWidth = 4,
-  className
+  className,
 }: CircularProgressProps) {
-  const [displayProgress, setDisplayProgress] = React.useState(0)
+  const [displayProgress, setDisplayProgress] = React.useState(0);
+  const animationRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
-    // Smoothly animate the progress value
-    const duration = 500 // Animation duration in milliseconds.
-    const steps = 60 // Number of animation steps for smoothness.
-    const stepDuration = duration / steps // Time per step.
-    const increment = (progress - displayProgress) / steps // Value increment per step.
+    // Guard: Only animate if displayProgress !== progress
+    if (displayProgress === progress) return;
+    if (animationRef.current) {
+      clearInterval(animationRef.current);
+    }
+    const duration = 500; // Animation duration in milliseconds.
+    const steps = 60; // Number of animation steps for smoothness.
+    const stepDuration = duration / steps; // Time per step.
+    const increment = (progress - displayProgress) / steps; // Value increment per step.
 
-    let currentStep = 0
-    const timer = setInterval(() => {
+    let currentStep = 0;
+    animationRef.current = setInterval(() => {
       if (currentStep >= steps) {
-        clearInterval(timer)
-        setDisplayProgress(progress) // Ensure the final value is exact.
+        if (animationRef.current) clearInterval(animationRef.current);
+        setDisplayProgress(progress); // Ensure the final value is exact.
       } else {
-        setDisplayProgress(prev => prev + increment)
-        currentStep++
+        setDisplayProgress((prev) => prev + increment);
+        currentStep++;
       }
-    }, stepDuration)
+    }, stepDuration);
 
-    return () => clearInterval(timer) // Cleanup interval on unmount or progress update.
-  }, [progress])
+    return () => {
+      if (animationRef.current) clearInterval(animationRef.current);
+    };
+  }, [progress, displayProgress]);
 
   // Calculate circle dimensions
-  const radius = (size - strokeWidth) / 2
-  const circumference = radius * 2 * Math.PI
-  const offset = circumference - (displayProgress / 100) * circumference
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (displayProgress / 100) * circumference;
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div
+      className={cn(
+        "relative inline-flex items-center justify-center",
+        className,
+      )}
+    >
       {/* SVG container for the circular progress bar */}
       <svg className="transform -rotate-90" width={size} height={size}>
         {/* Background Circle (Track) */}
@@ -81,5 +93,5 @@ export function CircularProgress({
         {Math.round(displayProgress)}%
       </span>
     </div>
-  )
+  );
 }

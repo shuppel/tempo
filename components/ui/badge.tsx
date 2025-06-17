@@ -1,6 +1,6 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Badge Variants:
@@ -25,8 +25,8 @@ const badgeVariants = cva(
     defaultVariants: {
       variant: "default", // Default styling.
     },
-  }
-)
+  },
+);
 
 /**
  * BadgeProps Interface:
@@ -47,7 +47,7 @@ export interface BadgeProps
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
     <span className={cn(badgeVariants({ variant }), className)} {...props} />
-  )
+  );
 }
 
-export { Badge, badgeVariants }
+export { Badge, badgeVariants };

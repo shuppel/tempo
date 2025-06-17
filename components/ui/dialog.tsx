@@ -1,35 +1,35 @@
-"use client" // Ensures this component runs only on the client side in Next.js.
+"use client"; // Ensures this component runs only on the client side in Next.js.
 
-import * as React from "react"
-import { memo } from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
+import * as React from "react";
+import { memo } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 
-import { cn } from "@/lib/utils" // Utility function for merging class names dynamically.
+import { cn } from "@/lib/utils"; // Utility function for merging class names dynamically.
 
 /**
  * Dialog Component:
  * - Linear-inspired dialog component.
  */
-const Dialog = DialogPrimitive.Root
+const Dialog = DialogPrimitive.Root;
 
 /**
  * DialogTrigger Component:
  * - Element that opens the dialog.
  */
-const DialogTrigger = DialogPrimitive.Trigger
+const DialogTrigger = DialogPrimitive.Trigger;
 
 /**
  * DialogPortal Component:
  * - Renders dialog outside of DOM hierarchy.
  */
-const DialogPortal = DialogPrimitive.Portal
+const DialogPortal = DialogPrimitive.Portal;
 
 /**
  * DialogClose Component:
  * - Button that closes the dialog.
  */
-const DialogClose = DialogPrimitive.Close
+const DialogClose = DialogPrimitive.Close;
 
 /**
  * DialogOverlay Component:
@@ -44,13 +44,13 @@ const DialogOverlay = memo(
       ref={ref}
       className={cn(
         "fixed inset-0 z-50 bg-foreground/10 backdrop-blur-sm data-[state=open]:animate-linear-in data-[state=closed]:animate-linear-out",
-        className
+        className,
       )}
       {...props}
     />
-  ))
-)
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+  )),
+);
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 /**
  * DialogContent Component:
@@ -69,7 +69,7 @@ const DialogContent = React.forwardRef<
         "bg-background p-5 shadow-linear-dropdown border border-border/40 duration-150",
         "data-[state=open]:animate-linear-in data-[state=closed]:animate-linear-out",
         "sm:rounded-lg",
-        className
+        className,
       )}
       {...props}
     >
@@ -80,8 +80,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
-DialogContent.displayName = DialogPrimitive.Content.displayName
+));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 /**
  * DialogHeader Component:
@@ -92,14 +92,11 @@ const DialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col space-y-1 text-left mb-3",
-      className
-    )}
+    className={cn("flex flex-col space-y-1 text-left mb-3", className)}
     {...props}
   />
-)
-DialogHeader.displayName = "DialogHeader"
+);
+DialogHeader.displayName = "DialogHeader";
 
 /**
  * DialogFooter Component:
@@ -112,12 +109,12 @@ const DialogFooter = ({
   <div
     className={cn(
       "flex flex-row items-center justify-end space-x-2 pt-3",
-      className
+      className,
     )}
     {...props}
   />
-)
-DialogFooter.displayName = "DialogFooter"
+);
+DialogFooter.displayName = "DialogFooter";
 
 /**
  * DialogTitle Component:
@@ -129,14 +126,11 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn(
-      "text-base font-medium leading-none",
-      className
-    )}
+    className={cn("text-base font-medium leading-none", className)}
     {...props}
   />
-))
-DialogTitle.displayName = DialogPrimitive.Title.displayName
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 /**
  * DialogDescription Component:
@@ -151,8 +145,8 @@ const DialogDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-DialogDescription.displayName = DialogPrimitive.Description.displayName
+));
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 // Exporting all components for modular use.
 export {
@@ -166,4 +160,4 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-}
+};

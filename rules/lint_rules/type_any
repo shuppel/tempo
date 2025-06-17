@@ -1,0 +1,39 @@
+## If you recieve a lint error, "unexpected any. Specify a different type":
+
+1) Identify the context:
+
+- Is it a variable declaration?
+- A function parameter?
+- A function return type?
+- A generic type parameter?
+- A class property?
+
+
+2) Analyze current usage:
+
+- What values are actually assigned to or passed into this position?
+- Are there existing type hints in the code (assertions, checks, operations)?
+
+
+3) Determine appropriate type approach:
+
+- If structure is consistent → create interface/type
+- If structure varies but follows a pattern → use generics
+- If limited set of possible values → use union types
+- If truly dynamic → consider indexed types or Record
+
+
+4) Implementation strategy:
+
+For simple cases → use primitives (string, number, boolean)
+For objects → create interfaces with required/optional properties
+For arrays → specify element types (Array<T> or T[])
+For functions → define parameter and return types precisely
+For libraries without types → create minimal interface for used portions
+
+
+5) Edge case handling:
+
+If type truly can't be determined → use unknown (not any)
+If mixed types required → use discriminated unions
+If partial typing possible → use partial types (Partial<T>)

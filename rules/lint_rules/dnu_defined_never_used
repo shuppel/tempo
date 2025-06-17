@@ -1,0 +1,25 @@
+##  If you receive a lint error, "defined but never used". Analyze each unused definition systematically:
+
+1) Determine the definition type (import, variable, parameter, function, etc.)
+
+2) Based on type, analyze purpose:
+
+- For imports: Is it partially used? Needed for side effects? Imported incorrectly?
+- For variables: Is it for debugging? Used in commented code? A typo of another variable?
+- For parameters: Is it part of an interface contract? Used in a parent class?
+- For functions: Is it an event handler? Meant to be exported? Used via reference?
+
+
+3) Decide on action:
+
+- Remove completely (default for most cases)
+- Replace with proper usage
+- Mark with underscore prefix (_unused) if required by API/interface
+- Add explicit comment if being kept intentionally
+
+
+4) Check impact:
+
+- Will removal affect type safety?
+- Could it break future implementations?
+- Is it required for documentation?

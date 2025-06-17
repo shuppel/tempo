@@ -1,16 +1,17 @@
 // /features/brain-dump/components/BrainDumpForm.tsx
-import React from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CircularProgress } from "@/components/ui/circular-progress"
-import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react"
-import { ProcessedStories } from "./ProcessedStories"
-import { useBrainDump } from "../hooks/useBrainDump"
-import type { ProcessedStory } from "@/lib/types"
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CircularProgress } from "@/components/ui/circular-progress";
+import { Info, Loader2, Lock, Unlock, XCircle, Bug } from "lucide-react";
+import { ProcessedStories } from "./ProcessedStories";
+import { useBrainDump } from "../hooks/useBrainDump";
+import type { ProcessedStory } from "@/lib/types";
+import { escapeHtml } from "@/lib/utils";
 
 interface BrainDumpFormProps {
-  onTasksProcessed?: (stories: ProcessedStory[]) => void
+  onTasksProcessed?: (stories: ProcessedStory[]) => void;
 }
 
 export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
@@ -28,8 +29,8 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
     processTasks,
     handleCreateSession,
     handleDurationChange,
-    handleRetry
-  } = useBrainDump(onTasksProcessed)
+    handleRetry,
+  } = useBrainDump(onTasksProcessed);
 
   return (
     <>
@@ -37,14 +38,15 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-semibold">Brain Dump</h2>
           <p className="text-sm text-muted-foreground">
-            Enter your tasks, one per line. Just brain dump everything you need to do...
+            Enter your tasks, one per line. Just brain dump everything you need
+            to do...
           </p>
         </div>
         <div className="w-[48px] shrink-0">
           {isProcessing ? (
             <div className="relative">
-              <CircularProgress 
-                progress={processingProgress} 
+              <CircularProgress
+                progress={processingProgress}
                 size={48}
                 className="bg-background rounded-full shadow-sm"
               />
@@ -54,7 +56,9 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
             </div>
           ) : (
             <div className="w-[48px] h-[48px] flex items-center justify-center">
-              {isInputLocked && <Lock className="h-5 w-5 text-muted-foreground" />}
+              {isInputLocked && (
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
           )}
         </div>
@@ -64,31 +68,42 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
         {error && (
           <Alert variant="destructive" className="animate-in fade-in-50">
             <div className="flex items-start gap-2">
-              {error.code === 'PARSING_ERROR' ? (
+              {error.code === "PARSING_ERROR" ? (
                 <Bug className="h-4 w-4 mt-1" />
               ) : (
                 <XCircle className="h-4 w-4 mt-1" />
               )}
               <div className="space-y-2 flex-1">
                 <AlertTitle>
-                  {error.code === 'PARSING_ERROR' ? 'AI Processing Error' : 'Error Processing Tasks'}
+                  {error.code === "PARSING_ERROR"
+                    ? "AI Processing Error"
+                    : "Error Processing Tasks"}
                 </AlertTitle>
                 <AlertDescription>
                   <p>{error.message}</p>
-                  {error.details && (
+                  {typeof error.details === "string" ||
+                  typeof error.details === "object" ? (
                     <div className="mt-2">
-                      <div className="text-sm font-medium mb-1">Technical Details:</div>
-                      <pre className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32">
-                        {typeof error.details === 'string' 
-                          ? error.details 
-                          : JSON.stringify(error.details, null, 2)
-                        }
-                      </pre>
+                      <div className="text-sm font-medium mb-1">
+                        Technical Details:
+                      </div>
+                      <pre
+                        className="text-xs bg-destructive/10 p-2 rounded-md overflow-auto max-h-32"
+                        dangerouslySetInnerHTML={{
+                          __html: escapeHtml(
+                            String(
+                              typeof error.details === "string"
+                                ? error.details
+                                : JSON.stringify(error.details, null, 2),
+                            ),
+                          ),
+                        }}
+                      />
                     </div>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="mt-4"
                     onClick={handleRetry}
                   >
@@ -107,21 +122,43 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
               <AlertTitle>Input Format Tips</AlertTitle>
               <AlertDescription>
                 <ul className="mt-2 space-y-1 text-sm">
-                  <li>• Start with action verbs: "Create", "Review", "Update", etc.</li>
-                  <li>• Add time estimates (optional): "2 hours of work on Project X"</li>
-                  <li>• Mark priorities: Add <span className="font-medium text-primary">FROG</span> to indicate high-priority tasks</li>
-                  <li>• Add deadlines (optional): "Complete by Friday" or "Due: 3pm"</li>
-                  <li>• Group related tasks: Use similar prefixes for related items</li>
-                  <li>• Be specific: "Review Q1 metrics report" vs "Review report"</li>
+                  <li>
+                    • Start with action verbs:{" "}
+                    {escapeHtml('"Create", "Review", "Update", etc.')}
+                  </li>
+                  <li>
+                    • Add time estimates (optional):{" "}
+                    {escapeHtml('"2 hours of work on Project X"')}
+                  </li>
+                  <li>
+                    • Mark priorities: Add{" "}
+                    <span className="font-medium text-primary">FROG</span> to
+                    indicate high-priority tasks
+                  </li>
+                  <li>
+                    • Add deadlines (optional):{" "}
+                    {escapeHtml('"Complete by Friday" or "Due: 3pm"')}
+                  </li>
+                  <li>
+                    • Group related tasks: Use similar prefixes for related
+                    items
+                  </li>
+                  <li>
+                    • Be specific:{" "}
+                    {escapeHtml(
+                      '"Review Q1 metrics report" vs "Review report"',
+                    )}
+                  </li>
                 </ul>
                 <div className="mt-2 text-sm font-medium">Examples:</div>
-                <pre className="mt-1 text-sm bg-muted p-2 rounded-md">
-                  Create landing page mockup for client FROG{"\n"}
-                  Review Q1 metrics report - 30 mins{"\n"}
-                  Update team documentation - flexible{"\n"}
-                  Complete project proposal by EOD{"\n"}
-                  Daily standup and team sync
-                </pre>
+                <pre
+                  className="mt-1 text-sm bg-muted p-2 rounded-md"
+                  dangerouslySetInnerHTML={{
+                    __html: escapeHtml(
+                      `Create landing page mockup for client FROG\nReview Q1 metrics report - 30 mins\nUpdate team documentation - flexible\nComplete project proposal by EOD\nDaily standup and team sync`,
+                    ),
+                  }}
+                />
               </AlertDescription>
             </div>
           </div>
@@ -129,7 +166,7 @@ export const BrainDumpForm = ({ onTasksProcessed }: BrainDumpFormProps) => {
 
         <div className="relative">
           <Textarea
-            className={`min-h-[200px] font-mono ${isInputLocked ? 'opacity-50' : ''}`}
+            className={`min-h-[200px] font-mono ${isInputLocked ? "opacity-50" : ""}`}
             placeholder={`Task 1
 Task 2 FROG
 Task 3 - flexible
@@ -147,10 +184,10 @@ Task 4 - due by 5pm`}
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end gap-2">
-          {processedStories.length > 0 && (
-            <Button 
+          {isInputLocked && (
+            <Button
               onClick={handleRetry}
               variant="outline"
               size="sm"
@@ -160,7 +197,7 @@ Task 4 - due by 5pm`}
               Clear & Unlock
             </Button>
           )}
-          <Button 
+          <Button
             onClick={() => processTasks(false)}
             disabled={!tasks.trim() || isProcessing || isInputLocked}
             className="w-32"
@@ -176,12 +213,12 @@ Task 4 - due by 5pm`}
                 Locked
               </>
             ) : (
-              'Process Tasks'
+              "Process Tasks"
             )}
           </Button>
         </div>
 
-        <ProcessedStories 
+        <ProcessedStories
           stories={processedStories}
           editedDurations={editedDurations}
           isCreatingSession={isCreatingSession}
@@ -191,5 +228,5 @@ Task 4 - due by 5pm`}
         />
       </div>
     </>
-  )
-}
+  );
+};

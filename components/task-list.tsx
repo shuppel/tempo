@@ -1,14 +1,14 @@
-import { Badge } from "@/components/ui/badge"
-import { AlertCircle } from "lucide-react"
-import type { ProcessedTask } from "@/lib/types"
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle } from "lucide-react";
+import type { ProcessedTask } from "@/lib/types";
 
 interface TaskListProps {
-  tasks: ProcessedTask[]
+  tasks: ProcessedTask[];
 }
 
 export function TaskList({ tasks }: TaskListProps) {
   const renderTaskBreaks = (task: ProcessedTask) => {
-    if (!task.suggestedBreaks?.length) return null
+    if (!task.suggestedBreaks?.length) return null;
 
     return (
       <div className="ml-6 mt-1 text-xs text-muted-foreground">
@@ -22,8 +22,8 @@ export function TaskList({ tasks }: TaskListProps) {
           </div>
         ))}
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <ul className="mt-2 space-y-1">
@@ -42,7 +42,9 @@ export function TaskList({ tasks }: TaskListProps) {
               </Badge>
             )}
             {task.isFlexible ? (
-              <Badge variant="outline" className="text-xs">flexible</Badge>
+              <Badge variant="outline" className="text-xs">
+                flexible
+              </Badge>
             ) : (
               <span className="text-xs text-muted-foreground">
                 ({task.duration} mins)
@@ -53,5 +55,5 @@ export function TaskList({ tasks }: TaskListProps) {
         </li>
       ))}
     </ul>
-  )
-} 
+  );
+}
