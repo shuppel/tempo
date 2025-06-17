@@ -2,6 +2,18 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Setup
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```
+ANTHROPIC_API_KEY=your_api_key_here
+```
+
+You'll need an Anthropic API key to use the AI features. You can get one by signing up at [Anthropic's website](https://www.anthropic.com/).
+
+### Running the Development Server
+
 First, run the development server:
 
 ```bash
